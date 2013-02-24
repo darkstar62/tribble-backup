@@ -54,6 +54,7 @@ ENDMACRO(MAKE_TEST)
     backup_volume_SOURCES
       backup_volume.cc
       backup_volume.h
+      backup_volume_defs.h
       common.h
   )
   ADD_LIBRARY(backup_volume ${backup_volume_SOURCES})

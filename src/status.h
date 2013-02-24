@@ -10,6 +10,7 @@
 
 namespace backup2 {
 
+// Series of error codes that can be used with Status.
 enum ErrorCode {
   kStatusOk = 0,
   kStatusNotImplemented,
@@ -19,6 +20,8 @@ enum ErrorCode {
   kStatusGenericError,
 };
 
+// Descriptions of the error codes.  These must be in the same order as the enum
+// above.
 static struct Errordescriptions {
   ErrorCode code;
   char* description;
@@ -31,6 +34,8 @@ static struct Errordescriptions {
   { kStatusGenericError, "Generic error" },
 };
 
+// A generic object that can be used to return detailed status about an
+// operation.
 class Status {
  public:
   // Standard constructor.

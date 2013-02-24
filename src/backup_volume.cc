@@ -7,6 +7,7 @@
 #include <string>
 #include "glog/logging.h"
 #include "src/backup_volume.h"
+#include "src/common.h"
 #include "src/file.h"
 #include "src/file_interface.h"
 
@@ -157,7 +158,6 @@ Status BackupVolume::Create(const ConfigOptions& options) {
 
   // Create (but don't yet write!) the backup descriptor 1.  We'll write this
   // once the backup finishes.
-  descriptor1_.header_type = kHeaderTypeDescriptor1;
   descriptor1_.total_chunks = 0;
 
   // Create (but don't yet write!) the backup descriptor header.  We'll maintain
@@ -165,7 +165,6 @@ Status BackupVolume::Create(const ConfigOptions& options) {
   // descriptor 2 not present, and it gets set to true when
   // WriteBackupDescriptor2() is called, indicating this is the last file in the
   // set.
-  descriptor_header_.header_type = kHeaderTypeDescriptorHeader;
   descriptor_header_.backup_descriptor_1_offset = 0;
   descriptor_header_.backup_descriptor_2_present = 0;
 
@@ -183,7 +182,6 @@ Status BackupVolume::WriteChunk(
   int32_t chunk_offset = file_->Tell();
 
   ChunkHeader header;
-  header.header_type = kHeaderTypeChunkHeader;
   header.md5sum = md5sum;
   header.unencoded_size = raw_size;
   header.encoded_size = encoded_size;
@@ -204,7 +202,6 @@ Status BackupVolume::WriteChunk(
 
   // Record the chunk in our descriptor.
   BackupDescriptor1Chunk descriptor_chunk;
-  descriptor_chunk.header_type = kHeaderTypeDescriptor1Chunk;
   descriptor_chunk.md5sum = md5sum;
   descriptor_chunk.offset = chunk_offset;
 

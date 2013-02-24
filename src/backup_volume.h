@@ -7,7 +7,7 @@
 #include <memory>
 #include <string>
 
-#include "boost/functional/hash.hpp"
+#include "src/backup_volume_defs.h"
 #include "src/common.h"
 #include "src/file.h"
 #include "src/status.h"
@@ -15,124 +15,12 @@
 namespace backup2 {
 class FileInterface;
 
+// Configuration options to construct the backup with.  These options are stored
+// in backup descriptor 2 so subsequent backups to the same volumes will re-use
+// the options.
 typedef struct ConfigOptions {
   ConfigOptions() { memset(this, 0, sizeof(ConfigOptions)); }
   uint64_t max_volume_size_mb;
-};
-
-struct Uint128 {
-  uint64_t hi;
-  uint64_t lo;
-
-  bool operator==(const Uint128& rhs) const {
-    return hi == rhs.hi && lo == rhs.lo;
-  }
-
-  friend std::size_t hash_value(const Uint128& rhs) {
-    std::size_t seed = 0;
-    boost::hash_combine(seed, rhs.hi);
-    boost::hash_combine(seed, rhs.lo);
-    return seed;
-  }
-};
-
-enum EncodingType {
-  kEncodingTypeRaw = 0,
-  kEncodingTypeZlib,
-  kEndodingTypeBzip2,
-};
-
-enum HeaderType {
-  kHeaderTypeChunkHeader,
-  kHeaderTypeDescriptor1,
-  kHeaderTypeDescriptor1Chunk,
-  kHeaderTypeDescriptor2,
-  kHeaderTypeDescriptorHeader,
-};
-
-// Chunk header for each chunk.
-typedef struct ChunkHeader {
-  ChunkHeader() { memset(this, 0, sizeof(ChunkHeader)); }
-
-  HeaderType header_type;
-  Uint128 md5sum;
-  uint64_t unencoded_size;
-  uint64_t encoded_size;
-  EncodingType encoding_type;
-};
-
-typedef struct BackupDescriptor1 {
-  BackupDescriptor1() { memset(this, 0, sizeof(BackupDescriptor1)); }
-
-  HeaderType header_type;
-  uint64_t total_chunks;
-  // total_chunks BackupDescriptor1Chunks follow after this.
-};
-
-typedef struct BackupDescriptor1Chunk {
-  BackupDescriptor1Chunk() { memset(this, 0, sizeof(BackupDescriptor1Chunk)); }
-
-  HeaderType header_type;
-  Uint128 md5sum;
-  uint64_t offset;
-};
-
-typedef struct BackupDescriptor2 {
-  BackupDescriptor2() { memset(this, 0, sizeof(BackupDescriptor2)); }
-
-  HeaderType header_type;
-  uint64_t descriptor_size;
-  uint64_t num_backups;
-  // num_backups BackupIncrements follow this.
-};
-
-typedef struct BackupIncrement {
-  BackupIncrement() { memset(this, 0, sizeof(BackupIncrement)); }
-
-  HeaderType header_type;
-  Uint128 guid;
-  uint64_t backup_date;
-  uint8_t backup_type;
-  Uint128 parent_guid;
-  uint64_t uncompressed_size;
-  uint64_t compressed_size;
-  uint64_t num_files;
-  uint64_t description_size;
-  char description[];  // description_size bytes.
-  // num_files BackupFile follow this.
-};
-
-typedef struct BackupFile {
-  BackupFile() { memset(this, 0, sizeof(BackupFile)); }
-
-  HeaderType header_type;
-  uint64_t file_size;
-  uint64_t create_date;
-  uint64_t modify_date;
-  uint64_t attributes;
-  uint64_t num_chunks;
-  uint64_t filename_size;
-  char filename[];  // filename_size bytes.
-  // num_chunks BackupChunks follow this.
-};
-
-typedef struct BackupChunk {
-  BackupChunk() { memset(this, 0, sizeof(BackupChunk)); }
-
-  HeaderType header_type;
-  Uint128 md5sum;
-  uint8_t volume_num;
-  uint64_t chunk_offset;
-  uint64_t uncompressed_size;
-};
-
-// Format of the backup descriptor header at the end of the file.
-struct BackupDescriptorHeader {
-  BackupDescriptorHeader() { memset(this, 0, sizeof(BackupDescriptorHeader)); }
-
-  HeaderType header_type;
-  uint64_t backup_descriptor_1_offset;
-  uint8_t backup_descriptor_2_present;
 };
 
 // A BackupVolume represents a single backup volume file.  This could be
