@@ -41,21 +41,21 @@ class BackupVolumeTest : public testing::Test {
     EXPECT_CALL(*file, Open(File::Mode::kModeRead))
         .WillOnce(Return(Status::OK));
     EXPECT_CALL(*file, Seek(0)).WillOnce(Return(Status::OK));
-    EXPECT_CALL(*file, Read(_, _))
+    EXPECT_CALL(*file, Read(_, _, _))
         .WillOnce(DoAll(SetCharStringValue(kGoodVersion, 8),
                         Return(Status::OK)));
   }
 
   // Set expectations for a good backup descriptor header.
   void ExpectGoodBackupDescriptorHeader(MockFile* file, bool descriptor2) {
-    good_descriptor_header_.header_type = kHeaderTypeDescriptorHeader;
     good_descriptor_header_.backup_descriptor_1_offset =
         kBackupDescriptor1Offset;
     good_descriptor_header_.backup_descriptor_2_present = descriptor2 ? 1 : 0;
 
     EXPECT_CALL(*file, Seek(-sizeof(BackupDescriptorHeader)))
         .WillOnce(Return(Status::OK));
-    EXPECT_CALL(*file, Read(_, sizeof(BackupDescriptorHeader)))
+    EXPECT_CALL(*file, Tell()).WillOnce(Return(0));
+    EXPECT_CALL(*file, Read(_, sizeof(BackupDescriptorHeader), _))
         .WillOnce(DoAll(
             SetCharStringValue(&good_descriptor_header_,
                                sizeof(BackupDescriptorHeader)),
@@ -63,11 +63,10 @@ class BackupVolumeTest : public testing::Test {
   }
 
   void ExpectGoodBackupDescriptor1(MockFile* file) {
-    good_descriptor_1_.header_type = kHeaderTypeDescriptor1;
     good_descriptor_1_.total_chunks = 0;
     EXPECT_CALL(*file, Seek(kBackupDescriptor1Offset))
         .WillOnce(Return(Status::OK));
-    EXPECT_CALL(*file, Read(_, _))
+    EXPECT_CALL(*file, Read(_, _, _))
         .WillOnce(DoAll(
             SetCharStringValue(&good_descriptor_1_, sizeof(BackupDescriptor1)),
             Return(Status::OK)));
@@ -134,7 +133,7 @@ TEST_F(BackupVolumeTest, InvalidVersionHeader) {
 
   // Read the version.  This should fail the read.
   char version[9] = "BKP_0000";
-  EXPECT_CALL(*file, Read(_, _))
+  EXPECT_CALL(*file, Read(_, _, _))
       .WillOnce(DoAll(SetCharStringValue(version, 8),
                       Return(Status::UNKNOWN)));
   EXPECT_CALL(*file, Close())
@@ -153,7 +152,7 @@ TEST_F(BackupVolumeTest, InvalidVersionHeader) {
 
   // Read the version.  This should fail the read.
   char version_bad[9] = "ABCD1234";
-  EXPECT_CALL(*file, Read(_, _))
+  EXPECT_CALL(*file, Read(_, _, _))
       .WillOnce(DoAll(SetCharStringValue(version_bad, 8),
                       Return(Status::OK)));
   EXPECT_CALL(*file, Close())
@@ -190,7 +189,8 @@ TEST_F(BackupVolumeTest, InvalidBackupHeader) {
   ExpectGoodVersion(file);
   EXPECT_CALL(*file, Seek(-sizeof(BackupDescriptorHeader)))
       .WillOnce(Return(Status::OK));
-  EXPECT_CALL(*file, Read(_, sizeof(BackupDescriptorHeader)))
+  EXPECT_CALL(*file, Tell()).WillOnce(Return(0));
+  EXPECT_CALL(*file, Read(_, sizeof(BackupDescriptorHeader), _))
       .WillOnce(Return(Status::UNKNOWN));
   EXPECT_CALL(*file, Close()).WillOnce(Return(Status::OK));
 
@@ -206,7 +206,8 @@ TEST_F(BackupVolumeTest, InvalidBackupHeader) {
   ExpectGoodVersion(file);
   EXPECT_CALL(*file, Seek(-sizeof(BackupDescriptorHeader)))
       .WillOnce(Return(Status::OK));
-  EXPECT_CALL(*file, Read(_, sizeof(BackupDescriptorHeader)))
+  EXPECT_CALL(*file, Tell()).WillOnce(Return(0));
+  EXPECT_CALL(*file, Read(_, sizeof(BackupDescriptorHeader), _))
       .WillOnce(DoAll(
           SetCharStringValue(&header, sizeof(BackupDescriptorHeader)),
           Return(Status::OK)));
@@ -249,7 +250,7 @@ TEST_F(BackupVolumeTest, InvalidDescriptor1) {
 
     EXPECT_CALL(*file, Seek(kBackupDescriptor1Offset))
         .WillOnce(Return(Status::OK));
-    EXPECT_CALL(*file, Read(_, sizeof(BackupDescriptor1)))
+    EXPECT_CALL(*file, Read(_, sizeof(BackupDescriptor1), _))
         .WillOnce(Return(Status::UNKNOWN));
     EXPECT_CALL(*file, Close()).WillOnce(Return(Status::OK));
   }
@@ -269,7 +270,7 @@ TEST_F(BackupVolumeTest, InvalidDescriptor1) {
     desc.header_type = kHeaderTypeChunkHeader;
     EXPECT_CALL(*file, Seek(kBackupDescriptor1Offset))
         .WillOnce(Return(Status::OK));
-    EXPECT_CALL(*file, Read(_, _))
+    EXPECT_CALL(*file, Read(_, _, _))
         .WillOnce(DoAll(
             SetCharStringValue(&desc, sizeof(BackupDescriptor1)),
             Return(Status::OK)));
@@ -314,11 +315,9 @@ TEST_F(BackupVolumeTest, CreateCloseNoFinal) {
   // Now, if we Close() the file, we should see the descriptors that were set
   // up.
   BackupDescriptor1 expected_1;
-  expected_1.header_type = kHeaderTypeDescriptor1;
   expected_1.total_chunks = 0;
 
   BackupDescriptorHeader header;
-  header.header_type = kHeaderTypeDescriptorHeader;
   header.backup_descriptor_1_offset = 0x8;
   header.backup_descriptor_2_present = 0;
 
@@ -332,7 +331,7 @@ TEST_F(BackupVolumeTest, CreateCloseNoFinal) {
       .WillOnce(Return(Status::OK));
   EXPECT_CALL(*file, Close()).WillOnce(Return(Status::OK));
 
-  Status retval = volume.Close(false);
+  Status retval = volume.Close();
   Mock::VerifyAndClearExpectations(file);
   EXPECT_TRUE(retval.ok());
 }
@@ -386,9 +385,8 @@ TEST_F(BackupVolumeTest, AppendChunkToExistingFile) {
   uint64_t offset = 0x18374;
 
   ChunkHeader header;
-  header.header_type = kHeaderTypeChunkHeader;
   header.md5sum = sum;
-  header.unencoded_size = data.size();
+  header.unencoded_size = data.size() - 3;
   header.encoded_size = data.size();
   header.encoding_type = kEncodingTypeRaw;
 
@@ -400,7 +398,7 @@ TEST_F(BackupVolumeTest, AppendChunkToExistingFile) {
                            data.size()))
       .WillOnce(Return(Status::OK));
 
-  Status retval = volume.WriteChunk(sum, &data.at(0), data.size(),
+  Status retval = volume.WriteChunk(sum, &data.at(0), data.size() - 3,
                                     data.size(), kEncodingTypeRaw);
   EXPECT_TRUE(retval.ok());
   Mock::VerifyAndClearExpectations(file);
@@ -411,16 +409,13 @@ TEST_F(BackupVolumeTest, AppendChunkToExistingFile) {
   // Now, if we Close() the file, we should see the descriptors that were set
   // up.
   BackupDescriptor1 expected_1;
-  expected_1.header_type = kHeaderTypeDescriptor1;
   expected_1.total_chunks = 1;
 
   BackupDescriptor1Chunk expected_chunk_1;
-  expected_chunk_1.header_type = kHeaderTypeDescriptor1Chunk;
   expected_chunk_1.md5sum = sum;
   expected_chunk_1.offset = offset;
 
   BackupDescriptorHeader backup_header;
-  backup_header.header_type = kHeaderTypeDescriptorHeader;
   backup_header.backup_descriptor_1_offset = 0x7482;
   backup_header.backup_descriptor_2_present = 0;
 
@@ -438,7 +433,7 @@ TEST_F(BackupVolumeTest, AppendChunkToExistingFile) {
       .WillOnce(Return(Status::OK));
   EXPECT_CALL(*file, Close()).WillOnce(Return(Status::OK));
 
-  retval = volume.Close(false);
+  retval = volume.Close();
   Mock::VerifyAndClearExpectations(file);
   EXPECT_TRUE(retval.ok());
 }

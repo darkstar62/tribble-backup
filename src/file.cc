@@ -2,13 +2,17 @@
 // Author: Cory Maccarrone <darkstar6262@gmail.com>
 
 #include <string>
+#include <vector>
 
+#include "boost/algorithm/string/classification.hpp"
+#include "boost/algorithm/string/split.hpp"
 #include "boost/filesystem.hpp"
 #include "glog/logging.h"
 #include "src/file.h"
 #include "src/status.h"
 
 using std::string;
+using std::vector;
 
 namespace backup2 {
 
@@ -80,6 +84,7 @@ int32_t File::Tell() {
 
 Status File::Seek(int32_t offset) {
   CHECK_NOTNULL(file_);
+  clearerr(file_);
   int retval = 0;
   if (offset < 0) {
     // Seek from the end of the file.
@@ -96,12 +101,66 @@ Status File::Seek(int32_t offset) {
   return Status::OK;
 }
 
-Status File::Read(void* buffer, size_t length) {
+Status File::Read(void* buffer, size_t length, size_t* read_bytes) {
   CHECK_NOTNULL(file_);
-  size_t read_bytes = fread(buffer, 1, length, file_);
-  if (read_bytes < length) {
-    LOG(ERROR) << "Read " << read_bytes << ", expected " << length;
-    return Status(kStatusCorruptBackup, "Short read of file");
+  size_t read = fread(buffer, 1, length, file_);
+  if (read_bytes) {
+    *read_bytes = read;
+  }
+  if (read < length) {
+    if (!feof(file_)) {
+      // An error occurred, bail out.
+      clearerr(file_);
+      return Status(kStatusUnknown, "An I/O error occurred reading file");
+    }
+    // Otherwise, end-of-file.  This isn't an error, but we should still tell
+    // the caller it happened, in case it wasn't supposed to.
+    return Status(kStatusShortRead, "Short read of file");
+  }
+  return Status::OK;
+}
+
+Status File::ReadLines(vector<string>* lines) {
+  CHECK_NOTNULL(lines);
+
+  // Read data in 1KB chunks and pull out new-lines.
+  size_t data_read = 0;
+  string data;
+  data.resize(1024);
+  string last_line = "";
+  do {
+    data_read = fread(&data.at(0), 1, 1024, file_);
+    if (data_read < 1024 && !feof(file_)) {
+      // An error occurred, bail out.
+      clearerr(file_);
+      return Status(kStatusUnknown, "An I/O error occurred reading file");
+    }
+    data.resize(data_read);
+
+    vector<string> split_vec;
+    boost::split(split_vec, data, boost::algorithm::is_any_of("\n\r"),
+                 boost::token_compress_on);
+
+    if (split_vec.size() == 1) {
+      // Only one entry, there was no new-line.  Append it to the last_line
+      // string and keep going.
+      last_line += split_vec[0];
+    } else if (split_vec.size() > 1) {
+      // If we have a last_line, it gets prepended to the first entry in the
+      // split vector.
+      if (last_line != "") {
+        split_vec[0] = last_line + split_vec[0];
+        last_line = "";
+      }
+
+      // Add everything except the last one -- the last one goes into last_line.
+      lines->insert(lines->end(), split_vec.begin(), split_vec.end() - 1);
+      last_line = *(split_vec.end() - 1);
+    }
+  } while (data_read == 1024);
+
+  if (last_line != "") {
+    lines->push_back(last_line);
   }
   return Status::OK;
 }

@@ -14,13 +14,19 @@
 
 namespace backup2 {
 class FileInterface;
+class FileSet;
 
 // Configuration options to construct the backup with.  These options are stored
 // in backup descriptor 2 so subsequent backups to the same volumes will re-use
 // the options.
 typedef struct ConfigOptions {
   ConfigOptions() { memset(this, 0, sizeof(ConfigOptions)); }
+
+  // Maximum size in MB to make each backup volume.
   uint64_t max_volume_size_mb;
+
+  // Which volume of the series this volume represents.
+  uint64_t volume_number;
 };
 
 // A BackupVolume represents a single backup volume file.  This could be
@@ -46,15 +52,22 @@ class BackupVolume {
     return chunks_.find(md5sum) != chunks_.end();
   }
 
-  // Write a chunk to the volume.  This does *not* store the metadata for the
-  // file -- call AddChunkToFile() to do that.
+  // Write a chunk to the volume.  If successful, the chunk metadata is added to
+  // the passed file entry.
+  // file.  Metadata is stored in the current FileSet.
   Status WriteChunk(Uint128 md5sum, void* data, uint64_t raw_size,
                     uint64_t encoded_size, EncodingType type);
 
-  // Close out the backup volume.  If this is the last volume in the backup, we
-  // write descriptor 2 to the file.  Otherwise, we only leave descriptor 1 and
-  // the backup header.
-  Status Close(bool is_final);
+  // Close out the backup volume.  If this is the last volume in the backup a
+  // fileset is provided and we write descriptor 2 to the file.  Otherwise, we
+  // only leave descriptor 1 and the backup header.
+  Status Close();
+  Status CloseWithFileSet(const FileSet& fileset);
+
+  // Return the volume number this backup volume represents.
+  const uint64_t volume_number() const {
+    return descriptor_header_.volume_number;
+  }
 
  private:
   // Verify the version header in the file.
@@ -66,8 +79,12 @@ class BackupVolume {
   // Write the various backup descriptors to the file.  These are run in order
   // at the end of the file.
   Status WriteBackupDescriptor1();
-  Status WriteBackupDescriptor2();
+  Status WriteBackupDescriptor2(const FileSet& fileset);
   Status WriteBackupDescriptorHeader();
+
+  Status ReadBackupDescriptorHeader();
+  Status ReadBackupDescriptor1();
+  Status ReadBackupDescriptor2();
 
   // Current file version.  We expect to see this at the very begining of the
   // file to signify this is a valid backup file.
@@ -82,6 +99,7 @@ class BackupVolume {
 
   // Various metadata descriptors for reference later.
   BackupDescriptor1 descriptor1_;
+  BackupDescriptor2 descriptor2_;
   BackupDescriptorHeader descriptor_header_;
 
   // Vector of all chunks contained in this backup volume.  This is loaded

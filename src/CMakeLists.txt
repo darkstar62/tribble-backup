@@ -12,6 +12,7 @@ FIND_PACKAGE(GMock REQUIRED)
 FIND_PACKAGE(GTest REQUIRED)
 FIND_PACKAGE(GooglePerfTools REQUIRED)
 FIND_PACKAGE(Threads REQUIRED)
+FIND_PACKAGE(ZLIB REQUIRED)
 
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wnon-virtual-dtor -Wall -Werror -std=gnu++0x -Wextra")
 
@@ -49,6 +50,15 @@ ENDMACRO(MAKE_TEST)
       ${TCMALLOC_LIBRARIES}
     )
 
+# LIBRARY: backup_driver
+  LINT_SOURCES(
+    backup_driver_SOURCES
+      backup_driver.cc
+      backup_driver.h
+      # md5.h -- disabled, we don't want to lint this.
+  )
+  ADD_LIBRARY(backup_driver ${backup_driver_SOURCES})
+
 # LIBRARY: backup_volume
   LINT_SOURCES(
     backup_volume_SOURCES
@@ -80,7 +90,6 @@ ENDMACRO(MAKE_TEST)
       ${TCMALLOC_LIBRARIES}
     )
 
-
 # LIBRARY: file
   LINT_SOURCES(
     file_SOURCES
@@ -89,8 +98,15 @@ ENDMACRO(MAKE_TEST)
       file.h
       file_interface.h
       mock_file.h
-  )
+    )
   ADD_LIBRARY(file ${file_SOURCES})
+
+# LIBRARY: fileset
+  LINT_SOURCES(
+    file_SOURCES
+      fileset.h
+    )
+  ADD_LIBRARY(fileset ${file_SOURCES})
 
 # BINARY: cli_main
   LINT_SOURCES(
@@ -100,13 +116,16 @@ ENDMACRO(MAKE_TEST)
   ADD_EXECUTABLE(cli_main ${cli_main_SOURCES})
   TARGET_LINK_LIBRARIES(
     cli_main
+      backup_driver
       backup_volume
       file
+      fileset
       status
       ${Boost_FILESYSTEM_LIBRARY}
       ${Boost_SYSTEM_LIBRARY}
       ${GFLAGS_LIBRARY}
       ${GLOG_LIBRARY}
       ${TCMALLOC_LIBRARIES}
+      ${ZLIB_LIBRARY}
     )
 

@@ -18,6 +18,7 @@ enum ErrorCode {
   kStatusNoSuchFile,
   kStatusCorruptBackup,
   kStatusGenericError,
+  kStatusShortRead,
 };
 
 // Descriptions of the error codes.  These must be in the same order as the enum
@@ -32,6 +33,7 @@ static struct Errordescriptions {
   { kStatusNoSuchFile, "No such file" },
   { kStatusCorruptBackup, "Corrupt backup" },
   { kStatusGenericError, "Generic error" },
+  { kStatusShortRead, "Short read" },
 };
 
 // A generic object that can be used to return detailed status about an

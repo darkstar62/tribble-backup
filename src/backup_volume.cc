@@ -10,6 +10,7 @@
 #include "src/common.h"
 #include "src/file.h"
 #include "src/file_interface.h"
+#include "src/fileset.h"
 
 using std::hex;
 using std::make_pair;
@@ -28,7 +29,7 @@ BackupVolume::BackupVolume(FileInterface* file)
 }
 
 BackupVolume::~BackupVolume() {
-  if (file_) {
+  if (modified_) {
     LOG(WARNING) << "Deleting BackupVolume without Closing()!  "
                  << "Expect data loss!";
   }
@@ -79,7 +80,7 @@ Status BackupVolume::CheckVersion() {
     return retval;
   }
 
-  retval = file_->Read(&version.at(0), version.size());
+  retval = file_->Read(&version.at(0), version.size(), NULL);
   if (!retval.ok()) {
     return retval;
   }
@@ -96,47 +97,27 @@ Status BackupVolume::CheckBackupDescriptors() {
   if (!retval.ok()) {
     return retval;
   }
+  uint64_t previous_header_offset = file_->Tell();
 
-  BackupDescriptorHeader header;
-  retval = file_->Read(&header, sizeof(BackupDescriptorHeader));
-  if (!retval.ok()) {
-    return retval;
-  }
-  if (header.header_type != kHeaderTypeDescriptorHeader) {
-    LOG(ERROR) << "Backup descriptor header has invalid type: 0x" << hex
-               << static_cast<uint32_t>(header.header_type);
-    return Status(kStatusCorruptBackup, "Invalid descriptor header");
-  }
-
-  LOG(INFO) << "Backup 1 descriptor at 0x" << hex
-            << header.backup_descriptor_1_offset;
-
-  // Read the backup descriptor 1.
-  retval = file_->Seek(header.backup_descriptor_1_offset);
+  retval = ReadBackupDescriptorHeader();
   if (!retval.ok()) {
     return retval;
   }
 
-  BackupDescriptor1 descriptor1;
-  retval = file_->Read(&descriptor1, sizeof(BackupDescriptor1));
+  retval = ReadBackupDescriptor1();
   if (!retval.ok()) {
     return retval;
   }
-  if (descriptor1.header_type != kHeaderTypeDescriptor1) {
-    LOG(ERROR) << "Backup descriptor 1 has invalid type: 0x" << hex
-               << descriptor1.header_type;
-    return Status(kStatusCorruptBackup, "Invalid descriptor 1 header");
-  }
 
-  if (!header.backup_descriptor_2_present) {
+  if (!descriptor_header_.backup_descriptor_2_present) {
     LOG(INFO) << "No backup descriptor 2 -- not the last file!";
+  } else {
+    // ReadBackupDescriptor2();
   }
-
-  LOG(INFO) << "Number of chunks in file: " << descriptor1.total_chunks;
 
   // Store away the various metadata.
-  descriptor_header_ = header;
-  descriptor1_ = descriptor1;
+  descriptor2_.previous_backup_offset = previous_header_offset;
+  descriptor2_.previous_backup_volume_number = descriptor_header_.volume_number;
   return Status::OK;
 }
 
@@ -167,9 +148,11 @@ Status BackupVolume::Create(const ConfigOptions& options) {
   // set.
   descriptor_header_.backup_descriptor_1_offset = 0;
   descriptor_header_.backup_descriptor_2_present = 0;
+  descriptor_header_.volume_number = options.volume_number;
 
-  // Create an empty backup descriptor 2.  We'll be filling this in as the
-  // backup is created, and we'll write it to the file at the end.
+  // Descriptor 2 isn't created directly here -- instead, we wait for the backup
+  // driver to tell us when we've finished, and we write out the descriptor from
+  // that information.
 
   options_ = options;
   modified_ = true;
@@ -194,7 +177,7 @@ Status BackupVolume::WriteChunk(
   }
 
   // Write the chunk itself.
-  retval = file_->Write(data, raw_size);
+  retval = file_->Write(data, encoded_size);
   if (!retval.ok()) {
     LOG(ERROR) << "Could not write chunk: " << retval.ToString();
     return retval;
@@ -204,20 +187,33 @@ Status BackupVolume::WriteChunk(
   BackupDescriptor1Chunk descriptor_chunk;
   descriptor_chunk.md5sum = md5sum;
   descriptor_chunk.offset = chunk_offset;
-
   chunks_.insert(make_pair(md5sum, descriptor_chunk));
+
   modified_ = true;
   return Status::OK;
 }
 
-Status BackupVolume::Close(bool is_final) {
+Status BackupVolume::Close() {
   if (modified_) {
     WriteBackupDescriptor1();
-    if (is_final) {
-      WriteBackupDescriptor2();
-    }
+    // No FileSet, so skip descriptor 2.
     WriteBackupDescriptorHeader();
   }
+
+  Status retval = file_->Close();
+  if (!retval.ok()) {
+    return retval;
+  }
+
+  modified_ = false;
+  return Status::OK;
+}
+
+Status BackupVolume::CloseWithFileSet(const FileSet& fileset) {
+  // Closing with a FileSet necessitates a write of the backup descriptors.
+  WriteBackupDescriptor1();
+  WriteBackupDescriptor2(fileset);
+  WriteBackupDescriptorHeader();
 
   Status retval = file_->Close();
   if (!retval.ok()) {
@@ -253,14 +249,32 @@ Status BackupVolume::WriteBackupDescriptor1() {
   return Status::OK;
 }
 
-Status BackupVolume::WriteBackupDescriptor2() {
+Status BackupVolume::WriteBackupDescriptor2(const FileSet& fileset) {
   // Descriptor 2 is present in this file, so mark that in the header.
   LOG(INFO) << "Writing descriptor 2";
   descriptor_header_.backup_descriptor_2_present = 1;
+  descriptor2_.num_files = fileset.num_files();
+  descriptor2_.description_size = 0;
+  file_->Write(&descriptor2_, sizeof(BackupDescriptor2));
 
-  // TODO(darkstar62): Write this.
+  // Write the BackupFile and BackupChunk headers.
+  for (const FileEntry* backup_file : fileset.GetFiles()) {
+    const BackupFile* metadata = backup_file->GetBackupFile();
+    VLOG(3) << "Data for " << metadata->filename
+            << "(size = " << metadata->file_size << ")";
+    file_->Write(
+        metadata,
+        sizeof(BackupFile) + sizeof(char) * metadata->filename_size);  // NOLINT
+
+    for (const FileChunk chunk : backup_file->GetChunks()) {
+      VLOG(2) << "Writing chunk " << std::hex
+              << chunk.md5sum.hi << chunk.md5sum.lo;
+      file_->Write(&chunk, sizeof(FileChunk));
+    }
+  }
+
   modified_ = true;
-  return Status::NOT_IMPLEMENTED;
+  return Status::OK;
 }
 
 Status BackupVolume::WriteBackupDescriptorHeader() {
@@ -272,6 +286,116 @@ Status BackupVolume::WriteBackupDescriptorHeader() {
     return retval;
   }
   modified_ = true;
+  return Status::OK;
+}
+
+Status BackupVolume::ReadBackupDescriptorHeader() {
+  BackupDescriptorHeader header;
+  Status retval = file_->Read(&header, sizeof(BackupDescriptorHeader), NULL);
+  if (!retval.ok()) {
+    return retval;
+  }
+  if (header.header_type != kHeaderTypeDescriptorHeader) {
+    LOG(ERROR) << "Backup descriptor header has invalid type: 0x" << hex
+               << static_cast<uint32_t>(header.header_type);
+    return Status(kStatusCorruptBackup, "Invalid descriptor header");
+  }
+
+  LOG(INFO) << "Backup 1 descriptor at 0x" << hex
+            << header.backup_descriptor_1_offset;
+
+  descriptor_header_ = header;
+  return Status::OK;
+}
+
+Status BackupVolume::ReadBackupDescriptor1() {
+  // Read the backup descriptor 1.
+  Status retval = file_->Seek(descriptor_header_.backup_descriptor_1_offset);
+  if (!retval.ok()) {
+    return retval;
+  }
+
+  BackupDescriptor1 descriptor1;
+  retval = file_->Read(&descriptor1, sizeof(BackupDescriptor1), NULL);
+  if (!retval.ok()) {
+    return retval;
+  }
+  if (descriptor1.header_type != kHeaderTypeDescriptor1) {
+    LOG(ERROR) << "Backup descriptor 1 has invalid type: 0x" << hex
+               << descriptor1.header_type;
+    return Status(kStatusCorruptBackup, "Invalid descriptor 1 header");
+  }
+
+  LOG(INFO) << "Number of chunks in file: " << descriptor1.total_chunks;
+
+  // Read the chunks out of the file.
+  for (uint64_t chunk_num = 0; chunk_num < descriptor1.total_chunks;
+       chunk_num++) {
+    BackupDescriptor1Chunk chunk;
+    retval = file_->Read(&chunk, sizeof(BackupDescriptor1Chunk), NULL);
+    chunks_.insert(make_pair(chunk.md5sum, chunk));
+  }
+
+  descriptor1_ = descriptor1;
+  return Status::OK;
+}
+
+Status BackupVolume::ReadBackupDescriptor2() {
+  return Status::NOT_IMPLEMENTED;
+
+  // TODO(darkstar62): This stuff is half-baked.
+  // Read descriptor 2, including all the file chunks.
+  BackupDescriptor2* descriptor2 =
+      (BackupDescriptor2*)malloc(sizeof(BackupDescriptor2));  // NOLINT
+
+  // This first read doesn't include the string for the description
+  Status retval = file_->Read(descriptor2, sizeof(BackupDescriptor2), NULL);
+  if (!retval.ok()) {
+    free(descriptor2);
+    return retval;
+  }
+
+  // Find out the description size, and if necessary, resize and re-read.
+  if (descriptor2->description_size > 0) {
+    size_t new_size =
+        sizeof(BackupDescriptor2) +
+            sizeof(char) * descriptor2->description_size;  // NOLINT
+    descriptor2 = (BackupDescriptor2*)realloc(descriptor2, new_size);  // NOLINT
+    retval = file_->Read(
+        descriptor2 + sizeof(BackupDescriptor2),
+        sizeof(char) * descriptor2->description_size,  // NOLINT
+        NULL);
+    if (!retval.ok()) {
+      free(descriptor2);
+      return retval;
+    }
+  }
+
+//   descriptor2_.reset(descriptor2);
+
+  // Read in all the files, and the file chunks.
+
+  for (uint64_t file_num = 0; file_num < descriptor2->num_files; ++file_num) {
+    BackupFile* backup_file =
+        (BackupFile*)malloc(sizeof(BackupFile));  // NOLINT
+    retval = file_->Read(backup_file, sizeof(BackupFile), NULL);
+    if (!retval.ok()) {
+      free(backup_file);
+      return retval;
+    }
+
+    size_t new_size =
+        sizeof(BackupFile) +
+            sizeof(char) * backup_file->filename_size;  // NOLINT
+    backup_file = (BackupFile*)realloc(backup_file, new_size);  // NOLINT
+    retval = file_->Read(backup_file + sizeof(BackupFile),
+                         sizeof(char) * backup_file->filename_size,  // NOLINT
+                         NULL);
+    if (!retval.ok()) {
+      free(backup_file);
+      return retval;
+    }
+  }
   return Status::OK;
 }
 

@@ -3,6 +3,9 @@
 #ifndef BACKUP2_SRC_FILE_INTERFACE_H_
 #define BACKUP2_SRC_FILE_INTERFACE_H_
 
+#include <string>
+#include <vector>
+
 #include "src/status.h"
 
 namespace backup2 {
@@ -33,8 +36,14 @@ class FileInterface {
   // relative to the end of the file.
   virtual Status Seek(int32_t offset) = 0;
 
-  // Read length bytes into buffer, returning status.
-  virtual Status Read(void* buffer, size_t length) = 0;
+  // Read length bytes into buffer, returning status.  If a non-NULL pointer is
+  // passed in to bytes_read, the number of bytes successfully read is returned
+  // in it.  Returns Status:OK on success, kStatusShortRead if a short read
+  // occurs, or a appropriate error in other situations.
+  virtual Status Read(void* buffer, size_t length, size_t* bytes_read) = 0;
+
+  // Read lines from an ascii file into the supplied vector.
+  virtual Status ReadLines(std::vector<std::string>* strings) = 0;
 
   // Write length bytes into file from buffer, returning status.  Writes always
   // happen at the end of the file.

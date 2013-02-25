@@ -30,7 +30,7 @@ enum HeaderType {
   kHeaderTypeDescriptor2,
   kHeaderTypeDescriptorHeader,
   kHeaderTypeBackupFile,
-  kHeaderTypeBackupChunk,
+  kHeaderTypeFileChunk,
 };
 
 // Chunk header for each chunk.  These provide descriptions of the data
@@ -152,7 +152,7 @@ typedef struct BackupDescriptor2 {
 
   // The backup description string given by the user.  This is variable sized,
   // and so appears last in the header.  Its size is given by description_size.
-  char descriptiion[];
+  char description[];
 };
 
 // This structure represents a single file in the backup set.  It precedes the
@@ -194,10 +194,10 @@ typedef struct BackupFile {
 // following a BackupFile header until the entire file is described.  Chunks
 // described here must be looked up in the backup volume's backup descriptor 1
 // header to find the precise location in the backup volume for the data.
-typedef struct BackupChunk {
-  BackupChunk() {
-    memset(this, 0, sizeof(BackupChunk));
-    header_type = kHeaderTypeBackupChunk;
+typedef struct FileChunk {
+  FileChunk() {
+    memset(this, 0, sizeof(FileChunk));
+    header_type = kHeaderTypeFileChunk;
   }
 
   // Type of header.
@@ -250,6 +250,9 @@ struct BackupDescriptorHeader {
   // the end of a backup.  Otherwise, this header marks the end of a split
   // backup volume, and the backup continues into the next volume.
   uint8_t backup_descriptor_2_present;
+
+  // Volume number in the set.
+  uint64_t volume_number;
 };
 
 }  // namespace backup2
