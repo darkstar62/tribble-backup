@@ -11,6 +11,7 @@ DEFINE_string(backup_filename, "", "Backup volume to use.");
 DEFINE_string(backup_type, "",
               "Perform a backup of the indicated type.  "
               "Valid: full, incremental, differential, restore");
+DEFINE_string(backup_description, "", "Description of this backup set");
 DEFINE_uint64(max_volume_size_mb, 0,
               "Maximum size for backup volumes.  Backup files are split into "
               "files of this size.  If 0, backups are done as one big file.");
@@ -31,6 +32,7 @@ int main(int argc, char* argv[]) {
     backup2::BackupDriver driver(
         FLAGS_backup_filename,
         FLAGS_backup_type,
+        FLAGS_backup_description,
         FLAGS_max_volume_size_mb,
         FLAGS_filelist);
     return driver.Run();

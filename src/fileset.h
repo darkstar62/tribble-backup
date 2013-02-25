@@ -3,6 +3,7 @@
 #ifndef BACKUP2_SRC_FILESET_H_
 #define BACKUP2_SRC_FILESET_H_
 
+#include <string>
 #include <vector>
 
 #include "src/common.h"
@@ -34,9 +35,16 @@ class FileSet {
     return files_.size();
   }
 
+  // Get/set the description of the fileset.
+  const std::string& description() const { return description_; }
+  void set_description(std::string description) { description_ = description; }
+
  private:
   // Vector of files in the file set.
   std::vector<FileEntry*> files_;
+
+  // Description of the backup fileset.
+  std::string description_;
 
   DISALLOW_COPY_AND_ASSIGN(FileSet);
 };

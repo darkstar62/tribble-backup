@@ -254,8 +254,11 @@ Status BackupVolume::WriteBackupDescriptor2(const FileSet& fileset) {
   LOG(INFO) << "Writing descriptor 2";
   descriptor_header_.backup_descriptor_2_present = 1;
   descriptor2_.num_files = fileset.num_files();
-  descriptor2_.description_size = 0;
+  descriptor2_.description_size = fileset.description().size();
   file_->Write(&descriptor2_, sizeof(BackupDescriptor2));
+  if (fileset.description().size() > 0) {
+    file_->Write(&fileset.description().at(0), fileset.description().size());
+  }
 
   // Write the BackupFile and BackupChunk headers.
   for (const FileEntry* backup_file : fileset.GetFiles()) {

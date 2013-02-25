@@ -46,7 +46,7 @@ int BackupDriver::Run() {
   // Now we have our backup volume.  We can start doing whatever the user asked
   // us to do.
   if (backup_type_ == "full") {
-    return PerformBackup(volume.get(), filelist_filename_);
+    return PerformBackup(volume.get(), filelist_filename_, description_);
   } else {
     LOG(FATAL) << "Unknown backup type: " << backup_type_;
   }
@@ -80,7 +80,8 @@ BackupVolume* BackupDriver::InitializeBackupVolume(
 }
 
 int BackupDriver::PerformBackup(
-    BackupVolume* volume, const string& filelist_filename) {
+    BackupVolume* volume, const string& filelist_filename,
+    const string& description) {
   // Open the filelist and grab the files to read.
   FileInterface* file = new File(filelist_filename);
   file->Open(File::Mode::kModeRead);
@@ -91,6 +92,7 @@ int BackupDriver::PerformBackup(
 
   // Create a FileSet to contain our backup.
   FileSet* backup = new FileSet;
+  backup->set_description(description);
 
   for (string filename : filenames) {
     VLOG(3) << "Processing " << filename;

@@ -19,10 +19,12 @@ class BackupDriver {
   BackupDriver(
       const std::string& backup_filename,
       const std::string& backup_type,
+      const std::string& backup_description,
       const uint64_t max_volume_size_mb,
       const std::string& filelist_filename)
     : backup_filename_(backup_filename),
       backup_type_(backup_type),
+      description_(backup_description),
       max_volume_size_mb_(max_volume_size_mb),
       filelist_filename_(filelist_filename) {
   }
@@ -40,10 +42,12 @@ class BackupDriver {
   // Perform a backup to the given volume, with files in the filename pointed to
   // by filelist_filename.  The return value of this function is suitable for
   // return from main().
-  int PerformBackup(BackupVolume* volume, const std::string& filelist_filename);
+  int PerformBackup(BackupVolume* volume, const std::string& filelist_filename,
+                    const std::string& description);
 
   const std::string backup_filename_;
   const std::string backup_type_;
+  const std::string description_;
   const uint64_t max_volume_size_mb_;
   const std::string filelist_filename_;
 
