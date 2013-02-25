@@ -4,6 +4,7 @@ CMAKE_MINIMUM_REQUIRED (VERSION 2.8)
 PROJECT(backup2_src)
 
 INCLUDE(LintRules)
+INCLUDE(UseCodeCoverage)
 
 FIND_PACKAGE(Boost COMPONENTS system filesystem REQUIRED)
 FIND_PACKAGE(GFlags REQUIRED)
@@ -79,6 +80,7 @@ ENDMACRO(MAKE_TEST)
     backup_volume_test
       backup_volume
       file
+      fileset
       status
       ${Boost_FILESYSTEM_LIBRARY}
       ${Boost_SYSTEM_LIBRARY}
@@ -104,6 +106,7 @@ ENDMACRO(MAKE_TEST)
 # LIBRARY: fileset
   LINT_SOURCES(
     file_SOURCES
+      fileset.cc
       fileset.h
     )
   ADD_LIBRARY(fileset ${file_SOURCES})

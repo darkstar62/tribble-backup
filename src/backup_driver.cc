@@ -161,10 +161,10 @@ int BackupDriver::PerformBackup(
           LOG(INFO)
               << "Compressed larger than raw, using raw encoding for chunk";
           volume->WriteChunk(chunk.md5sum, &compressed_data.at(0), read,
-                            read, kEncodingTypeRaw);
+                             read, kEncodingTypeRaw);
         } else {
           volume->WriteChunk(chunk.md5sum, &compressed_data.at(0), read,
-                            compressed_size, kEncodingTypeZlib);
+                             compressed_size, kEncodingTypeZlib);
         }
       }
       entry->AddChunk(chunk);

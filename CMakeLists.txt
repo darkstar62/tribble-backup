@@ -14,8 +14,5 @@ ENABLE_TESTING()
 SET(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/meta)
 SET(BACKUP_ROOT_PATH ${PROJECT_SOURCE_DIR})
 
-# Enable code coverage
-INCLUDE(UseCodeCoverage)
-
 ##########################################
 ADD_SUBDIRECTORY(src)

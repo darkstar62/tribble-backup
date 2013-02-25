@@ -3,9 +3,11 @@
 #ifndef BACKUP2_SRC_FILESET_H_
 #define BACKUP2_SRC_FILESET_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
+#include "glog/logging.h"
 #include "src/common.h"
 #include "src/backup_volume_defs.h"
 
@@ -17,7 +19,8 @@ class FileEntry;
 // out backup descriptor 2 containing all the details of the backup.
 class FileSet {
  public:
-  FileSet() {}
+  FileSet();
+  ~FileSet();
 
   // Add a FileEntry to this file set.  Ownership is transferred to FileSet.
   void AddFile(FileEntry* file) {
@@ -53,8 +56,17 @@ class FileSet {
 // structures necessary to fully fill out descriptor 2.
 class FileEntry {
  public:
-  // FileEntry takes ownership of the metadaa.
-  explicit FileEntry(BackupFile* metadata) : metadata_(metadata) {}
+  // FileEntry takes ownership of the metadata.
+  explicit FileEntry(BackupFile* metadata) : metadata_(metadata) {
+    LOG(INFO) << "Construct: " << std::hex << this;
+  }
+  ~FileEntry() {
+    LOG(INFO) << "~FileEntry: " << metadata_->filename_size;
+    if (metadata_->filename_size) {
+      LOG(INFO) << "Freeing metadata";
+      free(metadata_.release());
+    }
+  }
 
   // Add a chunk of data to the file entry.  The header describes the chunk and
   // is used when writing backup descriptor 2.
@@ -82,7 +94,7 @@ class FileEntry {
   std::unique_ptr<BackupFile> metadata_;
 
   // List of chunks
-  std::vector<FileChunk> chunks_;
+  std::vector<struct FileChunk> chunks_;
 
   DISALLOW_COPY_AND_ASSIGN(FileEntry);
 };

@@ -4,6 +4,7 @@
 #include <string>
 
 #include "src/backup_volume.h"
+#include "src/fileset.h"
 #include "src/mock_file.h"
 #include "src/status.h"
 #include "glog/logging.h"
@@ -434,6 +435,125 @@ TEST_F(BackupVolumeTest, AppendChunkToExistingFile) {
   EXPECT_CALL(*file, Close()).WillOnce(Return(Status::OK));
 
   retval = volume.Close();
+  Mock::VerifyAndClearExpectations(file);
+  EXPECT_TRUE(retval.ok());
+}
+
+TEST_F(BackupVolumeTest, AppendChunkToExistingFileWithDesc2) {
+  // This test verifies that a chunk of data can be written, and doing so
+  // results in the correct writes to an existing file, including output of
+  // descriptor 2.
+  MockFile* file = new MockFile;
+  BackupVolume volume(file);
+
+  // Initialize our backup set as an existing file.
+  ExpectSuccessfulInit(&volume, file);
+
+  // Write a chunk.
+  Uint128 sum = {123, 456};
+  string data = "abc123eoa";
+  uint64_t offset = 0x18374;
+
+  ChunkHeader header;
+  header.md5sum = sum;
+  header.unencoded_size = data.size() - 3;
+  header.encoded_size = data.size();
+  header.encoding_type = kEncodingTypeRaw;
+
+  EXPECT_CALL(*file, Tell()).WillOnce(Return(offset));
+  EXPECT_CALL(*file, Write(BinaryDataEq(&header, sizeof(ChunkHeader)),
+                           sizeof(ChunkHeader)))
+      .WillOnce(Return(Status::OK));
+  EXPECT_CALL(*file, Write(BinaryDataEq(&data.at(0), data.size()),
+                           data.size()))
+      .WillOnce(Return(Status::OK));
+
+  Status retval = volume.WriteChunk(sum, &data.at(0), data.size() - 3,
+                                    data.size(), kEncodingTypeRaw);
+  EXPECT_TRUE(retval.ok());
+  Mock::VerifyAndClearExpectations(file);
+
+  // Test that the chunk made it into the map.
+  EXPECT_TRUE(volume.HasChunk(sum));
+
+  // Now, if we Close() the file, we should see the descriptors that were set
+  // up.
+  BackupDescriptor1 expected_1;
+  expected_1.total_chunks = 1;
+
+  BackupDescriptor1Chunk expected_chunk_1;
+  expected_chunk_1.md5sum = sum;
+  expected_chunk_1.offset = offset;
+
+  BackupDescriptorHeader backup_header;
+  backup_header.backup_descriptor_1_offset = 0x7482;
+  backup_header.backup_descriptor_2_present = 1;
+  backup_header.volume_number = 0;
+
+  FileSet fileset;
+  fileset.set_description("Test");
+
+  BackupDescriptor2 expected_2;
+  expected_2.previous_backup_offset = 0;
+  expected_2.previous_backup_volume_number = 0;
+  expected_2.num_files = 1;
+  expected_2.description_size = 4;
+
+  string filename = "/foo/bar";
+  BackupFile* backup_file = reinterpret_cast<BackupFile*>(malloc(
+      sizeof(BackupFile) + sizeof(char) * filename.length()));  // NOLINT
+  backup_file->file_size = 15;
+  backup_file->num_chunks = 1;
+  backup_file->filename_size = filename.size();
+  memcpy(backup_file->filename, &filename.at(0), filename.size());
+
+  FileChunk file_chunk;
+  file_chunk.md5sum = sum;
+  file_chunk.volume_num = 0;
+  file_chunk.chunk_offset = 0;
+  file_chunk.unencoded_size = 15;
+
+  FileEntry* entry = new FileEntry(backup_file);
+  entry->AddChunk(file_chunk);
+  fileset.AddFile(entry);
+
+  EXPECT_CALL(*file, Tell()).WillOnce(Return(0x7482));
+  EXPECT_CALL(*file, Write(
+          BinaryDataEq(&expected_1, sizeof(expected_1)),
+          sizeof(expected_1)))
+      .WillOnce(Return(Status::OK));
+  EXPECT_CALL(*file, Write(
+          BinaryDataEq(
+              &expected_chunk_1,
+              sizeof(expected_chunk_1)),
+          sizeof(expected_chunk_1)))
+      .WillOnce(Return(Status::OK));
+  EXPECT_CALL(*file, Write(BinaryDataEq(&expected_2,
+                                        sizeof(expected_2)),
+                           sizeof(expected_2)))
+      .WillOnce(Return(Status::OK));
+  EXPECT_CALL(*file, Write(
+      BinaryDataEq(&fileset.description().at(0),
+                   sizeof(char) * fileset.description().size()),  // NOLINT
+      sizeof(char) * fileset.description().size()))  // NOLINT
+      .WillOnce(Return(Status::OK));
+  EXPECT_CALL(*file, Write(
+      BinaryDataEq(
+          backup_file,
+          sizeof(*backup_file) + sizeof(char)*filename.size()),  // NOLINT
+      sizeof(*backup_file) + sizeof(char)*filename.size()))  // NOLINT
+      .WillOnce(Return(Status::OK));
+  EXPECT_CALL(*file, Write(BinaryDataEq(&file_chunk,
+                                        sizeof(file_chunk)),
+                           sizeof(file_chunk)))
+      .WillOnce(Return(Status::OK));
+  EXPECT_CALL(*file, Write(BinaryDataEq(&backup_header,
+                                        sizeof(backup_header)),
+                           sizeof(backup_header)))
+      .WillOnce(Return(Status::OK));
+  EXPECT_CALL(*file, Close()).WillOnce(Return(Status::OK));
+
+  retval = volume.CloseWithFileSet(fileset);
   Mock::VerifyAndClearExpectations(file);
   EXPECT_TRUE(retval.ok());
 }
