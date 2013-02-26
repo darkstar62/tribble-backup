@@ -481,11 +481,13 @@ StatusOr<FileEntry*> BackupVolume::ReadFileEntry() {
   // this should fill up to its original value (which we check to ensure the
   // backup is good).
   uint64_t file_size = backup_file->file_size;
+  uint64_t num_chunks = backup_file->num_chunks;
   backup_file->file_size = 0;
+  backup_file->num_chunks = 0;
 
   VLOG(5) << "Found " << filename;
   unique_ptr<FileEntry> entry(new FileEntry(filename, backup_file.release()));
-  retval = ReadFileChunks(backup_file->num_chunks, entry.get());
+  retval = ReadFileChunks(num_chunks, entry.get());
   if (retval.ok()) {
     CHECK_EQ(file_size, entry->GetBackupFile()->file_size);
     return entry.release();

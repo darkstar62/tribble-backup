@@ -95,7 +95,7 @@ class BackupVolume {
   Status ReadBackupDescriptor1();
 
   StatusOr<FileEntry*> ReadFileEntry();
-  Status ReadFileChunks(const uint64_t num_chunks, FileEntry* entry);
+  Status ReadFileChunks(uint64_t num_chunks, FileEntry* entry);
 
   // Current file version.  We expect to see this at the very begining of the
   // file to signify this is a valid backup file.
