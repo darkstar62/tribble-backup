@@ -1,8 +1,11 @@
 // Copyright (C) 2013, All Rights Reserved.
 // Author: Cory Maccarrone <darkstar6262@gmail.com>
 
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "src/status.h"
+
+using testing::StrEq;
 
 namespace backup2 {
 
@@ -38,6 +41,25 @@ TEST(StatusTest, StatusOK) {
   EXPECT_EQ("OK", mystatus.description());
   EXPECT_EQ("OK: OK", mystatus.ToString());
   EXPECT_TRUE(mystatus.ok());
+}
+
+TEST(StatusTest, StatusOr) {
+  StatusOr<int> value = 15;
+  EXPECT_TRUE(value.ok());
+  EXPECT_EQ(15, value.value());
+
+  StatusOr<int> copied_value = value;
+  EXPECT_TRUE(copied_value.ok());
+  EXPECT_EQ(15, copied_value.value());
+
+  StatusOr<const char*> string_value("abcdefg");
+  StatusOr<const char*> copied_string_value = string_value;
+  EXPECT_THAT(copied_string_value.value(), StrEq("abcdefg"));
+
+  StatusOr<int> bad_value = Status::UNKNOWN;
+  EXPECT_FALSE(bad_value.ok());
+  EXPECT_EQ(kStatusUnknown, bad_value.status().code());
+  ASSERT_DEATH(bad_value.value(), ".*StatusOr has error status.*");
 }
 
 }  // namespace backup2

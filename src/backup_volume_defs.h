@@ -21,6 +21,14 @@ enum EncodingType {
   kEndodingTypeBzip2,
 };
 
+// Type of backup.  This is stored in descriptor 2 for each backup set, and
+// indicates how the backup set is to be treated relative to every other set.
+enum BackupType {
+  kBackupTypeFull,
+  kBackupTypeDifferential,
+  kBackupTypeIncremental,
+};
+
 // Types of headers.  These are used to ensure that the chunk of file we're
 // expecting to see is correct.
 enum HeaderType {
@@ -117,6 +125,11 @@ typedef struct BackupDescriptor2 {
     header_type = kHeaderTypeDescriptor2;
   }
 
+  // Return the size of this structure, including the description.
+  uint64_t size() const {
+    return sizeof(this) + sizeof(char) * description_size;  // NOLINT
+  }
+
   // Type of header.
   HeaderType header_type;
 
@@ -130,6 +143,9 @@ typedef struct BackupDescriptor2 {
 
   // Date and time of the backup.
   DateTime backup_date;
+
+  // Type of backup.
+  BackupType backup_type;
 
   // Total unencoded size of all files stored in the backup.  This will be
   // the on-disk size of the data when restored.

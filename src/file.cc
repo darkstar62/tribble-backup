@@ -45,7 +45,7 @@ Status File::Open(const Mode mode) {
       mode_str = "r";
       break;
     case kModeAppend:
-      mode_str = "a";
+      mode_str = "a+";
       break;
     default:
       LOG(FATAL) << "Unknown mode type: " << mode;
@@ -78,14 +78,20 @@ Status File::Unlink() {
 }
 
 int32_t File::Tell() {
+  // TODO(darkstar62): These functions only support 32-bit accesses, which
+  // limits file sizes to 2GB.  We need to be able to support 64-bit sizes, but
+  // do so portably.
   CHECK_NOTNULL(file_);
   return ftell(file_);
 }
 
 Status File::Seek(int32_t offset) {
+  // TODO(darkstar62): These functions only support 32-bit accesses, which
+  // limits file sizes to 2GB.  We need to be able to support 64-bit sizes, but
+  // do so portably.
   CHECK_NOTNULL(file_);
   clearerr(file_);
-  int retval = 0;
+  int32_t retval = 0;
   if (offset < 0) {
     // Seek from the end of the file.
     retval = fseek(file_, offset, SEEK_END);
@@ -96,6 +102,20 @@ Status File::Seek(int32_t offset) {
   if (retval == -1) {
     LOG(ERROR) << "Error seeking to offset " << offset << ": "
                << strerror(errno);
+    return Status(kStatusCorruptBackup, strerror(errno));
+  }
+  return Status::OK;
+}
+
+Status File::SeekEof() {
+  // TODO(darkstar62): These functions only support 32-bit accesses, which
+  // limits file sizes to 2GB.  We need to be able to support 64-bit sizes, but
+  // do so portably.
+  CHECK_NOTNULL(file_);
+  clearerr(file_);
+  int32_t retval = fseek(file_, 0, SEEK_END);
+  if (retval == -1) {
+    LOG(ERROR) << "Error seeking to eof: " << strerror(errno);
     return Status(kStatusCorruptBackup, strerror(errno));
   }
   return Status::OK;
@@ -115,6 +135,8 @@ Status File::Read(void* buffer, size_t length, size_t* read_bytes) {
     }
     // Otherwise, end-of-file.  This isn't an error, but we should still tell
     // the caller it happened, in case it wasn't supposed to.
+    LOG_IF(ERROR, read_bytes == NULL)
+        << "Asked to read " << length << ", but got " << read;
     return Status(kStatusShortRead, "Short read of file");
   }
   return Status::OK;

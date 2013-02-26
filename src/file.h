@@ -22,6 +22,7 @@ class File : public FileInterface {
   virtual Status Unlink();
   virtual int32_t Tell();
   virtual Status Seek(int32_t offset);
+  virtual Status SeekEof();
   virtual Status Read(void* buffer, size_t length, size_t* read_bytes);
   virtual Status ReadLines(std::vector<std::string>* strings);
   virtual Status Write(const void* buffer, size_t length);

@@ -29,12 +29,25 @@ class FileInterface {
   // Delete the file.
   virtual Status Unlink() = 0;
 
-  // Return the current position in the file.  The file must currently be open.
+  // Return the current *read* position in the file.  The file must currently
+  // be open.
+  // TODO(darkstar62): These functions only support 32-bit accesses, which
+  // limits file sizes to 2GB.  We need to be able to support 64-bit sizes, but
+  // do so portably.
   virtual int32_t Tell() = 0;
 
   // Seek through the open file.  If a negative number is specified, this seeks
   // relative to the end of the file.
+  // TODO(darkstar62): These functions only support 32-bit accesses, which
+  // limits file sizes to 2GB.  We need to be able to support 64-bit sizes, but
+  // do so portably.
   virtual Status Seek(int32_t offset) = 0;
+
+  // Seek to the end of the file.
+  // TODO(darkstar62): These functions only support 32-bit accesses, which
+  // limits file sizes to 2GB.  We need to be able to support 64-bit sizes, but
+  // do so portably.
+  virtual Status SeekEof() = 0;
 
   // Read length bytes into buffer, returning status.  If a non-NULL pointer is
   // passed in to bytes_read, the number of bytes successfully read is returned

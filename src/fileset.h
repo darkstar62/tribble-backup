@@ -58,12 +58,9 @@ class FileEntry {
  public:
   // FileEntry takes ownership of the metadata.
   explicit FileEntry(BackupFile* metadata) : metadata_(metadata) {
-    LOG(INFO) << "Construct: " << std::hex << this;
   }
   ~FileEntry() {
-    LOG(INFO) << "~FileEntry: " << metadata_->filename_size;
     if (metadata_->filename_size) {
-      LOG(INFO) << "Freeing metadata";
       free(metadata_.release());
     }
   }

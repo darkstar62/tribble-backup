@@ -105,6 +105,7 @@ int BackupDriver::PerformBackup(
     BackupFile* metadata = (BackupFile*)calloc(  // NOLINT
         sizeof(BackupFile) + sizeof(char) * filename.size(), 1);  // NOLINT
     memcpy(metadata->filename, &filename.at(0), filename.size());
+    metadata->header_type = kHeaderTypeBackupFile;
     metadata->filename_size = filename.size();
     // TODO(darkstar62): Add file stat() support and add it to the metadata.
     FileEntry* entry = new FileEntry(metadata);
@@ -158,7 +159,7 @@ int BackupDriver::PerformBackup(
         VLOG(5) << "Compressed " << read << " to " << compressed_size;
 
         if (compressed_size > read) {
-          LOG(INFO)
+          VLOG(5)
               << "Compressed larger than raw, using raw encoding for chunk";
           volume->WriteChunk(chunk.md5sum, &compressed_data.at(0), read,
                              read, kEncodingTypeRaw);

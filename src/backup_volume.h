@@ -6,6 +6,7 @@
 #include <unordered_map>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "src/backup_volume_defs.h"
 #include "src/common.h"
@@ -13,6 +14,7 @@
 #include "src/status.h"
 
 namespace backup2 {
+class FileEntry;
 class FileInterface;
 class FileSet;
 
@@ -46,6 +48,13 @@ class BackupVolume {
   // Initialize a new backup volume.  The configuration options passed in
   // specify how the backup volume will be written.
   Status Create(const ConfigOptions& options) MUST_USE_RESULT;
+
+  // Load the fileset for the backup set.  If load_all is true, this will work
+  // backward through the entire backup set (all volumes) and load the complete
+  // backup set history.  Otherwise, only the backup sets going back to the most
+  // recent full backup are loaded.  The returned vector is in order of newest
+  // to oldest.
+  StatusOr<std::vector<FileSet*> > LoadFileSets(bool load_all);
 
   // Look up a chunk.
   bool HasChunk(Uint128 md5sum) {
@@ -84,7 +93,9 @@ class BackupVolume {
 
   Status ReadBackupDescriptorHeader();
   Status ReadBackupDescriptor1();
-  Status ReadBackupDescriptor2();
+
+  StatusOr<FileEntry*> ReadFileEntry();
+  Status ReadFileChunks(const uint64_t num_chunks, FileEntry* entry);
 
   // Current file version.  We expect to see this at the very begining of the
   // file to signify this is a valid backup file.
@@ -101,6 +112,8 @@ class BackupVolume {
   BackupDescriptor1 descriptor1_;
   BackupDescriptor2 descriptor2_;
   BackupDescriptorHeader descriptor_header_;
+
+  uint64_t descriptor2_offset_;
 
   // Vector of all chunks contained in this backup volume.  This is loaded
   // initially from backup descriptor 1, and stored there at the end of the

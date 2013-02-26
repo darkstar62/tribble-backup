@@ -19,6 +19,7 @@ enum ErrorCode {
   kStatusCorruptBackup,
   kStatusGenericError,
   kStatusShortRead,
+  kStatusNotLastVolume,
 };
 
 // Descriptions of the error codes.  These must be in the same order as the enum
@@ -34,6 +35,7 @@ static struct Errordescriptions {
   { kStatusCorruptBackup, "Corrupt backup" },
   { kStatusGenericError, "Generic error" },
   { kStatusShortRead, "Short read" },
+  { kStatusNotLastVolume, "Backup volume is not the last in the set" },
 };
 
 // A generic object that can be used to return detailed status about an
@@ -69,6 +71,39 @@ class Status {
  private:
   ErrorCode error_code_;
   std::string description_;
+};
+
+// A nifty type that will return a value of type T, or a Status.  This is useful
+// for functions that want to return a value, but that could also fail for some
+// reason or another (and that want to propagate that failure backward).
+template<class T>
+class StatusOr {
+ public:
+  // Constructors for status or for value.
+  StatusOr(const Status& status) : status_(status) {}  // NOLINT
+  StatusOr(T value) : status_(Status::OK), value_(value) {}  // NOLINT
+
+  // Return whether the value is OK.  If there's a valid value present, this
+  // returns true, and the value can be obtained with value().
+  bool ok() const { return status_.ok(); }
+
+  // If !ok(), this returns the status that was emitted.  Otherwise, Status::OK
+  // is returned.
+  Status status() const { return status_; }
+
+  // Only if ok(), this will return the value passed in.  Otherwise, this will
+  // CHECK fail.
+  T value() const {
+    CHECK(status_.ok()) << "StatusOr has error status";
+    return value_;
+  }
+
+ private:
+  // Disallow the default constructor.
+  StatusOr() {}
+
+  Status status_;
+  T value_;
 };
 
 }  // namespace backup2

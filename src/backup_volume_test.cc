@@ -284,8 +284,6 @@ TEST_F(BackupVolumeTest, InvalidDescriptor1) {
   Mock::VerifyAndClearExpectations(file);
 }
 
-// TODO(darkstar62): Implement descriptor 2 tests.
-
 TEST_F(BackupVolumeTest, SuccessfulInitialize) {
   // This test verifies an initialize will work all the way through with valid
   // data.
@@ -322,6 +320,7 @@ TEST_F(BackupVolumeTest, CreateCloseNoFinal) {
   header.backup_descriptor_1_offset = 0x8;
   header.backup_descriptor_2_present = 0;
 
+  EXPECT_CALL(*file, SeekEof()).Times(2).WillRepeatedly(Return(Status::OK));
   EXPECT_CALL(*file, Tell()).WillOnce(Return(0x8));
   EXPECT_CALL(*file, Write(BinaryDataEq(&expected_1, sizeof(BackupDescriptor1)),
                            sizeof(BackupDescriptor1)))
@@ -391,6 +390,7 @@ TEST_F(BackupVolumeTest, AppendChunkToExistingFile) {
   header.encoded_size = data.size();
   header.encoding_type = kEncodingTypeRaw;
 
+  EXPECT_CALL(*file, SeekEof()).WillOnce(Return(Status::OK));
   EXPECT_CALL(*file, Tell()).WillOnce(Return(offset));
   EXPECT_CALL(*file, Write(BinaryDataEq(&header, sizeof(ChunkHeader)),
                            sizeof(ChunkHeader)))
@@ -420,6 +420,7 @@ TEST_F(BackupVolumeTest, AppendChunkToExistingFile) {
   backup_header.backup_descriptor_1_offset = 0x7482;
   backup_header.backup_descriptor_2_present = 0;
 
+  EXPECT_CALL(*file, SeekEof()).Times(2).WillRepeatedly(Return(Status::OK));
   EXPECT_CALL(*file, Tell()).WillOnce(Return(0x7482));
   EXPECT_CALL(*file, Write(BinaryDataEq(&expected_1, sizeof(BackupDescriptor1)),
                            sizeof(BackupDescriptor1)))
@@ -460,6 +461,7 @@ TEST_F(BackupVolumeTest, AppendChunkToExistingFileWithDesc2) {
   header.encoded_size = data.size();
   header.encoding_type = kEncodingTypeRaw;
 
+  EXPECT_CALL(*file, SeekEof()).WillOnce(Return(Status::OK));
   EXPECT_CALL(*file, Tell()).WillOnce(Return(offset));
   EXPECT_CALL(*file, Write(BinaryDataEq(&header, sizeof(ChunkHeader)),
                            sizeof(ChunkHeader)))
@@ -517,6 +519,7 @@ TEST_F(BackupVolumeTest, AppendChunkToExistingFileWithDesc2) {
   entry->AddChunk(file_chunk);
   fileset.AddFile(entry);
 
+  EXPECT_CALL(*file, SeekEof()).Times(3).WillRepeatedly(Return(Status::OK));
   EXPECT_CALL(*file, Tell()).WillOnce(Return(0x7482));
   EXPECT_CALL(*file, Write(
           BinaryDataEq(&expected_1, sizeof(expected_1)),
