@@ -298,9 +298,13 @@ Status BackupVolume::WriteBackupDescriptor2(const FileSet& fileset) {
     const BackupFile* metadata = backup_file->GetBackupFile();
     VLOG(4) << "Data for " << metadata->filename
             << "(size = " << metadata->file_size << ")";
-    retval = file_->Write(
-        metadata,
-        sizeof(BackupFile) + sizeof(char) * metadata->filename_size);  // NOLINT
+    retval = file_->Write(metadata, sizeof(*metadata));
+    if (!retval.ok()) {
+      return retval;
+    }
+
+    retval = file_->Write(&backup_file->filename().at(0),
+                          backup_file->filename().size());
     if (!retval.ok()) {
       return retval;
     }
@@ -457,27 +461,19 @@ StatusOr<vector<FileSet*> > BackupVolume::LoadFileSets(bool load_all) {
 }
 
 StatusOr<FileEntry*> BackupVolume::ReadFileEntry() {
-  BackupFile* backup_file =
-      (BackupFile*)malloc(sizeof(BackupFile));  // NOLINT
-  Status retval = file_->Read(backup_file, sizeof(BackupFile), NULL);
+  unique_ptr<BackupFile> backup_file(new BackupFile);
+  Status retval = file_->Read(backup_file.get(), sizeof(BackupFile), NULL);
   if (!retval.ok()) {
-    free(backup_file);
     return retval;
   }
   if (backup_file->header_type != kHeaderTypeBackupFile) {
-    free(backup_file);
     return Status(kStatusCorruptBackup, "Invalid header for BackupFile");
   }
 
-  size_t new_size =
-      sizeof(BackupFile) +
-          sizeof(char) * backup_file->filename_size;  // NOLINT
-  backup_file = reinterpret_cast<BackupFile*>(realloc(backup_file, new_size));
-  retval = file_->Read(backup_file->filename,
-                       sizeof(char) * backup_file->filename_size,  // NOLINT
-                       NULL);
+  string filename;
+  filename.resize(backup_file->filename_size);
+  retval = file_->Read(&filename.at(0), filename.size(), NULL);
   if (!retval.ok()) {
-    free(backup_file);
     return retval;
   }
 
@@ -487,8 +483,8 @@ StatusOr<FileEntry*> BackupVolume::ReadFileEntry() {
   uint64_t file_size = backup_file->file_size;
   backup_file->file_size = 0;
 
-  VLOG(5) << "Found " << backup_file->filename;
-  unique_ptr<FileEntry> entry(new FileEntry(backup_file));
+  VLOG(5) << "Found " << filename;
+  unique_ptr<FileEntry> entry(new FileEntry(filename, backup_file.release()));
   retval = ReadFileChunks(backup_file->num_chunks, entry.get());
   if (retval.ok()) {
     CHECK_EQ(file_size, entry->GetBackupFile()->file_size);

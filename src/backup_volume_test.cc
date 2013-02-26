@@ -502,12 +502,10 @@ TEST_F(BackupVolumeTest, AppendChunkToExistingFileWithDesc2) {
   expected_2.description_size = 4;
 
   string filename = "/foo/bar";
-  BackupFile* backup_file = reinterpret_cast<BackupFile*>(malloc(
-      sizeof(BackupFile) + sizeof(char) * filename.length()));  // NOLINT
+  BackupFile* backup_file = new BackupFile;
   backup_file->file_size = 15;
   backup_file->num_chunks = 1;
   backup_file->filename_size = filename.size();
-  memcpy(backup_file->filename, &filename.at(0), filename.size());
 
   FileChunk file_chunk;
   file_chunk.md5sum = sum;
@@ -515,7 +513,7 @@ TEST_F(BackupVolumeTest, AppendChunkToExistingFileWithDesc2) {
   file_chunk.chunk_offset = 0;
   file_chunk.unencoded_size = 15;
 
-  FileEntry* entry = new FileEntry(backup_file);
+  FileEntry* entry = new FileEntry(filename, backup_file);
   entry->AddChunk(file_chunk);
   fileset.AddFile(entry);
 
@@ -537,15 +535,14 @@ TEST_F(BackupVolumeTest, AppendChunkToExistingFileWithDesc2) {
       .WillOnce(Return(Status::OK));
   EXPECT_CALL(*file, Write(
       BinaryDataEq(&fileset.description().at(0),
-                   sizeof(char) * fileset.description().size()),  // NOLINT
-      sizeof(char) * fileset.description().size()))  // NOLINT
+                   fileset.description().size()),
+      fileset.description().size()))
       .WillOnce(Return(Status::OK));
   EXPECT_CALL(*file, Write(
-      BinaryDataEq(
-          backup_file,
-          sizeof(*backup_file) + sizeof(char)*filename.size()),  // NOLINT
-      sizeof(*backup_file) + sizeof(char)*filename.size()))  // NOLINT
+      BinaryDataEq(backup_file, sizeof(*backup_file)), sizeof(*backup_file)))
       .WillOnce(Return(Status::OK));
+  EXPECT_CALL(*file, Write(BinaryDataEq(&filename.at(0), filename.size()),
+                           filename.size())).WillOnce(Return(Status::OK));
   EXPECT_CALL(*file, Write(BinaryDataEq(&file_chunk,
                                         sizeof(file_chunk)),
                            sizeof(file_chunk)))

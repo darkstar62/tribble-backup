@@ -57,12 +57,9 @@ class FileSet {
 class FileEntry {
  public:
   // FileEntry takes ownership of the metadata.
-  explicit FileEntry(BackupFile* metadata) : metadata_(metadata) {
-  }
-  ~FileEntry() {
-    if (metadata_->filename_size) {
-      free(metadata_.release());
-    }
+  explicit FileEntry(const std::string& filename, BackupFile* metadata)
+      : filename_(filename),
+        metadata_(metadata) {
   }
 
   // Add a chunk of data to the file entry.  The header describes the chunk and
@@ -86,9 +83,14 @@ class FileEntry {
     return chunks_;
   }
 
+  const std::string& filename() const { return filename_; }
+
  private:
   // File metadata, ultimately saved into the backup volume.
   std::unique_ptr<BackupFile> metadata_;
+
+  // Filename for this file.
+  const std::string filename_;
 
   // List of chunks
   std::vector<struct FileChunk> chunks_;

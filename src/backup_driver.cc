@@ -102,13 +102,11 @@ int BackupDriver::PerformBackup(
 
     // Create the metadata for the file and stat() it to get the details.
     filename += '\0';
-    BackupFile* metadata = (BackupFile*)calloc(  // NOLINT
-        sizeof(BackupFile) + sizeof(char) * filename.size(), 1);  // NOLINT
-    memcpy(metadata->filename, &filename.at(0), filename.size());
-    metadata->header_type = kHeaderTypeBackupFile;
-    metadata->filename_size = filename.size();
+    BackupFile* metadata = new BackupFile;
     // TODO(darkstar62): Add file stat() support and add it to the metadata.
-    FileEntry* entry = new FileEntry(metadata);
+    metadata->filename_size = filename.size();
+
+    FileEntry* entry = new FileEntry(filename, metadata);
 
     do {
       uint64_t current_offset = file->Tell();
