@@ -15,6 +15,9 @@ FIND_PACKAGE(GooglePerfTools REQUIRED)
 FIND_PACKAGE(Threads REQUIRED)
 FIND_PACKAGE(ZLIB REQUIRED)
 
+IF(NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
+ENDIF(NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wnon-virtual-dtor -Wall -Werror -std=gnu++0x -Wextra")
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_FILE_OFFSET_BITS=64")
 
@@ -58,9 +61,16 @@ ENDMACRO(MAKE_TEST)
     backup_driver_SOURCES
       backup_driver.cc
       backup_driver.h
-      # md5.h -- disabled, we don't want to lint this.
   )
   ADD_LIBRARY(backup_driver ${backup_driver_SOURCES})
+
+# LIBRARY: restore_driver
+  LINT_SOURCES(
+    restore_driver_SOURCES
+      restore_driver.cc
+      restore_driver.h
+  )
+  ADD_LIBRARY(restore_driver ${restore_driver_SOURCES})
 
 # LIBRARY: backup_volume
   LINT_SOURCES(
@@ -69,6 +79,7 @@ ENDMACRO(MAKE_TEST)
       backup_volume.h
       backup_volume_defs.h
       common.h
+      # md5.h -- disabled, we don't want to lint this.
   )
   ADD_LIBRARY(backup_volume ${backup_volume_SOURCES})
 
@@ -92,6 +103,7 @@ ENDMACRO(MAKE_TEST)
       ${GTEST_MAIN_LIBRARY}
       ${GMOCK_LIBRARIES}
       ${TCMALLOC_LIBRARIES}
+      ${ZLIB_LIBRARY}
     )
 
 # LIBRARY: file
@@ -125,6 +137,7 @@ ENDMACRO(MAKE_TEST)
       backup_volume
       file
       fileset
+      restore_driver
       status
       ${Boost_FILESYSTEM_LIBRARY}
       ${Boost_SYSTEM_LIBRARY}

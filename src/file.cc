@@ -202,4 +202,11 @@ Status File::Write(const void* buffer, size_t length) {
   return Status::OK;
 }
 
+Status File::CreateDirectories() {
+  boost::filesystem::path orig_path(filename_);
+  boost::filesystem::path parent = orig_path.parent_path();
+  boost::filesystem::create_directories(parent);
+  return Status::OK;
+}
+
 }  // namespace backup2

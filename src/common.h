@@ -42,6 +42,10 @@ struct Uint128 {
     return hi == rhs.hi && lo == rhs.lo;
   }
 
+  bool operator!=(const Uint128& rhs) const {
+    return !(*this == rhs);
+  }
+
   friend std::size_t hash_value(const Uint128& rhs) {
     std::size_t seed = 0;
     boost::hash_combine(seed, rhs.hi);

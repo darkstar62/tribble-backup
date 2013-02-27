@@ -21,11 +21,13 @@ class BackupDriver {
       const std::string& backup_type,
       const std::string& backup_description,
       const uint64_t max_volume_size_mb,
+      const bool enable_compression,
       const std::string& filelist_filename)
     : backup_filename_(backup_filename),
       backup_type_(backup_type),
       description_(backup_description),
       max_volume_size_mb_(max_volume_size_mb),
+      enable_compression_(enable_compression),
       filelist_filename_(filelist_filename) {
   }
 
@@ -49,6 +51,7 @@ class BackupDriver {
   const std::string backup_type_;
   const std::string description_;
   const uint64_t max_volume_size_mb_;
+  const bool enable_compression_;
   const std::string filelist_filename_;
 
   DISALLOW_COPY_AND_ASSIGN(BackupDriver);

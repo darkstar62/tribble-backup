@@ -61,6 +61,10 @@ class FileInterface {
   // Write length bytes into file from buffer, returning status.  Writes always
   // happen at the end of the file.
   virtual Status Write(const void* buffer, size_t length) = 0;
+
+  // Create the directories recursively leading to the file represented by this
+  // class.
+  virtual Status CreateDirectories() = 0;
 };
 
 }  // namespace backup2

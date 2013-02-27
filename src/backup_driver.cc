@@ -3,16 +3,6 @@
 
 #include "src/backup_driver.h"
 
-#include <zlib.h>
-
-#if defined(MSDOS) || defined(OS2) || defined(WIN32) || defined(__CYGWIN__)
-#  include <fcntl.h>
-#  include <io.h>
-#  define SET_BINARY_MODE(file) setmode(fileno(file), O_BINARY)
-#else
-#  define SET_BINARY_MODE(file)
-#endif
-
 #include <memory>
 #include <string>
 #include <vector>
@@ -22,7 +12,6 @@
 #include "src/backup_volume.h"
 #include "src/file.h"
 #include "src/fileset.h"
-#include "src/md5.h"
 #include "src/status.h"
 
 using std::string;
@@ -71,6 +60,7 @@ BackupVolume* BackupDriver::InitializeBackupVolume(
     ConfigOptions options;
     options.max_volume_size_mb = max_volume_size_mb;
     options.volume_number = 0;
+    options.enable_compression = enable_compression_;
     retval = volume->Create(options);
     if (!retval.ok()) {
       LOG(FATAL) << "Could not create backup volume: " << retval.ToString();
@@ -114,59 +104,12 @@ int BackupDriver::PerformBackup(
       string data;
       data.resize(64*1024);
       status = file->Read(&data.at(0), data.size(), &read);
+      data.resize(read);
 
-      // Create the chunk checksum.
-      MD5 md5;
-      string md5sum = md5.digestString(data.c_str(), data.size());
-
-      Uint128 md5_int;
-      sscanf(md5sum.c_str(), "%16llx%16llx",  // NOLINT
-             &md5_int.hi, &md5_int.lo);
-
-      FileChunk chunk;
-      chunk.chunk_offset = current_offset;
-      chunk.unencoded_size = read;
-      chunk.md5sum = md5_int;
-      chunk.volume_num = volume->volume_number();
-
-      // Write the chunk to the volume, and add it to the backup set.
-      if (!volume->HasChunk(chunk.md5sum)) {
-        // Initialize compression.
-        z_stream stream_z;
-        stream_z.zalloc = Z_NULL;
-        stream_z.zfree = Z_NULL;
-        stream_z.opaque = Z_NULL;
-        int32_t ret = deflateInit(&stream_z, Z_DEFAULT_COMPRESSION);
-        CHECK_EQ(Z_OK, ret);
-
-        string compressed_data;
-        compressed_data.resize(128 * 1024);
-        stream_z.avail_in = read;
-        stream_z.next_in = reinterpret_cast<unsigned char*>(&data.at(0));
-        stream_z.avail_out = compressed_data.size();
-        stream_z.next_out =
-            reinterpret_cast<unsigned char*>(&compressed_data.at(0));
-
-        ret = deflate(&stream_z, Z_FINISH);
-        CHECK_NE(Z_STREAM_ERROR, ret);
-
-        uint32_t compressed_size = 128 * 1024 - stream_z.avail_out;
-        compressed_data.resize(compressed_size);
-        deflateEnd(&stream_z);
-
-        VLOG(5) << "Compressed " << read << " to " << compressed_size;
-
-        if (compressed_size > read) {
-          VLOG(5)
-              << "Compressed larger than raw, using raw encoding for chunk";
-          volume->WriteChunk(chunk.md5sum, &compressed_data.at(0), read,
-                             read, kEncodingTypeRaw);
-        } else {
-          volume->WriteChunk(chunk.md5sum, &compressed_data.at(0), read,
-                             compressed_size, kEncodingTypeZlib);
-        }
+      Status retval = volume->AddChunk(data, current_offset, entry);
+      if (!retval.ok()) {
+        LOG(FATAL) << "Could not add chunk to volume: " << retval.ToString();
       }
-      entry->AddChunk(chunk);
     } while (status.code() != kStatusShortRead);
 
     // We've reached the end of the file.  Close it out and start the next one.

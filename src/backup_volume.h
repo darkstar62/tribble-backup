@@ -29,6 +29,9 @@ typedef struct ConfigOptions {
 
   // Which volume of the series this volume represents.
   uint64_t volume_number;
+
+  // Whether to enable compression or not.
+  bool enable_compression;
 };
 
 // A BackupVolume represents a single backup volume file.  This could be
@@ -61,11 +64,18 @@ class BackupVolume {
     return chunks_.find(md5sum) != chunks_.end();
   }
 
-  // Write a chunk to the volume.  If successful, the chunk metadata is added to
-  // the passed file entry.
-  // file.  Metadata is stored in the current FileSet.
-  Status WriteChunk(Uint128 md5sum, void* data, uint64_t raw_size,
-                    uint64_t encoded_size, EncodingType type);
+  // Add a chunk to the backup volume.  The chunk is hashed and compressed
+  // before being written to the file, but only if the chunk doesn't already
+  // exist in the backup volume.  The chunk metadata, including the chunk_offset
+  // (the offset this chunk is in the file represented by 'file') is also added
+  // to the passed FileEntry object.
+  Status AddChunk(const std::string& data, const uint64_t chunk_offset,
+                  FileEntry* file);
+
+  // Read a chunk from the volume.  If successful, the chunk data is returned in
+  // the passed string.  This function will also decode / decompress the chunk
+  // if it was encoded.
+  Status ReadChunk(const FileChunk& chunk, std::string* data_out);
 
   // Close out the backup volume.  If this is the last volume in the backup a
   // fileset is provided and we write descriptor 2 to the file.  Otherwise, we
@@ -85,17 +95,40 @@ class BackupVolume {
   // Verify the backup descriptors are valid.  This doesn't actually read them.
   Status CheckBackupDescriptors();
 
+  // Write a chunk to the volume.  If successful, the chunk metadata is added to
+  // the passed file entry.
+  // file.  Metadata is stored in the current FileSet.
+  Status WriteChunk(Uint128 md5sum, const std::string& data, uint64_t raw_size,
+                    EncodingType type);
+
   // Write the various backup descriptors to the file.  These are run in order
   // at the end of the file.
   Status WriteBackupDescriptor1();
   Status WriteBackupDescriptor2(const FileSet& fileset);
   Status WriteBackupDescriptorHeader();
 
+  // Read the various backup descriptors from the file.
   Status ReadBackupDescriptorHeader();
   Status ReadBackupDescriptor1();
 
+  // Read a single file entry from the file.  The FileEntry is created and
+  // passed to the caller who takes ownership of it.
   StatusOr<FileEntry*> ReadFileEntry();
+
+  // Read the chunks of the given FileEntry file and load them into it.
   Status ReadFileChunks(uint64_t num_chunks, FileEntry* entry);
+
+  // Compute the MD5 hash of the given string data and return it as a Uint128.
+  Uint128 ComputeMd5(const std::string& data);
+
+  // Compress a chunk of data, returning the compressed data in the string
+  // pointed to by dest.  The dest string is resized to fit the compressed data.
+  Status Compress(const std::string& source, std::string* dest);
+
+  // Decompress a chunk of data, returning the original data in the string
+  // pointed to by dest.  The dest string must already be sized to the right
+  // size.
+  Status Decompress(const std::string& source, std::string* dest);
 
   // Current file version.  We expect to see this at the very begining of the
   // file to signify this is a valid backup file.
