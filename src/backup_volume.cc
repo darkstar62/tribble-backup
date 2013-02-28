@@ -1,18 +1,6 @@
 // Copyright (C) 2013, All Rights Reserved.
 // Author: Cory Maccarrone <darkstar6262@gmail.com>
 
-
-#include <zlib.h>
-
-#if defined(MSDOS) || defined(OS2) || defined(WIN32) || defined(__CYGWIN__)
-#  include <fcntl.h>
-#  include <io.h>
-#  define SET_BINARY_MODE(file) setmode(fileno(file), O_BINARY)
-#else
-#  define SET_BINARY_MODE(file)
-#endif
-
-#include <stdio.h>
 #include <iostream>
 #include <memory>
 #include <string>
@@ -21,10 +9,11 @@
 #include "glog/logging.h"
 #include "src/backup_volume.h"
 #include "src/common.h"
+#include "src/encoding_interface.h"
 #include "src/file.h"
 #include "src/file_interface.h"
 #include "src/fileset.h"
-#include "src/md5.h"
+#include "src/md5_generator_interface.h"
 
 using std::hex;
 using std::make_pair;
@@ -36,8 +25,12 @@ namespace backup2 {
 
 const std::string BackupVolume::kFileVersion = "BKP_0000";
 
-BackupVolume::BackupVolume(FileInterface* file)
+BackupVolume::BackupVolume(FileInterface* file,
+                           Md5GeneratorInterface* md5_maker,
+                           EncodingInterface* encoder)
     : file_(file),
+      md5_maker_(md5_maker),
+      encoder_(encoder),
       descriptor1_(),
       descriptor_header_(),
       descriptor2_offset_(0),
@@ -185,7 +178,7 @@ Status BackupVolume::Create(const ConfigOptions& options) {
 Status BackupVolume::AddChunk(const string& data, const uint64_t chunk_offset,
                               FileEntry* entry) {
   // Create the chunk checksum.
-  Uint128 md5 = ComputeMd5(data);
+  Uint128 md5 = md5_maker_->Checksum(data);
 
   FileChunk chunk;
   chunk.chunk_offset = chunk_offset;
@@ -202,7 +195,7 @@ Status BackupVolume::AddChunk(const string& data, const uint64_t chunk_offset,
   // If compression is enabled, compress the data.
   if (options_.enable_compression) {
     string compressed_data;
-    Status status = Compress(data, &compressed_data);
+    Status status = encoder_->Encode(data, &compressed_data);
     if (!status.ok()) {
       LOG(ERROR) << "Failed to compress data";
       return status;
@@ -283,7 +276,7 @@ Status BackupVolume::ReadChunk(const FileChunk& chunk, string* data_out) {
   // Decompress if encoded.
   if (header.encoding_type == kEncodingTypeZlib) {
     data_out->resize(header.unencoded_size);
-    retval = Decompress(encoded_data, data_out);
+    retval = encoder_->Decode(encoded_data, data_out);
     if (!retval.ok()) {
       LOG(ERROR) << "Error decompressing chunk";
       return retval;
@@ -293,7 +286,7 @@ Status BackupVolume::ReadChunk(const FileChunk& chunk, string* data_out) {
   }
 
   // Validate the MD5.
-  Uint128 md5 = ComputeMd5(*data_out);
+  Uint128 md5 = md5_maker_->Checksum(*data_out);
   if (md5 != header.md5sum) {
     LOG(ERROR) << "Chunk MD5 mismatch: expected " << std::hex
                << header.md5sum.hi << header.md5sum.lo << ", got "
@@ -642,89 +635,4 @@ Status BackupVolume::ReadFileChunks(
   return Status::OK;
 }
 
-Uint128 BackupVolume::ComputeMd5(const string& data) {
-  MD5 md5;
-  string md5sum = md5.digestString(data.c_str(), data.size());
-
-  Uint128 md5_int;
-  sscanf(md5sum.c_str(), "%16llx%16llx",  // NOLINT
-         &md5_int.hi, &md5_int.lo);
-  return md5_int;
-}
-
-Status BackupVolume::Compress(const string& source, string* dest) {
-  CHECK_NOTNULL(dest);
-
-  z_stream stream_z;
-  stream_z.zalloc = Z_NULL;
-  stream_z.zfree = Z_NULL;
-  stream_z.opaque = Z_NULL;
-  int32_t ret = deflateInit(&stream_z, Z_DEFAULT_COMPRESSION);
-  CHECK_EQ(Z_OK, ret);
-
-  // Allocate twice as much space as the source to account for compression
-  // actually taking more space than the original.
-  dest->resize(source.size() * 2);
-
-  string source_copy = source;
-  stream_z.avail_in = source.size();
-  stream_z.next_in = reinterpret_cast<uint8_t*>(&source_copy.at(0));
-  stream_z.avail_out = dest->size();
-  stream_z.next_out =
-      reinterpret_cast<unsigned char*>(&dest->at(0));
-
-  ret = deflate(&stream_z, Z_FINISH);
-  CHECK_NE(Z_STREAM_ERROR, ret);
-
-  uint32_t compressed_size = (source.size() * 2) - stream_z.avail_out;
-  dest->resize(compressed_size);
-  deflateEnd(&stream_z);
-  return Status::OK;
-}
-
-Status BackupVolume::Decompress(const string& source, string* dest) {
-  CHECK_NOTNULL(dest);
-
-  z_stream stream_z;
-  stream_z.zalloc = Z_NULL;
-  stream_z.zfree = Z_NULL;
-  stream_z.opaque = Z_NULL;
-  stream_z.avail_in = 0;
-  stream_z.next_in = Z_NULL;
-  int32_t ret = inflateInit(&stream_z);
-  CHECK_EQ(Z_OK, ret);
-
-  // dest is expected to be sized correctly already.
-
-  string source_copy = source;
-  stream_z.avail_in = source.size();
-  stream_z.next_in = reinterpret_cast<uint8_t*>(&source_copy.at(0));
-  stream_z.avail_out = dest->size();
-  stream_z.next_out =
-      reinterpret_cast<unsigned char*>(&dest->at(0));
-
-  ret = inflate(&stream_z, Z_NO_FLUSH);
-  CHECK_NE(Z_STREAM_ERROR, ret);
-  inflateEnd(&stream_z);
-
-  switch (ret) {
-    case Z_NEED_DICT:
-    case Z_DATA_ERROR:
-      LOG(ERROR) << "zlib error " << ret << " encountered";
-      return Status(kStatusCorruptBackup, "Error reading compressed data");
-      break;
-    case Z_MEM_ERROR:
-      LOG(ERROR) << "zlib memory error: " << strerror(Z_ERRNO);
-      return Status(kStatusUnknown, "Unknown memory error during zlib inflate");
-  }
-
-  if (stream_z.avail_out > 0) {
-    LOG(ERROR)
-        << "Decompressed size was " << (dest->size() - stream_z.avail_out)
-        << ", expected " << dest->size();
-    return Status(kStatusCorruptBackup,
-                  "Decompressed size was different than expected");
-  }
-  return Status::OK;
-}
 }  // namespace backup2

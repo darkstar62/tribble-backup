@@ -14,9 +14,11 @@
 #include "src/status.h"
 
 namespace backup2 {
+class EncodingInterface;
 class FileEntry;
 class FileInterface;
 class FileSet;
+class Md5GeneratorInterface;
 
 // Configuration options to construct the backup with.  These options are stored
 // in backup descriptor 2 so subsequent backups to the same volumes will re-use
@@ -40,8 +42,11 @@ typedef struct ConfigOptions {
 class BackupVolume {
  public:
   // Constructor.  This takes a FileInterface object that should be initialized
-  // with its filename and ready to be Open()ed.
-  explicit BackupVolume(FileInterface* file);
+  // with its filename and ready to be Open()ed.  The Md5GeneratorInterface and
+  // EncodingInterface objects transfer ownership to this class.
+  explicit BackupVolume(FileInterface* file,
+                        Md5GeneratorInterface* md5_maker,
+                        EncodingInterface* encoder);
   ~BackupVolume();
 
   // Initialize.  This opens the file (if it exists) and reads in the backup
@@ -118,24 +123,16 @@ class BackupVolume {
   // Read the chunks of the given FileEntry file and load them into it.
   Status ReadFileChunks(uint64_t num_chunks, FileEntry* entry);
 
-  // Compute the MD5 hash of the given string data and return it as a Uint128.
-  Uint128 ComputeMd5(const std::string& data);
-
-  // Compress a chunk of data, returning the compressed data in the string
-  // pointed to by dest.  The dest string is resized to fit the compressed data.
-  Status Compress(const std::string& source, std::string* dest);
-
-  // Decompress a chunk of data, returning the original data in the string
-  // pointed to by dest.  The dest string must already be sized to the right
-  // size.
-  Status Decompress(const std::string& source, std::string* dest);
-
   // Current file version.  We expect to see this at the very begining of the
   // file to signify this is a valid backup file.
   static const std::string kFileVersion;
 
   // Open file handle.
   std::unique_ptr<FileInterface> file_;
+
+  // Various interfaces to help perform the actions needed by this class.
+  std::unique_ptr<Md5GeneratorInterface> md5_maker_;
+  std::unique_ptr<EncodingInterface> encoder_;
 
   // Backup volume options.  These were either passed in to us, or determined
   // from the backup volume.

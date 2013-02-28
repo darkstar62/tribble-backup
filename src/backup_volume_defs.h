@@ -133,7 +133,7 @@ typedef struct BackupDescriptor2 {
   // Type of header.
   HeaderType header_type;
 
-  // Offset of the previous BackupDescriptorHeader.  This can be used to link
+  // Offset of the previous BackupDescriptor2.  This can be used to link
   // back to old backups and reconstitute the entire backup history.  Because
   // the previous backup may be in a different volume number, we provide that
   // here too.  Note that only BackupDescriptorHeaders that point to another

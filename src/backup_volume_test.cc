@@ -2,22 +2,27 @@
 // Author: Cory Maccarrone <darkstar6262@gmail.com>
 
 #include <string>
+#include <vector>
 
 #include "src/backup_volume.h"
 #include "src/fileset.h"
-#include "src/mock_file.h"
+#include "src/fake_file.h"
+#include "src/mock_encoder.h"
+#include "src/mock_md5_generator.h"
 #include "src/status.h"
 #include "glog/logging.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
 using std::string;
+using std::vector;
 using testing::_;
 using testing::DoAll;
 using testing::InSequence;
 using testing::Mock;
 using testing::Return;
 using testing::SetArrayArgument;
+using testing::SetArgPointee;
 
 namespace backup2 {
 
@@ -36,528 +41,733 @@ class BackupVolumeTest : public testing::Test {
  public:
   static const char kGoodVersion[9];
   static const int kBackupDescriptor1Offset = 0x12345;
-
-  // Set expectations that a good version read will occur.
-  void ExpectGoodVersion(MockFile* file) {
-    EXPECT_CALL(*file, Open(File::Mode::kModeRead))
-        .WillOnce(Return(Status::OK));
-    EXPECT_CALL(*file, Seek(0)).WillOnce(Return(Status::OK));
-    EXPECT_CALL(*file, Read(_, _, _))
-        .WillOnce(DoAll(SetCharStringValue(kGoodVersion, 8),
-                        Return(Status::OK)));
-  }
-
-  // Set expectations for a good backup descriptor header.
-  void ExpectGoodBackupDescriptorHeader(MockFile* file, bool descriptor2) {
-    good_descriptor_header_.backup_descriptor_1_offset =
-        kBackupDescriptor1Offset;
-    good_descriptor_header_.backup_descriptor_2_present = descriptor2 ? 1 : 0;
-
-    EXPECT_CALL(*file, Seek(-sizeof(BackupDescriptorHeader)))
-        .WillOnce(Return(Status::OK));
-    EXPECT_CALL(*file, Tell()).WillOnce(Return(0));
-    EXPECT_CALL(*file, Read(_, sizeof(BackupDescriptorHeader), _))
-        .WillOnce(DoAll(
-            SetCharStringValue(&good_descriptor_header_,
-                               sizeof(BackupDescriptorHeader)),
-            Return(Status::OK)));
-  }
-
-  void ExpectGoodBackupDescriptor1(MockFile* file) {
-    good_descriptor_1_.total_chunks = 0;
-    EXPECT_CALL(*file, Seek(kBackupDescriptor1Offset))
-        .WillOnce(Return(Status::OK));
-    EXPECT_CALL(*file, Read(_, _, _))
-        .WillOnce(DoAll(
-            SetCharStringValue(&good_descriptor_1_, sizeof(BackupDescriptor1)),
-            Return(Status::OK)));
-  }
-
-  void ExpectSuccessfulInit(BackupVolume* volume, MockFile* file) {
-    // Test without a descriptor 2 for the moment.  This test verifies a seek
-    // failure works correctly.
-    {
-      InSequence s;
-      ExpectGoodVersion(file);
-      ExpectGoodBackupDescriptorHeader(file, false);
-      ExpectGoodBackupDescriptor1(file);
-
-      // File should be closed and re-opened for append.
-      EXPECT_CALL(*file, Close()).WillOnce(Return(Status::OK));
-      EXPECT_CALL(*file, Open(File::Mode::kModeAppend))
-          .WillOnce(Return(Status::OK));
-    }
-
-    Status retval = volume->Init();
-    EXPECT_TRUE(retval.ok());
-    Mock::VerifyAndClearExpectations(file);
-  }
-
-  BackupDescriptorHeader good_descriptor_header_;
-  BackupDescriptor1 good_descriptor_1_;
 };
 
 const char BackupVolumeTest::kGoodVersion[9] = "BKP_0000";
 
+TEST_F(BackupVolumeTest, ShortVersionHeader) {
+  FakeFile* file = new FakeFile;
+  BackupVolume volume(file, NULL, NULL);
+
+  file->Write("ABCD12", 6);
+  Status retval = volume.Init();
+  EXPECT_FALSE(retval.ok());
+  EXPECT_EQ(kStatusShortRead, retval.code());
+}
+
 TEST_F(BackupVolumeTest, InvalidVersionHeader) {
-  // This test verifies that an invalid version header, or any kind of read
-  // error during reading the version header will result in propagation of the
-  // error back and a failed initialization.
-  MockFile* file = new MockFile;
-  BackupVolume volume(file);
+  FakeFile* file = new FakeFile;
+  BackupVolume volume(file, NULL, NULL);
 
-  // Test initial opening failing.
-  EXPECT_CALL(*file, Open(File::Mode::kModeRead))
-      .WillOnce(Return(Status::UNKNOWN));
-
+  file->Write("ABCD1234", 8);
   Status retval = volume.Init();
   EXPECT_FALSE(retval.ok());
-  EXPECT_EQ(kStatusUnknown, retval.code());
-  Mock::VerifyAndClearExpectations(file);
+  EXPECT_EQ(kStatusCorruptBackup, retval.code());
+}
 
-  // Test initial seeking failing.
-  EXPECT_CALL(*file, Open(File::Mode::kModeRead))
-      .WillOnce(Return(Status::OK));
-  EXPECT_CALL(*file, Seek(0)).WillOnce(Return(Status::UNKNOWN));
-  EXPECT_CALL(*file, Close())
-      .WillOnce(Return(Status::OK));
+TEST_F(BackupVolumeTest, SuccessfulInit) {
+  // This test verifies that a successful init can be accomplished with valid
+  // input.  We also test error conditions as we're building the file.  It
+  // doesn't catch everything, but it does get a lot of it.
+  FakeFile* file = new FakeFile;
+  BackupVolume volume(file, NULL, NULL);
 
-  retval = volume.Init();
+  // Version string.
+  file->Write(kGoodVersion, 8);
+  Status retval = volume.Init();
   EXPECT_FALSE(retval.ok());
-  EXPECT_EQ(kStatusUnknown, retval.code());
-  Mock::VerifyAndClearExpectations(file);
+  EXPECT_EQ(kStatusShortRead, retval.code());
 
-  // Initial open and seek to the beginning
-  EXPECT_CALL(*file, Open(File::Mode::kModeRead))
-      .WillOnce(Return(Status::OK));
-  EXPECT_CALL(*file, Seek(0)).WillOnce(Return(Status::OK));
-
-  // Read the version.  This should fail the read.
-  char version[9] = "BKP_0000";
-  EXPECT_CALL(*file, Read(_, _, _))
-      .WillOnce(DoAll(SetCharStringValue(version, 8),
-                      Return(Status::UNKNOWN)));
-  EXPECT_CALL(*file, Close())
-      .WillOnce(Return(Status::OK));
-
-  retval = volume.Init();
-  EXPECT_FALSE(retval.ok());
-  EXPECT_EQ(kStatusUnknown, retval.code());
-  Mock::VerifyAndClearExpectations(file);
-
-  // Now succeed the read, but return garbage.
-  // Initial open and seek to the beginning
-  EXPECT_CALL(*file, Open(File::Mode::kModeRead))
-      .WillOnce(Return(Status::OK));
-  EXPECT_CALL(*file, Seek(0)).WillOnce(Return(Status::OK));
-
-  // Read the version.  This should fail the read.
-  char version_bad[9] = "ABCD1234";
-  EXPECT_CALL(*file, Read(_, _, _))
-      .WillOnce(DoAll(SetCharStringValue(version_bad, 8),
-                      Return(Status::OK)));
-  EXPECT_CALL(*file, Close())
-      .WillOnce(Return(Status::OK));
-
+  // Create a ChunkHeader.
+  ChunkHeader chunk_header;
+  chunk_header.encoded_size = 16;
+  chunk_header.unencoded_size = 16;
+  chunk_header.encoding_type = kEncodingTypeRaw;
+  file->Write(&chunk_header, sizeof(chunk_header));
   retval = volume.Init();
   EXPECT_FALSE(retval.ok());
   EXPECT_EQ(kStatusCorruptBackup, retval.code());
-  Mock::VerifyAndClearExpectations(file);
-}
 
-TEST_F(BackupVolumeTest, InvalidBackupHeader) {
-  // This test verifies that an invalid backup header, or a read error during
-  // any part of processing the backup header, will cause the error to propagate
-  // backup up and fail the initialiaztion.
-  MockFile* file = new MockFile;
-  BackupVolume volume(file);
-
-  // Set some expectations on initialization.  This test will fail the seek to
-  // the end of the file.
-  ExpectGoodVersion(file);
-  EXPECT_CALL(*file, Seek(-sizeof(BackupDescriptorHeader)))
-      .WillOnce(Return(Status::UNKNOWN));
-  EXPECT_CALL(*file, Close())
-      .WillOnce(Return(Status::OK));
-
-  Status retval = volume.Init();
-  EXPECT_FALSE(retval.ok());
-  EXPECT_EQ(kStatusUnknown, retval.code());
-  Mock::VerifyAndClearExpectations(file);
-
-  // Set some expectations on initialization.  This test will fail the read of
-  // the data.
-  ExpectGoodVersion(file);
-  EXPECT_CALL(*file, Seek(-sizeof(BackupDescriptorHeader)))
-      .WillOnce(Return(Status::OK));
-  EXPECT_CALL(*file, Tell()).WillOnce(Return(0));
-  EXPECT_CALL(*file, Read(_, sizeof(BackupDescriptorHeader), _))
-      .WillOnce(Return(Status::UNKNOWN));
-  EXPECT_CALL(*file, Close()).WillOnce(Return(Status::OK));
-
-  retval = volume.Init();
-  EXPECT_FALSE(retval.ok());
-  EXPECT_EQ(kStatusUnknown, retval.code());
-  Mock::VerifyAndClearExpectations(file);
-
-  // This test will return a different header type.
-  BackupDescriptorHeader header;
-  header.header_type = kHeaderTypeChunkHeader;
-
-  ExpectGoodVersion(file);
-  EXPECT_CALL(*file, Seek(-sizeof(BackupDescriptorHeader)))
-      .WillOnce(Return(Status::OK));
-  EXPECT_CALL(*file, Tell()).WillOnce(Return(0));
-  EXPECT_CALL(*file, Read(_, sizeof(BackupDescriptorHeader), _))
-      .WillOnce(DoAll(
-          SetCharStringValue(&header, sizeof(BackupDescriptorHeader)),
-          Return(Status::OK)));
-  EXPECT_CALL(*file, Close()).WillOnce(Return(Status::OK));
-
+  // Create the chunk.
+  file->Write("1234567890123456", 16);
   retval = volume.Init();
   EXPECT_FALSE(retval.ok());
   EXPECT_EQ(kStatusCorruptBackup, retval.code());
-  Mock::VerifyAndClearExpectations(file);
-}
 
-TEST_F(BackupVolumeTest, InvalidDescriptor1) {
-  // This test verifies that an invalid backup descriptor 1 is handled correctly
-  // in all cases.
-  MockFile* file = new MockFile;
-  BackupVolume volume(file);
+  // Create backup descriptor 1.
+  uint64_t desc1_offset = file->size();
 
-  // Test without a descriptor 2 for the moment.  This test verifies a seek
-  // failure works correctly.
-  {
-    InSequence s;
-    ExpectGoodVersion(file);
-    ExpectGoodBackupDescriptorHeader(file, false);
-
-    EXPECT_CALL(*file, Seek(kBackupDescriptor1Offset))
-        .WillOnce(Return(Status::UNKNOWN));
-    EXPECT_CALL(*file, Close()).WillOnce(Return(Status::OK));
-  }
-
-  Status retval = volume.Init();
-  EXPECT_FALSE(retval.ok());
-  EXPECT_EQ(kStatusUnknown, retval.code());
-  Mock::VerifyAndClearExpectations(file);
-
-  // This test verifies a read failure works correctly.
-  {
-    InSequence s;
-    ExpectGoodVersion(file);
-    ExpectGoodBackupDescriptorHeader(file, false);
-
-    EXPECT_CALL(*file, Seek(kBackupDescriptor1Offset))
-        .WillOnce(Return(Status::OK));
-    EXPECT_CALL(*file, Read(_, sizeof(BackupDescriptor1), _))
-        .WillOnce(Return(Status::UNKNOWN));
-    EXPECT_CALL(*file, Close()).WillOnce(Return(Status::OK));
-  }
-
-  retval = volume.Init();
-  EXPECT_FALSE(retval.ok());
-  EXPECT_EQ(kStatusUnknown, retval.code());
-  Mock::VerifyAndClearExpectations(file);
-
-  // This test verifies an invalid descriptor type is handled correctly.
-  {
-    InSequence s;
-    ExpectGoodVersion(file);
-    ExpectGoodBackupDescriptorHeader(file, false);
-
-    BackupDescriptor1 desc;
-    desc.header_type = kHeaderTypeChunkHeader;
-    EXPECT_CALL(*file, Seek(kBackupDescriptor1Offset))
-        .WillOnce(Return(Status::OK));
-    EXPECT_CALL(*file, Read(_, _, _))
-        .WillOnce(DoAll(
-            SetCharStringValue(&desc, sizeof(BackupDescriptor1)),
-            Return(Status::OK)));
-    EXPECT_CALL(*file, Close()).WillOnce(Return(Status::OK));
-  }
-
+  BackupDescriptor1 descriptor1;
+  descriptor1.total_chunks = 1;
+  file->Write(&descriptor1, sizeof(descriptor1));
   retval = volume.Init();
   EXPECT_FALSE(retval.ok());
   EXPECT_EQ(kStatusCorruptBackup, retval.code());
-  Mock::VerifyAndClearExpectations(file);
-}
 
-TEST_F(BackupVolumeTest, SuccessfulInitialize) {
-  // This test verifies an initialize will work all the way through with valid
-  // data.
-  MockFile* file = new MockFile;
-  BackupVolume volume(file);
-
-  ExpectSuccessfulInit(&volume, file);
-}
-
-TEST_F(BackupVolumeTest, CreateCloseNoFinal) {
-  // This test verifies that creating a new backup volume file works correctly,
-  // and closing it as not the last file does not save descriptor 2.
-  MockFile* file = new MockFile;
-  BackupVolume volume(file);
-
-  EXPECT_CALL(*file, Open(File::Mode::kModeAppend))
-      .WillOnce(Return(Status::OK));
-  EXPECT_CALL(*file, Write(BinaryDataEq(kGoodVersion, 8), 8))
-      .WillOnce(Return(Status::OK));
-
-  // A lot of other stuff will be initialized too, but we can't directly test
-  // that here.
-
-  ConfigOptions options;
-  EXPECT_TRUE(volume.Create(options).ok());
-  Mock::VerifyAndClearExpectations(file);
-
-  // Now, if we Close() the file, we should see the descriptors that were set
-  // up.
-  BackupDescriptor1 expected_1;
-  expected_1.total_chunks = 0;
-
-  BackupDescriptorHeader header;
-  header.backup_descriptor_1_offset = 0x8;
-  header.backup_descriptor_2_present = 0;
-
-  EXPECT_CALL(*file, SeekEof()).Times(2).WillRepeatedly(Return(Status::OK));
-  EXPECT_CALL(*file, Tell()).WillOnce(Return(0x8));
-  EXPECT_CALL(*file, Write(BinaryDataEq(&expected_1, sizeof(BackupDescriptor1)),
-                           sizeof(BackupDescriptor1)))
-      .WillOnce(Return(Status::OK));
-  EXPECT_CALL(*file, Write(BinaryDataEq(&header,
-                                        sizeof(BackupDescriptorHeader)),
-                           sizeof(BackupDescriptorHeader)))
-      .WillOnce(Return(Status::OK));
-  EXPECT_CALL(*file, Close()).WillOnce(Return(Status::OK));
-
-  Status retval = volume.Close();
-  Mock::VerifyAndClearExpectations(file);
-  EXPECT_TRUE(retval.ok());
-}
-
-TEST_F(BackupVolumeTest, CreateOpenFailed) {
-  // This test verifies a Create() call responds well when Open fails.
-  MockFile* file = new MockFile;
-  BackupVolume volume(file);
-
-  EXPECT_CALL(*file, Open(File::Mode::kModeAppend))
-      .WillOnce(Return(Status::UNKNOWN));
-
-  ConfigOptions options;
-  Status retval = volume.Create(options);
+  // Create a descriptor 1 chunk.
+  BackupDescriptor1Chunk descriptor1_chunk;
+  descriptor1_chunk.md5sum = chunk_header.md5sum;
+  descriptor1_chunk.offset = 8;
+  file->Write(&descriptor1_chunk, sizeof(descriptor1_chunk));
+  retval = volume.Init();
   EXPECT_FALSE(retval.ok());
-  EXPECT_EQ(kStatusUnknown, retval.code());
-  Mock::VerifyAndClearExpectations(file);
-}
+  EXPECT_EQ(kStatusCorruptBackup, retval.code());
 
-TEST_F(BackupVolumeTest, CreateWriteFailed) {
-  // This test verifies a Create() call responds well when Write fails.
-  MockFile* file = new MockFile;
-  BackupVolume volume(file);
-
-  EXPECT_CALL(*file, Open(File::Mode::kModeAppend))
-      .WillOnce(Return(Status::OK));
-  EXPECT_CALL(*file, Write(BinaryDataEq(kGoodVersion, 8), 8))
-      .WillOnce(Return(Status::UNKNOWN));
-  EXPECT_CALL(*file, Close()).WillOnce(Return(Status::OK));
-  EXPECT_CALL(*file, Unlink()).WillOnce(Return(Status::OK));
-
-  ConfigOptions options;
-  Status retval = volume.Create(options);
+  // Create a descriptor 2.
+  BackupDescriptor2 descriptor2;
+  descriptor2.unencoded_size = 16;
+  descriptor2.encoded_size = 16;
+  descriptor2.num_files = 1;
+  descriptor2.description_size = 6;
+  file->Write(&descriptor2, sizeof(descriptor2));
+  file->Write("backup", 6);
+  retval = volume.Init();
   EXPECT_FALSE(retval.ok());
-  EXPECT_EQ(kStatusUnknown, retval.code());
-  Mock::VerifyAndClearExpectations(file);
-}
+  EXPECT_EQ(kStatusCorruptBackup, retval.code());
 
-TEST_F(BackupVolumeTest, AppendChunkToExistingFile) {
-  // This test verifies that a chunk of data can be written, and doing so
-  // results in the correct writes to an existing file.
-  MockFile* file = new MockFile;
-  BackupVolume volume(file);
-
-  // Initialize our backup set as an existing file.
-  ExpectSuccessfulInit(&volume, file);
-
-  // Write a chunk.
-  Uint128 sum = {123, 456};
-  string data = "abc123eoa";
-  uint64_t offset = 0x18374;
-
-  ChunkHeader header;
-  header.md5sum = sum;
-  header.unencoded_size = data.size() - 3;
-  header.encoded_size = data.size();
-  header.encoding_type = kEncodingTypeRaw;
-
-  EXPECT_CALL(*file, SeekEof()).WillOnce(Return(Status::OK));
-  EXPECT_CALL(*file, Tell()).WillOnce(Return(offset));
-  EXPECT_CALL(*file, Write(BinaryDataEq(&header, sizeof(ChunkHeader)),
-                           sizeof(ChunkHeader)))
-      .WillOnce(Return(Status::OK));
-  EXPECT_CALL(*file, Write(BinaryDataEq(&data.at(0), data.size()),
-                           data.size()))
-      .WillOnce(Return(Status::OK));
-
-  Status retval = Status::OK;
-//   Status retval = volume.WriteChunk(sum, &data.at(0), data.size() - 3,
-//                                     data.size(), kEncodingTypeRaw);
-//   EXPECT_TRUE(retval.ok());
-  Mock::VerifyAndClearExpectations(file);
-
-  // Test that the chunk made it into the map.
-  EXPECT_TRUE(volume.HasChunk(sum));
-
-  // Now, if we Close() the file, we should see the descriptors that were set
-  // up.
-  BackupDescriptor1 expected_1;
-  expected_1.total_chunks = 1;
-
-  BackupDescriptor1Chunk expected_chunk_1;
-  expected_chunk_1.md5sum = sum;
-  expected_chunk_1.offset = offset;
-
-  BackupDescriptorHeader backup_header;
-  backup_header.backup_descriptor_1_offset = 0x7482;
-  backup_header.backup_descriptor_2_present = 0;
-
-  EXPECT_CALL(*file, SeekEof()).Times(2).WillRepeatedly(Return(Status::OK));
-  EXPECT_CALL(*file, Tell()).WillOnce(Return(0x7482));
-  EXPECT_CALL(*file, Write(BinaryDataEq(&expected_1, sizeof(BackupDescriptor1)),
-                           sizeof(BackupDescriptor1)))
-      .WillOnce(Return(Status::OK));
-  EXPECT_CALL(*file, Write(BinaryDataEq(&expected_chunk_1,
-                                        sizeof(BackupDescriptor1Chunk)),
-                           sizeof(BackupDescriptor1Chunk)))
-      .WillOnce(Return(Status::OK));
-  EXPECT_CALL(*file, Write(BinaryDataEq(&backup_header,
-                                        sizeof(BackupDescriptorHeader)),
-                           sizeof(BackupDescriptorHeader)))
-      .WillOnce(Return(Status::OK));
-  EXPECT_CALL(*file, Close()).WillOnce(Return(Status::OK));
-
-  retval = volume.Close();
-  Mock::VerifyAndClearExpectations(file);
-  EXPECT_TRUE(retval.ok());
-}
-
-TEST_F(BackupVolumeTest, AppendChunkToExistingFileWithDesc2) {
-  // This test verifies that a chunk of data can be written, and doing so
-  // results in the correct writes to an existing file, including output of
-  // descriptor 2.
-  MockFile* file = new MockFile;
-  BackupVolume volume(file);
-
-  // Initialize our backup set as an existing file.
-  ExpectSuccessfulInit(&volume, file);
-
-  // Write a chunk.
-  Uint128 sum = {123, 456};
-  string data = "abc123eoa";
-  uint64_t offset = 0x18374;
-
-  ChunkHeader header;
-  header.md5sum = sum;
-  header.unencoded_size = data.size() - 3;
-  header.encoded_size = data.size();
-  header.encoding_type = kEncodingTypeRaw;
-
-  EXPECT_CALL(*file, SeekEof()).WillOnce(Return(Status::OK));
-  EXPECT_CALL(*file, Tell()).WillOnce(Return(offset));
-  EXPECT_CALL(*file, Write(BinaryDataEq(&header, sizeof(ChunkHeader)),
-                           sizeof(ChunkHeader)))
-      .WillOnce(Return(Status::OK));
-  EXPECT_CALL(*file, Write(BinaryDataEq(&data.at(0), data.size()),
-                           data.size()))
-      .WillOnce(Return(Status::OK));
-
-  Status retval = Status::OK;
-//   Status retval = volume.WriteChunk(sum, &data.at(0), data.size() - 3,
-//                                     data.size(), kEncodingTypeRaw);
-//   EXPECT_TRUE(retval.ok());
-  Mock::VerifyAndClearExpectations(file);
-
-  // Test that the chunk made it into the map.
-  EXPECT_TRUE(volume.HasChunk(sum));
-
-  // Now, if we Close() the file, we should see the descriptors that were set
-  // up.
-  BackupDescriptor1 expected_1;
-  expected_1.total_chunks = 1;
-
-  BackupDescriptor1Chunk expected_chunk_1;
-  expected_chunk_1.md5sum = sum;
-  expected_chunk_1.offset = offset;
-
-  BackupDescriptorHeader backup_header;
-  backup_header.backup_descriptor_1_offset = 0x7482;
-  backup_header.backup_descriptor_2_present = 1;
-  backup_header.volume_number = 0;
-
-  FileSet fileset;
-  fileset.set_description("Test");
-
-  BackupDescriptor2 expected_2;
-  expected_2.previous_backup_offset = 0;
-  expected_2.previous_backup_volume_number = 0;
-  expected_2.num_files = 1;
-  expected_2.description_size = 4;
-
-  string filename = "/foo/bar";
-  BackupFile* backup_file = new BackupFile;
-  backup_file->file_size = 15;
-  backup_file->num_chunks = 1;
-  backup_file->filename_size = filename.size();
+  // Create a BackupFile and BackupChunk.
+  BackupFile backup_file;
+  backup_file.file_size = 16;
+  backup_file.num_chunks = 1;
+  backup_file.filename_size = 7;
+  file->Write(&backup_file, sizeof(backup_file));
+  file->Write("/foobar", 7);
+  retval = volume.Init();
+  EXPECT_FALSE(retval.ok());
+  EXPECT_EQ(kStatusCorruptBackup, retval.code());
 
   FileChunk file_chunk;
-  file_chunk.md5sum = sum;
+  file_chunk.md5sum = chunk_header.md5sum;
   file_chunk.volume_num = 0;
   file_chunk.chunk_offset = 0;
-  file_chunk.unencoded_size = 15;
+  file_chunk.unencoded_size = 16;
+  file->Write(&file_chunk, sizeof(file_chunk));
+  retval = volume.Init();
+  EXPECT_FALSE(retval.ok());
+  EXPECT_EQ(kStatusCorruptBackup, retval.code());
 
-  FileEntry* entry = new FileEntry(filename, backup_file);
-  entry->AddChunk(file_chunk);
-  fileset.AddFile(entry);
+  // Create the backup header.
+  BackupDescriptorHeader header;
+  header.backup_descriptor_1_offset = desc1_offset;
+  header.backup_descriptor_2_present = 1;
+  header.volume_number = 0;
+  file->Write(&header, sizeof(BackupDescriptorHeader));
 
-  EXPECT_CALL(*file, SeekEof()).Times(3).WillRepeatedly(Return(Status::OK));
-  EXPECT_CALL(*file, Tell()).WillOnce(Return(0x7482));
-  EXPECT_CALL(*file, Write(
-          BinaryDataEq(&expected_1, sizeof(expected_1)),
-          sizeof(expected_1)))
-      .WillOnce(Return(Status::OK));
-  EXPECT_CALL(*file, Write(
-          BinaryDataEq(
-              &expected_chunk_1,
-              sizeof(expected_chunk_1)),
-          sizeof(expected_chunk_1)))
-      .WillOnce(Return(Status::OK));
-  EXPECT_CALL(*file, Write(BinaryDataEq(&expected_2,
-                                        sizeof(expected_2)),
-                           sizeof(expected_2)))
-      .WillOnce(Return(Status::OK));
-  EXPECT_CALL(*file, Write(
-      BinaryDataEq(&fileset.description().at(0),
-                   fileset.description().size()),
-      fileset.description().size()))
-      .WillOnce(Return(Status::OK));
-  EXPECT_CALL(*file, Write(
-      BinaryDataEq(backup_file, sizeof(*backup_file)), sizeof(*backup_file)))
-      .WillOnce(Return(Status::OK));
-  EXPECT_CALL(*file, Write(BinaryDataEq(&filename.at(0), filename.size()),
-                           filename.size())).WillOnce(Return(Status::OK));
-  EXPECT_CALL(*file, Write(BinaryDataEq(&file_chunk,
-                                        sizeof(file_chunk)),
-                           sizeof(file_chunk)))
-      .WillOnce(Return(Status::OK));
-  EXPECT_CALL(*file, Write(BinaryDataEq(&backup_header,
-                                        sizeof(backup_header)),
-                           sizeof(backup_header)))
-      .WillOnce(Return(Status::OK));
-  EXPECT_CALL(*file, Close()).WillOnce(Return(Status::OK));
-
-  retval = volume.CloseWithFileSet(fileset);
-  Mock::VerifyAndClearExpectations(file);
+  // Attempt an init.
+  retval = volume.Init();
   EXPECT_TRUE(retval.ok());
+}
+
+TEST_F(BackupVolumeTest, CreateAndClose) {
+  // This test verifies that a create and close results in a valid (but empty)
+  // backup volume.
+  FakeFile* file = new FakeFile;
+
+  // In an empty file, we have the version, backup 1 descriptor, and backup
+  // header only.  Our file will have chunks and descriptor 1 chunk headers too.
+
+  // Version string.
+  file->Write(kGoodVersion, 8);
+
+  // Create backup descriptor 1.
+  uint64_t desc1_offset = file->size();
+  BackupDescriptor1 descriptor1;
+  descriptor1.total_chunks = 0;
+  file->Write(&descriptor1, sizeof(descriptor1));
+
+  // Create the backup header.
+  BackupDescriptorHeader header;
+  header.backup_descriptor_1_offset = desc1_offset;
+  header.backup_descriptor_2_present = 0;
+  header.volume_number = 0;
+  file->Write(&header, sizeof(BackupDescriptorHeader));
+
+  // Reset for the test.
+  file->MakeCurrentDataExpectedResult();
+
+  // Create it as a backup would -- Init first, then on failure, Create.
+  BackupVolume volume(file, NULL, NULL);
+  ConfigOptions options;
+
+  EXPECT_FALSE(volume.Init().ok());
+  EXPECT_TRUE(volume.Create(options).ok());
+  EXPECT_TRUE(volume.Close().ok());
+
+  // Validate the contents.
+  EXPECT_TRUE(file->CompareExpected());
+}
+
+TEST_F(BackupVolumeTest, CreateAddChunkAndClose) {
+  // This test verifies that a create, add-chunk, and close results in a valid
+  // backup volume without a descriptor 2.
+  FakeFile* file = new FakeFile;
+
+  // In an empty file, we have the version, backup 1 descriptor, and backup
+  // header only.
+
+  // Version string.
+  file->Write(kGoodVersion, 8);
+
+  // Create a ChunkHeader and chunk.
+  string chunk_data = "1234567890123456";
+  ChunkHeader chunk_header;
+  chunk_header.encoded_size = chunk_data.size();
+  chunk_header.unencoded_size = chunk_data.size();
+  chunk_header.encoding_type = kEncodingTypeRaw;
+  chunk_header.md5sum = {123, 456};
+  file->Write(&chunk_header, sizeof(chunk_header));
+  file->Write(&chunk_data.at(0), chunk_data.size());
+
+  // Create backup descriptor 1.
+  uint64_t desc1_offset = file->size();
+  BackupDescriptor1 descriptor1;
+  descriptor1.total_chunks = 1;
+  file->Write(&descriptor1, sizeof(descriptor1));
+
+  // Create the descriptor 1 chunk.
+  BackupDescriptor1Chunk descriptor1_chunk;
+  descriptor1_chunk.md5sum = chunk_header.md5sum;
+  descriptor1_chunk.offset = 8;
+  file->Write(&descriptor1_chunk, sizeof(descriptor1_chunk));
+
+  // Create the backup header.
+  BackupDescriptorHeader header;
+  header.backup_descriptor_1_offset = desc1_offset;
+  header.backup_descriptor_2_present = 0;
+  header.volume_number = 0;
+  file->Write(&header, sizeof(BackupDescriptorHeader));
+
+  // Reset for the test.
+  file->MakeCurrentDataExpectedResult();
+
+  // Create it as a backup would -- Init first, then on failure, Create.
+  MockMd5Generator* md5_generator = new MockMd5Generator;
+  BackupVolume volume(file, md5_generator, NULL);
+  ConfigOptions options;
+
+  EXPECT_FALSE(volume.Init().ok());
+  EXPECT_TRUE(volume.Create(options).ok());
+
+  EXPECT_CALL(*md5_generator, Checksum(chunk_data))
+      .WillOnce(Return(chunk_header.md5sum));
+  // TODO(darkstar62): This should be a FakeFileEntry.
+  BackupFile* entry_metadata = new BackupFile;
+  FileEntry file_entry("/foo", entry_metadata);
+  EXPECT_TRUE(volume.AddChunk(chunk_data, 0, &file_entry).ok());
+  EXPECT_TRUE(volume.Close().ok());
+
+  // Validate the contents.
+  EXPECT_TRUE(file->CompareExpected());
+
+  // MD5 generator should have been called.
+  Mock::VerifyAndClearExpectations(md5_generator);
+}
+
+TEST_F(BackupVolumeTest, CreateAddChunkAndCloseWithCompression) {
+  // This test verifies that a create, add-chunk, and close results in a valid
+  // backup volume without a descriptor 2.
+  FakeFile* file = new FakeFile;
+
+  // In an empty file, we have the version, backup 1 descriptor, and backup
+  // header only.
+
+  // Version string.
+  file->Write(kGoodVersion, 8);
+
+  // Create a ChunkHeader and chunk.
+  string chunk_data = "1234567890123456";
+  string encoded_data = "abcdefg";
+  ChunkHeader chunk_header;
+  chunk_header.encoded_size = encoded_data.size();
+  chunk_header.unencoded_size = chunk_data.size();
+  chunk_header.encoding_type = kEncodingTypeZlib;
+  chunk_header.md5sum = {123, 456};
+  file->Write(&chunk_header, sizeof(chunk_header));
+  file->Write(&encoded_data.at(0), encoded_data.size());
+
+  // Create backup descriptor 1.
+  uint64_t desc1_offset = file->size();
+  BackupDescriptor1 descriptor1;
+  descriptor1.total_chunks = 1;
+  file->Write(&descriptor1, sizeof(descriptor1));
+
+  // Create the descriptor 1 chunk.
+  BackupDescriptor1Chunk descriptor1_chunk;
+  descriptor1_chunk.md5sum = chunk_header.md5sum;
+  descriptor1_chunk.offset = 8;
+  file->Write(&descriptor1_chunk, sizeof(descriptor1_chunk));
+
+  // Create the backup header.
+  BackupDescriptorHeader header;
+  header.backup_descriptor_1_offset = desc1_offset;
+  header.backup_descriptor_2_present = 0;
+  header.volume_number = 0;
+  file->Write(&header, sizeof(BackupDescriptorHeader));
+
+  // Reset for the test.
+  file->MakeCurrentDataExpectedResult();
+
+  // Create it as a backup would -- Init first, then on failure, Create.
+  MockMd5Generator* md5_generator = new MockMd5Generator;
+  MockEncoder* encoder = new MockEncoder;
+  BackupVolume volume(file, md5_generator, encoder);
+  ConfigOptions options;
+  options.enable_compression = true;
+
+  EXPECT_FALSE(volume.Init().ok());
+  EXPECT_TRUE(volume.Create(options).ok());
+
+  EXPECT_CALL(*md5_generator, Checksum(chunk_data))
+      .WillOnce(Return(chunk_header.md5sum));
+  EXPECT_CALL(*encoder, Encode(chunk_data, _))
+      .WillOnce(DoAll(SetArgPointee<1>(encoded_data),
+                Return(Status::OK)));
+
+  // TODO(darkstar62): This should be a FakeFileEntry.
+  BackupFile* entry_metadata = new BackupFile;
+  FileEntry file_entry("/foo", entry_metadata);
+  EXPECT_TRUE(volume.AddChunk(chunk_data, 0, &file_entry).ok());
+  EXPECT_TRUE(volume.Close().ok());
+
+  // Validate the contents.
+  EXPECT_TRUE(file->CompareExpected());
+
+  // MD5 generator should have been called.
+  Mock::VerifyAndClearExpectations(md5_generator);
+  Mock::VerifyAndClearExpectations(encoder);
+}
+
+TEST_F(BackupVolumeTest, CreateAddChunkAndCloseWithBigCompression) {
+  // This test verifies that a create, add-chunk, and close results in a valid
+  // backup volume without a descriptor 2.  This test tries a compressed result
+  // that's too big.
+  FakeFile* file = new FakeFile;
+
+  // In an empty file, we have the version, backup 1 descriptor, and backup
+  // header only.
+
+  // Version string.
+  file->Write(kGoodVersion, 8);
+
+  // Create a ChunkHeader and chunk.
+  string chunk_data = "1234567890123456";
+  string encoded_data = "abcdefghijklmnopqrstuvwxyz";
+  ChunkHeader chunk_header;
+  chunk_header.encoded_size = chunk_data.size();
+  chunk_header.unencoded_size = chunk_data.size();
+  chunk_header.encoding_type = kEncodingTypeRaw;
+  chunk_header.md5sum = {123, 456};
+  file->Write(&chunk_header, sizeof(chunk_header));
+  file->Write(&chunk_data.at(0), chunk_data.size());
+
+  // Create backup descriptor 1.
+  uint64_t desc1_offset = file->size();
+  BackupDescriptor1 descriptor1;
+  descriptor1.total_chunks = 1;
+  file->Write(&descriptor1, sizeof(descriptor1));
+
+  // Create the descriptor 1 chunk.
+  BackupDescriptor1Chunk descriptor1_chunk;
+  descriptor1_chunk.md5sum = chunk_header.md5sum;
+  descriptor1_chunk.offset = 8;
+  file->Write(&descriptor1_chunk, sizeof(descriptor1_chunk));
+
+  // Create the backup header.
+  BackupDescriptorHeader header;
+  header.backup_descriptor_1_offset = desc1_offset;
+  header.backup_descriptor_2_present = 0;
+  header.volume_number = 0;
+  file->Write(&header, sizeof(BackupDescriptorHeader));
+
+  // Reset for the test.
+  file->MakeCurrentDataExpectedResult();
+
+  // Create it as a backup would -- Init first, then on failure, Create.
+  MockMd5Generator* md5_generator = new MockMd5Generator;
+  MockEncoder* encoder = new MockEncoder;
+  BackupVolume volume(file, md5_generator, encoder);
+  ConfigOptions options;
+  options.enable_compression = true;
+
+  EXPECT_FALSE(volume.Init().ok());
+  EXPECT_TRUE(volume.Create(options).ok());
+
+  EXPECT_CALL(*md5_generator, Checksum(chunk_data))
+      .WillOnce(Return(chunk_header.md5sum));
+  EXPECT_CALL(*encoder, Encode(chunk_data, _))
+      .WillOnce(DoAll(SetArgPointee<1>(encoded_data),
+                Return(Status::OK)));
+
+  // TODO(darkstar62): This should be a FakeFileEntry.
+  BackupFile* entry_metadata = new BackupFile;
+  FileEntry file_entry("/foo", entry_metadata);
+  EXPECT_TRUE(volume.AddChunk(chunk_data, 0, &file_entry).ok());
+  EXPECT_TRUE(volume.Close().ok());
+
+  // Validate the contents.
+  EXPECT_TRUE(file->CompareExpected());
+
+  // MD5 generator should have been called.
+  Mock::VerifyAndClearExpectations(md5_generator);
+  Mock::VerifyAndClearExpectations(encoder);
+}
+
+TEST_F(BackupVolumeTest, CreateAddChunkAndCloseWithFileSet) {
+  // This test verifies that a create, add-chunk, and close results in a valid
+  // backup volume with a descriptor 2.
+  FakeFile* file = new FakeFile;
+
+  // In an empty file, we have the version, backup 1 descriptor, and backup
+  // header only.
+
+  // Version string.
+  file->Write(kGoodVersion, 8);
+
+  // Create a ChunkHeader and chunk.
+  string chunk_data = "1234567890123456";
+  ChunkHeader chunk_header;
+  chunk_header.encoded_size = chunk_data.size();
+  chunk_header.unencoded_size = chunk_data.size();
+  chunk_header.encoding_type = kEncodingTypeRaw;
+  chunk_header.md5sum = {123, 456};
+  file->Write(&chunk_header, sizeof(chunk_header));
+  file->Write(&chunk_data.at(0), chunk_data.size());
+
+  // Create backup descriptor 1.
+  uint64_t desc1_offset = file->size();
+  BackupDescriptor1 descriptor1;
+  descriptor1.total_chunks = 1;
+  file->Write(&descriptor1, sizeof(descriptor1));
+
+  // Create the descriptor 1 chunk.
+  BackupDescriptor1Chunk descriptor1_chunk;
+  descriptor1_chunk.md5sum = chunk_header.md5sum;
+  descriptor1_chunk.offset = 8;
+  file->Write(&descriptor1_chunk, sizeof(descriptor1_chunk));
+
+  // Create the descriptor 2.
+  string description = "backup";
+  BackupDescriptor2 descriptor2;
+  descriptor2.previous_backup_offset = 0;
+  descriptor2.previous_backup_volume_number = 0;
+  descriptor2.backup_type = kBackupTypeFull;
+  descriptor2.num_files = 1;
+  descriptor2.description_size = 6;
+  file->Write(&descriptor2, sizeof(descriptor2));
+  file->Write(&description.at(0), description.size());
+
+  // Create a BackupFile, and a chunk to go with it.
+  string filename = "/foo/bar";
+  BackupFile backup_file;
+  backup_file.file_size = chunk_data.size();
+  backup_file.num_chunks = 1;
+  backup_file.filename_size = filename.size();
+  file->Write(&backup_file, sizeof(backup_file));
+  file->Write(&filename.at(0), filename.size());
+
+  // Create a FileChunk.
+  FileChunk file_chunk;
+  file_chunk.md5sum = chunk_header.md5sum;
+  file_chunk.volume_num = 0;
+  file_chunk.chunk_offset = 0;
+  file_chunk.unencoded_size = chunk_data.size();
+  file->Write(&file_chunk, sizeof(file_chunk));
+
+  // Create the backup header.
+  BackupDescriptorHeader header;
+  header.backup_descriptor_1_offset = desc1_offset;
+  header.backup_descriptor_2_present = 1;
+  header.volume_number = 0;
+  file->Write(&header, sizeof(BackupDescriptorHeader));
+
+  // Reset for the test.
+  file->MakeCurrentDataExpectedResult();
+
+  // Create it as a backup would -- Init first, then on failure, Create.
+  MockMd5Generator* md5_generator = new MockMd5Generator;
+  BackupVolume volume(file, md5_generator, NULL);
+  ConfigOptions options;
+
+  EXPECT_FALSE(volume.Init().ok());
+  EXPECT_TRUE(volume.Create(options).ok());
+
+  BackupFile* entry_metadata = new BackupFile;
+
+  FileEntry* file_entry = new FileEntry("/foo/bar", entry_metadata);
+  FileSet file_set;
+
+  file_set.AddFile(file_entry);
+  file_set.set_description(description);
+
+  LOG(INFO) << entry_metadata->filename_size;
+  EXPECT_CALL(*md5_generator, Checksum(chunk_data))
+      .WillOnce(Return(chunk_header.md5sum));
+  EXPECT_TRUE(volume.AddChunk(chunk_data, 0, file_entry).ok());
+  EXPECT_TRUE(volume.CloseWithFileSet(file_set).ok());
+
+  // Validate the contents.
+  EXPECT_TRUE(file->CompareExpected());
+
+  // MD5 generator should have been called.
+  Mock::VerifyAndClearExpectations(md5_generator);
+}
+
+TEST_F(BackupVolumeTest, ReadChunks) {
+  // This test attempts to read several chunks from the file, some compressed,
+  // some not.
+  FakeFile* file = new FakeFile;
+
+  // Build up our fake file.
+
+  // Version string.
+  file->Write(kGoodVersion, 8);
+
+  // Create a ChunkHeader and chunk.  This one is not compressed.
+  uint64_t chunk1_offset = file->size();
+  string chunk_data = "1234567890123456";
+  ChunkHeader chunk_header;
+  chunk_header.encoded_size = chunk_data.size();
+  chunk_header.unencoded_size = chunk_data.size();
+  chunk_header.encoding_type = kEncodingTypeRaw;
+  chunk_header.md5sum = {123, 456};
+  file->Write(&chunk_header, sizeof(chunk_header));
+  file->Write(&chunk_data.at(0), chunk_data.size());
+
+  // Create a ChunkHeader and chunk.  This one is compressed.
+  uint64_t chunk2_offset = file->size();
+  string chunk_data2 = "1234567890123456";
+  string encoded_data2 = "ABC123";
+  ChunkHeader chunk_header2;
+  chunk_header2.encoded_size = encoded_data2.size();
+  chunk_header2.unencoded_size = chunk_data2.size();
+  chunk_header2.encoding_type = kEncodingTypeZlib;
+  chunk_header2.md5sum = {456, 789};
+  file->Write(&chunk_header2, sizeof(chunk_header2));
+  file->Write(&encoded_data2.at(0), encoded_data2.size());
+
+  // Create backup descriptor 1.
+  uint64_t desc1_offset = file->size();
+  BackupDescriptor1 descriptor1;
+  descriptor1.total_chunks = 2;
+  file->Write(&descriptor1, sizeof(descriptor1));
+
+  // Create the descriptor 1 chunks.
+  BackupDescriptor1Chunk descriptor1_chunk;
+  descriptor1_chunk.md5sum = chunk_header.md5sum;
+  descriptor1_chunk.offset = chunk1_offset;
+  file->Write(&descriptor1_chunk, sizeof(descriptor1_chunk));
+
+  BackupDescriptor1Chunk descriptor1_chunk2;
+  descriptor1_chunk2.md5sum = chunk_header2.md5sum;
+  descriptor1_chunk2.offset = chunk2_offset;
+  file->Write(&descriptor1_chunk2, sizeof(descriptor1_chunk2));
+
+  // Create the backup header.
+  BackupDescriptorHeader header;
+  header.backup_descriptor_1_offset = desc1_offset;
+  header.backup_descriptor_2_present = 0;
+  header.volume_number = 0;
+  file->Write(&header, sizeof(BackupDescriptorHeader));
+
+  // Reset for the test.
+  MockMd5Generator* md5_generator = new MockMd5Generator;
+  MockEncoder* encoder = new MockEncoder;
+  BackupVolume volume(file, md5_generator, encoder);
+  ConfigOptions options;
+
+  EXPECT_TRUE(volume.Init().ok());
+
+  FileChunk lookup_chunk1;
+  lookup_chunk1.md5sum = {123, 456};
+  lookup_chunk1.volume_num = 0;
+  lookup_chunk1.chunk_offset = 0;
+  lookup_chunk1.unencoded_size = chunk_data.size();
+
+  FileChunk lookup_chunk2;
+  lookup_chunk2.md5sum = {456, 789};
+  lookup_chunk2.volume_num = 0;
+  lookup_chunk2.chunk_offset = 16;
+  lookup_chunk2.unencoded_size = chunk_data2.size();
+
+  EXPECT_CALL(*md5_generator, Checksum(chunk_data))
+      .WillOnce(Return(chunk_header.md5sum));
+  string read_chunk1;
+  EXPECT_TRUE(volume.ReadChunk(lookup_chunk1, &read_chunk1).ok());
+  EXPECT_EQ(chunk_data, read_chunk1);
+  Mock::VerifyAndClearExpectations(md5_generator);
+
+  EXPECT_CALL(*encoder, Decode(encoded_data2, _))
+      .WillOnce(DoAll(SetArgPointee<1>(chunk_data2),
+                      Return(Status::OK)));
+  EXPECT_CALL(*md5_generator, Checksum(chunk_data2))
+      .WillOnce(Return(chunk_header2.md5sum));
+  string read_chunk2;
+  EXPECT_TRUE(volume.ReadChunk(lookup_chunk2, &read_chunk2).ok());
+  EXPECT_EQ(chunk_data2, read_chunk2);
+  Mock::VerifyAndClearExpectations(md5_generator);
+  Mock::VerifyAndClearExpectations(encoder);
+}
+
+TEST_F(BackupVolumeTest, ReadBackupSets) {
+  // This test attempts to read several backup sets from the file.
+  FakeFile* file = new FakeFile;
+
+  // Build up our fake file.
+
+  // Version string.
+  file->Write(kGoodVersion, 8);
+
+  uint64_t backup1_offset = 0;
+
+  {
+    // Create a ChunkHeader and chunk.  This one is not compressed.
+    uint64_t chunk1_offset = file->size();
+    string chunk_data = "1234567890123456";
+    ChunkHeader chunk_header;
+    chunk_header.encoded_size = chunk_data.size();
+    chunk_header.unencoded_size = chunk_data.size();
+    chunk_header.encoding_type = kEncodingTypeRaw;
+    chunk_header.md5sum = {123, 456};
+    file->Write(&chunk_header, sizeof(chunk_header));
+    file->Write(&chunk_data.at(0), chunk_data.size());
+
+    // Create backup descriptor 1.
+    uint64_t desc1_offset = file->size();
+    BackupDescriptor1 descriptor1;
+    descriptor1.total_chunks = 1;
+    file->Write(&descriptor1, sizeof(descriptor1));
+
+    // Create the descriptor 1 chunks.
+    BackupDescriptor1Chunk descriptor1_chunk;
+    descriptor1_chunk.md5sum = chunk_header.md5sum;
+    descriptor1_chunk.offset = chunk1_offset;
+    file->Write(&descriptor1_chunk, sizeof(descriptor1_chunk));
+
+    // Create the descriptor 2.
+    backup1_offset = file->size();
+    string description = "backup";
+    BackupDescriptor2 descriptor2;
+    descriptor2.previous_backup_offset = 0;
+    descriptor2.previous_backup_volume_number = 0;
+    descriptor2.backup_type = kBackupTypeFull;
+    descriptor2.num_files = 1;
+    descriptor2.description_size = description.size();
+    file->Write(&descriptor2, sizeof(descriptor2));
+    file->Write(&description.at(0), description.size());
+
+    // Create a BackupFile, and a chunk to go with it.
+    string filename = "/foo/bar";
+    BackupFile backup_file;
+    backup_file.file_size = chunk_data.size();
+    backup_file.num_chunks = 1;
+    backup_file.filename_size = filename.size();
+    file->Write(&backup_file, sizeof(backup_file));
+    file->Write(&filename.at(0), filename.size());
+
+    // Create a FileChunk.
+    FileChunk file_chunk;
+    file_chunk.md5sum = chunk_header.md5sum;
+    file_chunk.volume_num = 0;
+    file_chunk.chunk_offset = 0;
+    file_chunk.unencoded_size = chunk_data.size();
+    file->Write(&file_chunk, sizeof(file_chunk));
+
+    // Create the backup header.
+    BackupDescriptorHeader header;
+    header.backup_descriptor_1_offset = desc1_offset;
+    header.backup_descriptor_2_present = 1;
+    header.volume_number = 0;
+    file->Write(&header, sizeof(BackupDescriptorHeader));
+  }
+
+  {
+    // Create a ChunkHeader and chunk.  This one is not compressed.
+    uint64_t chunk1_offset = file->size();
+    string chunk_data = "1234567890123456";
+    ChunkHeader chunk_header;
+    chunk_header.encoded_size = chunk_data.size();
+    chunk_header.unencoded_size = chunk_data.size();
+    chunk_header.encoding_type = kEncodingTypeRaw;
+    chunk_header.md5sum = {456, 789};
+    file->Write(&chunk_header, sizeof(chunk_header));
+    file->Write(&chunk_data.at(0), chunk_data.size());
+
+    // Create backup descriptor 1.
+    uint64_t desc1_offset = file->size();
+    BackupDescriptor1 descriptor1;
+    descriptor1.total_chunks = 1;
+    file->Write(&descriptor1, sizeof(descriptor1));
+
+    // Create the descriptor 1 chunks.
+    BackupDescriptor1Chunk descriptor1_chunk;
+    descriptor1_chunk.md5sum = chunk_header.md5sum;
+    descriptor1_chunk.offset = chunk1_offset;
+    file->Write(&descriptor1_chunk, sizeof(descriptor1_chunk));
+
+    // Create the descriptor 2.
+    string description = "backup 2";
+    BackupDescriptor2 descriptor2;
+    descriptor2.previous_backup_offset = backup1_offset;
+    descriptor2.previous_backup_volume_number = 0;
+    descriptor2.backup_type = kBackupTypeFull;
+    descriptor2.num_files = 1;
+    descriptor2.description_size = description.size();
+    file->Write(&descriptor2, sizeof(descriptor2));
+    file->Write(&description.at(0), description.size());
+
+    // Create a BackupFile, and a chunk to go with it.
+    string filename = "/foo/bleh";
+    BackupFile backup_file;
+    backup_file.file_size = chunk_data.size();
+    backup_file.num_chunks = 1;
+    backup_file.filename_size = filename.size();
+    file->Write(&backup_file, sizeof(backup_file));
+    file->Write(&filename.at(0), filename.size());
+
+    // Create a FileChunk.
+    FileChunk file_chunk;
+    file_chunk.md5sum = chunk_header.md5sum;
+    file_chunk.volume_num = 0;
+    file_chunk.chunk_offset = 0;
+    file_chunk.unencoded_size = chunk_data.size();
+    file->Write(&file_chunk, sizeof(file_chunk));
+
+    // Create the backup header.
+    BackupDescriptorHeader header;
+    header.backup_descriptor_1_offset = desc1_offset;
+    header.backup_descriptor_2_present = 1;
+    header.volume_number = 0;
+    file->Write(&header, sizeof(BackupDescriptorHeader));
+  }
+
+  // Reset for the test.
+  MockMd5Generator* md5_generator = new MockMd5Generator;
+  MockEncoder* encoder = new MockEncoder;
+  BackupVolume volume(file, md5_generator, encoder);
+  ConfigOptions options;
+
+  EXPECT_TRUE(volume.Init().ok());
+
+  StatusOr<vector<FileSet*> > file_sets = volume.LoadFileSets(true);
+  EXPECT_TRUE(file_sets.ok()) << file_sets.status().ToString();
+  EXPECT_EQ(2, file_sets.value().size());
+
+  // Check the first backup.  This should be the most recent one in the file.
+  FileSet* file_set1 = file_sets.value()[0];
+  EXPECT_EQ("backup 2", file_set1->description());
+  EXPECT_EQ(1, file_set1->num_files());
+  EXPECT_EQ("/foo/bleh", file_set1->GetFiles()[0]->filename());
+
+  // Check the second backup.
+  FileSet* file_set2 = file_sets.value()[1];
+  EXPECT_EQ("backup", file_set2->description());
+  EXPECT_EQ(1, file_set2->num_files());
+  EXPECT_EQ("/foo/bar", file_set2->GetFiles()[0]->filename());
+
+  // Clean up.
+  for (FileSet* file_set : file_sets.value()) {
+    delete file_set;
+  }
 }
 
 }  // namespace backup2

@@ -12,6 +12,8 @@
 #include "src/backup_volume.h"
 #include "src/file.h"
 #include "src/fileset.h"
+#include "src/gzip_encoder.h"
+#include "src/md5_generator.h"
 #include "src/status.h"
 
 using std::string;
@@ -45,7 +47,9 @@ int BackupDriver::Run() {
 BackupVolume* BackupDriver::InitializeBackupVolume(
     const string& filename, uint64_t max_volume_size_mb, bool create) {
   unique_ptr<BackupVolume> volume(
-      new BackupVolume(new File(filename)));
+      new BackupVolume(new File(filename),
+                       new Md5Generator,
+                       new GzipEncoder));
   Status retval = volume->Init();
   if (!retval.ok()) {
     if (retval.code() != kStatusNoSuchFile) {
@@ -94,7 +98,6 @@ int BackupDriver::PerformBackup(
     filename += '\0';
     BackupFile* metadata = new BackupFile;
     // TODO(darkstar62): Add file stat() support and add it to the metadata.
-    metadata->filename_size = filename.size();
 
     FileEntry* entry = new FileEntry(filename, metadata);
 

@@ -13,6 +13,8 @@
 #include "src/backup_volume.h"
 #include "src/file.h"
 #include "src/fileset.h"
+#include "src/gzip_encoder.h"
+#include "src/md5_generator.h"
 #include "src/status.h"
 
 using backup2::BackupVolume;
@@ -32,7 +34,9 @@ int RestoreDriver::Restore() {
   // Load up the restore volume.  This should already exist and contain at least
   // one backup set.
   unique_ptr<BackupVolume> volume(
-      new BackupVolume(new File(backup_filename_)));
+      new BackupVolume(new File(backup_filename_),
+                       new Md5Generator,
+                       new GzipEncoder));
   Status retval = volume->Init();
   CHECK(retval.ok()) << retval.ToString();
 
@@ -96,7 +100,9 @@ int RestoreDriver::List() {
   // Load up the restore volume.  This should already exist and contain at least
   // one backup set.
   unique_ptr<BackupVolume> volume(
-      new BackupVolume(new File(backup_filename_)));
+      new BackupVolume(new File(backup_filename_),
+                       new Md5Generator,
+                       new GzipEncoder));
   Status retval = volume->Init();
   CHECK(retval.ok()) << retval.ToString();
 

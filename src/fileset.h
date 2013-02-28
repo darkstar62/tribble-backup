@@ -60,6 +60,7 @@ class FileEntry {
   explicit FileEntry(const std::string& filename, BackupFile* metadata)
       : filename_(filename),
         metadata_(metadata) {
+    metadata->filename_size = filename.size();
   }
 
   // Add a chunk of data to the file entry.  The header describes the chunk and

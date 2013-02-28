@@ -32,14 +32,44 @@ MACRO(MAKE_TEST test)
     )
 ENDMACRO(MAKE_TEST)
 
+# LIBRARY: common_headers
+  LINT_SOURCES(
+    common_headers_SOURCES
+      common.h
+  )
+  ADD_LIBRARY(common_headers ${common_headers_SOURCES})
+  SET_TARGET_PROPERTIES(common_headers PROPERTIES LINKER_LANGUAGE CXX)
+  TARGET_LINK_LIBRARIES(
+    common_headers
+      ${Boost_SYSTEM_LIBRARY}
+    )
+
+# LIBRARY: mocks_and_fakes
+  LINT_SOURCES(
+    mocks_and_fakes_SOURCES
+      fake_file.h
+      mock_encoder.h
+      mock_file.h
+      mock_md5_generator.h
+    )
+  ADD_LIBRARY(mocks_and_fakes ${mocks_and_fakes_SOURCES})
+  SET_TARGET_PROPERTIES(mocks_and_fakes PROPERTIES LINKER_LANGUAGE CXX)
+  TARGET_LINK_LIBRARIES(
+    mocks_and_fakes
+      ${GMOCK_LIBRARIES}
+    )
+
 # LIBRARY: status
   LINT_SOURCES(
     status_SOURCES
-      common.h
       status.cc
       status.h
     )
   ADD_LIBRARY(status ${status_SOURCES})
+  TARGET_LINK_LIBRARIES(
+    status
+      common_headers
+    )
 
 # TEST: status_test
   LINT_SOURCES(
@@ -63,6 +93,16 @@ ENDMACRO(MAKE_TEST)
       backup_driver.h
   )
   ADD_LIBRARY(backup_driver ${backup_driver_SOURCES})
+  TARGET_LINK_LIBRARIES(
+    backup_driver
+      backup_volume
+      common_headers
+      file
+      fileset
+      gzip_encoder
+      md5_generator
+      status
+    )
 
 # LIBRARY: restore_driver
   LINT_SOURCES(
@@ -71,6 +111,17 @@ ENDMACRO(MAKE_TEST)
       restore_driver.h
   )
   ADD_LIBRARY(restore_driver ${restore_driver_SOURCES})
+  TARGET_LINK_LIBRARIES(
+    restore_driver
+      backup_volume
+      common_headers
+      file
+      fileset
+      gzip_encoder
+      md5_generator
+      status
+      ${Boost_FILESYSTEM_LIBRARY}
+    )
 
 # LIBRARY: backup_volume
   LINT_SOURCES(
@@ -78,10 +129,15 @@ ENDMACRO(MAKE_TEST)
       backup_volume.cc
       backup_volume.h
       backup_volume_defs.h
-      common.h
-      # md5.h -- disabled, we don't want to lint this.
+      encoding_interface.h
+      md5_generator_interface.h
   )
   ADD_LIBRARY(backup_volume ${backup_volume_SOURCES})
+  TARGET_LINK_LIBRARIES(
+    backup_volume
+      common_headers
+      file
+    )
 
 # TEST: backup_volume_test
   LINT_SOURCES(
@@ -94,16 +150,14 @@ ENDMACRO(MAKE_TEST)
       backup_volume
       file
       fileset
+      mocks_and_fakes
       status
-      ${Boost_FILESYSTEM_LIBRARY}
-      ${Boost_SYSTEM_LIBRARY}
       ${CMAKE_THREAD_LIBS_INIT}
       ${GLOG_LIBRARY}
       ${GTEST_LIBRARY}
       ${GTEST_MAIN_LIBRARY}
       ${GMOCK_LIBRARIES}
       ${TCMALLOC_LIBRARIES}
-      ${ZLIB_LIBRARY}
     )
 
 # LIBRARY: file
@@ -113,9 +167,13 @@ ENDMACRO(MAKE_TEST)
       file.cc
       file.h
       file_interface.h
-      mock_file.h
     )
   ADD_LIBRARY(file ${file_SOURCES})
+  TARGET_LINK_LIBRARIES(
+    file
+      ${Boost_FILESYSTEM_LIBRARY}
+      ${Boost_SYSTEM_LIBRARY}
+    )
 
 # LIBRARY: fileset
   LINT_SOURCES(
@@ -124,6 +182,38 @@ ENDMACRO(MAKE_TEST)
       fileset.h
     )
   ADD_LIBRARY(fileset ${file_SOURCES})
+  TARGET_LINK_LIBRARIES(
+    fileset
+      common_headers
+    )
+
+# LIBRARY: gzip_encoder
+  LINT_SOURCES(
+    gzip_encoder_SOURCES
+      gzip_encoder.cc
+      gzip_encoder.h
+      encoding_interface.h
+    )
+  ADD_LIBRARY(gzip_encoder ${gzip_encoder_SOURCES})
+  TARGET_LINK_LIBRARIES(
+    gzip_encoder
+      common_headers
+      ${ZLIB_LIBRARY}
+    )
+
+# LIBRARY: md5_generator
+  LINT_SOURCES(
+    md5_generator_SOURCES
+      md5_generator.cc
+      md5_generator.h
+      md5_generator_interface.h
+      # md5.h -- disabled, we don't want to lint this.
+    )
+  ADD_LIBRARY(md5_generator ${md5_generator_SOURCES})
+  TARGET_LINK_LIBRARIES(
+    md5_generator
+      common_headers
+    )
 
 # BINARY: cli_main
   LINT_SOURCES(
@@ -134,16 +224,9 @@ ENDMACRO(MAKE_TEST)
   TARGET_LINK_LIBRARIES(
     cli_main
       backup_driver
-      backup_volume
-      file
-      fileset
       restore_driver
-      status
-      ${Boost_FILESYSTEM_LIBRARY}
-      ${Boost_SYSTEM_LIBRARY}
       ${GFLAGS_LIBRARY}
       ${GLOG_LIBRARY}
       ${TCMALLOC_LIBRARIES}
-      ${ZLIB_LIBRARY}
     )
 
