@@ -33,6 +33,8 @@ class RestoreDriver {
   const std::string backup_filename_;
   const std::string restore_path_;
 
+  BackupVolume* LoadBackupVolume(uint64_t volume_number, bool init_set);
+
   DISALLOW_COPY_AND_ASSIGN(RestoreDriver);
 };
 

@@ -8,6 +8,7 @@
 
 #include "glog/logging.h"
 #include "src/backup_volume.h"
+#include "src/callback.h"
 #include "src/common.h"
 #include "src/encoding_interface.h"
 #include "src/file.h"
@@ -518,7 +519,10 @@ Status BackupVolume::ReadBackupDescriptor1() {
   return Status::OK;
 }
 
-StatusOr<vector<FileSet*> > BackupVolume::LoadFileSets(bool load_all) {
+StatusOr<vector<FileSet*> > BackupVolume::LoadFileSets(
+    bool load_all, VolumeChangeCallback* volume_change_cb) {
+  CHECK_NOTNULL(volume_change_cb);
+
   // Seek to the descriptor 2 offset.
   if (!descriptor_header_.backup_descriptor_2_present) {
     return Status(kStatusNotLastVolume, "");
@@ -530,35 +534,40 @@ StatusOr<vector<FileSet*> > BackupVolume::LoadFileSets(bool load_all) {
   vector<FileSet*> filesets;
 
   // An offset of zero indicates we've reached the end.
+  BackupVolume* current_volume = this;
+  Status retval = Status::OK;
   while (current_offset > 0) {
     VLOG(4) << "Seeking to 0x" << std::hex << current_offset;
-    Status retval = file_->Seek(current_offset);
+    retval = current_volume->file_->Seek(current_offset);
     if (!retval.ok()) {
-      return Status(kStatusCorruptBackup,
-                    "Could not seek to descriptor 2 offset");
+      retval = Status(kStatusCorruptBackup,
+                      "Could not seek to descriptor 2 offset");
+      break;
     }
 
     // Read descriptor 2, including all the file chunks.
     BackupDescriptor2 descriptor2;
 
     // This first read doesn't include the string for the description
-    retval = file_->Read(&descriptor2, sizeof(descriptor2), NULL);
+    retval = current_volume->file_->Read(
+        &descriptor2, sizeof(descriptor2), NULL);
     if (!retval.ok()) {
-      return retval;
+      break;
     }
     if (descriptor2.header_type != kHeaderTypeDescriptor2) {
-      return Status(kStatusCorruptBackup,
-                    "Invalid header type for descriptor 2");
+      retval = Status(kStatusCorruptBackup,
+                      "Invalid header type for descriptor 2");
+      break;
     }
 
     // Find out the description size and grab the description.
     string description = "";
     if (descriptor2.description_size > 0) {
       description.resize(descriptor2.description_size);
-      retval = file_->Read(
+      retval = current_volume->file_->Read(
           &description.at(0), descriptor2.description_size, NULL);
       if (!retval.ok()) {
-        return retval;
+        break;
       }
     }
     VLOG(3) << "Found backup: " << description;
@@ -568,20 +577,61 @@ StatusOr<vector<FileSet*> > BackupVolume::LoadFileSets(bool load_all) {
 
     // Read in all the files, and the file chunks.
     for (uint64_t file_num = 0; file_num < descriptor2.num_files; ++file_num) {
-      StatusOr<FileEntry*> entry = ReadFileEntry();
+      StatusOr<FileEntry*> entry = current_volume->ReadFileEntry();
       if (!entry.ok()) {
-        return entry.status();
+        retval = entry.status();
+        break;
       }
       fileset->AddFile(entry.value());
     }
+    if (!retval.ok()) {
+      break;
+    }
 
     filesets.push_back(fileset);
-    current_offset = descriptor2.previous_backup_offset;
 
     if (descriptor2.backup_type == kBackupTypeFull && !load_all) {
       // We found the most recent full backup -- break out.
       break;
     }
+
+    current_offset = descriptor2.previous_backup_offset;
+    if (descriptor2.previous_backup_volume_number !=
+            current_volume->volume_number()) {
+      // We need another volume -- prompt the user to supply it.
+
+      current_volume->Close();
+      if (current_volume != this) {
+        delete current_volume;
+      }
+      current_volume = NULL;
+
+      current_volume = volume_change_cb->Run(
+          descriptor2.previous_backup_volume_number,
+          false);
+      if (!current_volume) {
+        retval = Status(kStatusCorruptBackup,
+                        "Could not load needed volume");
+        break;
+      }
+    }
+  }
+  if (current_volume != this) {
+    if (current_volume) {
+      current_volume->Close();
+      delete current_volume;
+    }
+
+    // Ask the user to put the last volume back in.  We won't request that the
+    // volume be created by the backup driver this time.
+    volume_change_cb->Run(volume_number(), true);
+
+    // Re-init our backup volume.
+    Init();
+  }
+
+  if (!retval.ok()) {
+    return retval;
   }
 
   VLOG(2) << "Backup sets: " << filesets.size();

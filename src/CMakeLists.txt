@@ -34,7 +34,7 @@ IF(MSVC)
      NAMES
         zlibwapi
      PATHS
-		C:\\Users\\darkstar62\\Projects\\zlib-1.2.3\\contrib\\vstudio\\vc8\\x64\\ZlibDllReleaseWithoutAsm
+        C:\\Users\\darkstar62\\Projects\\zlib-1.2.3\\contrib\\vstudio\\vc8\\x64\\ZlibDllReleaseWithoutAsm
      PATH_SUFFIXES lib
   )
   INCLUDE_DIRECTORIES(${ZLIB_INCLUDE_DIRS})
@@ -69,8 +69,23 @@ ENDMACRO(MAKE_TEST)
 # LIBRARY: common_headers
   LINT_SOURCES(
     common_headers_SOURCES
+      callback.h
       common.h
   )
+
+# TEST: callback_test
+  LINT_SOURCES(
+    callback_test_SOURCES
+      callback_test.cc
+    )
+  MAKE_TEST(callback_test)
+  TARGET_LINK_LIBRARIES(
+    callback_test
+      ${GLOG_LIBRARY}
+      ${GTEST_LIBRARY}
+      ${GTEST_MAIN_LIBRARY}
+      ${TCMALLOC_LIBRARIES}
+    )
 
 # LIBRARY: mocks_and_fakes
   LINT_SOURCES(

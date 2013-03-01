@@ -11,6 +11,8 @@
 #include "gflags/gflags.h"
 #include "glog/logging.h"
 #include "src/backup_volume.h"
+#include "src/callback.h"
+#include "src/common.h"
 #include "src/file.h"
 #include "src/fileset.h"
 #include "src/gzip_encoder.h"
@@ -30,6 +32,12 @@ using std::vector;
 
 namespace backup2 {
 
+BackupVolume* RestoreDriver::LoadBackupVolume(
+    uint64_t /* volume_number */, bool /* init_set */) {
+  LOG(ERROR) << "LoadBackupSet not implemented";
+  return NULL;
+}
+
 int RestoreDriver::Restore() {
   // Load up the restore volume.  This should already exist and contain at least
   // one backup set.
@@ -41,7 +49,8 @@ int RestoreDriver::Restore() {
   CHECK(retval.ok()) << retval.ToString();
 
   // Get all the file sets contained in the backup.
-  StatusOr<vector<FileSet*> > filesets = volume->LoadFileSets(false);
+  StatusOr<vector<FileSet*> > filesets = volume->LoadFileSets(
+      false, NewPermanentCallback(this, &RestoreDriver::LoadBackupVolume));
   CHECK(filesets.ok()) << filesets.status().ToString();
 
   LOG(INFO) << "Found " << filesets.value().size() << " backup sets.";
@@ -107,7 +116,7 @@ int RestoreDriver::List() {
   CHECK(retval.ok()) << retval.ToString();
 
   // Get all the file sets contained in the backup.
-  StatusOr<vector<FileSet*> > filesets = volume->LoadFileSets(false);
+  StatusOr<vector<FileSet*> > filesets = volume->LoadFileSets(false, NULL);
   CHECK(filesets.ok()) << filesets.status().ToString();
 
   LOG(INFO) << "Found " << filesets.value().size() << " backup sets.";

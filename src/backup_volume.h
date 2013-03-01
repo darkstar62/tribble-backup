@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "src/backup_volume_defs.h"
+#include "src/callback.h"
 #include "src/common.h"
 #include "src/file.h"
 #include "src/status.h"
@@ -41,6 +42,16 @@ struct ConfigOptions {
 // volume to a larger set.
 class BackupVolume {
  public:
+  // Volume change callback, used during LoadFileSets.  This callback is called
+  // whenever loading the file sets requires a change in media -- the
+  // implementation should return a fully-initialized BackupVolume object.  This
+  // class takes ownership of it and handles cleanup.
+  //
+  // If only_prompt is true, the UI should only prompt that the specified media
+  // be supplied, but not actually create the BackupVolume.  This is used for
+  // returning to the last backup volume at the conclusion of the run.
+  typedef ResultCallback2<BackupVolume*, uint64_t, bool> VolumeChangeCallback;
+
   // Constructor.  This takes a FileInterface object that should be initialized
   // with its filename and ready to be Open()ed.  The Md5GeneratorInterface and
   // EncodingInterface objects transfer ownership to this class.
@@ -62,7 +73,14 @@ class BackupVolume {
   // backup set history.  Otherwise, only the backup sets going back to the most
   // recent full backup are loaded.  The returned vector is in order of newest
   // to oldest.
-  StatusOr<std::vector<FileSet*> > LoadFileSets(bool load_all);
+  //
+  // During processing, it may become necessary to change the media to another
+  // backup volume.  In this case, the supplied VolumeChangeCallback is called
+  // with the needed volume number.  The expectation is that a fully-initialized
+  // BackupSet is returned representing the requested volume number, or NULL if
+  // the volume is not available.
+  StatusOr<std::vector<FileSet*> > LoadFileSets(
+      bool load_all, VolumeChangeCallback* volume_change_cb);
 
   // Look up a chunk.
   bool HasChunk(Uint128 md5sum) {
