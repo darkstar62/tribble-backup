@@ -546,8 +546,8 @@ TEST_F(BackupVolumeTest, ReadChunks) {
   chunk_header2.encoded_size = encoded_data2.size();
   chunk_header2.unencoded_size = chunk_data2.size();
   chunk_header2.encoding_type = kEncodingTypeZlib;
-  chunk_header.md5sum.hi = 456;
-  chunk_header.md5sum.lo = 789;
+  chunk_header2.md5sum.hi = 456;
+  chunk_header2.md5sum.lo = 789;
   file->Write(&chunk_header2, sizeof(chunk_header2));
   file->Write(&encoded_data2.at(0), encoded_data2.size());
 
