@@ -636,7 +636,7 @@ TEST_F(BackupVolumeTest, ReadBackupSets) {
     chunk_header.unencoded_size = chunk_data.size();
     chunk_header.encoding_type = kEncodingTypeRaw;
     chunk_header.md5sum.hi = 123;
-	chunk_header.md5sum.lo = 456;
+    chunk_header.md5sum.lo = 456;
     file->Write(&chunk_header, sizeof(chunk_header));
     file->Write(&chunk_data.at(0), chunk_data.size());
 
@@ -698,7 +698,7 @@ TEST_F(BackupVolumeTest, ReadBackupSets) {
     chunk_header.unencoded_size = chunk_data.size();
     chunk_header.encoding_type = kEncodingTypeRaw;
     chunk_header.md5sum.hi = 456;
-	chunk_header.md5sum.lo = 789;
+    chunk_header.md5sum.lo = 789;
     file->Write(&chunk_header, sizeof(chunk_header));
     file->Write(&chunk_data.at(0), chunk_data.size());
 
