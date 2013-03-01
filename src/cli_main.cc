@@ -28,7 +28,10 @@ int main(int argc, char* argv[]) {
   google::SetUsageMessage("TODO: Add message");
   google::ParseCommandLineFlags(&argc, &argv, true);
   google::InitGoogleLogging(argv[0]);
+
+#ifndef _WIN32
   google::InstallFailureSignalHandler();
+#endif
 
   CHECK_NE("", FLAGS_backup_filename)
       << "Must specify a backup filename to work with.";

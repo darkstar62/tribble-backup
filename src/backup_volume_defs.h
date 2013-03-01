@@ -166,9 +166,8 @@ typedef struct BackupDescriptor2 {
   // Size of the backup description given by the user.
   uint64_t description_size;
 
-  // The backup description string given by the user.  This is variable sized,
-  // and so appears last in the header.  Its size is given by description_size.
-  char description[];
+  // The backup description string given by the user follows.  Its size is
+  // given by description_size.
 };
 
 // This structure represents a single file in the backup set.  It precedes the
@@ -202,8 +201,7 @@ typedef struct BackupFile {
   // Length of the filename string.
   uint64_t filename_size;
 
-  // Filename string, including the entire source path.
-  char filename[];
+  // Filename string, including the entire source path, follows.
 };
 
 // A checksummed chunk belonging to a file.  These come one after another

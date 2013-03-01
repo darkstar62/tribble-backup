@@ -58,14 +58,14 @@ macro(_GLOG_APPEND_LIBRARIES _list _release)
 endmacro()
 
 if(MSVC)
-    find_path(GLOG_INCLUDE_DIR NAMES raw_logging.h
+    find_path(GLOG_INCLUDE_DIR NAMES glog/raw_logging.h
         PATHS
 		  ${GLOG_ROOT}/src/windows
           ${GLOG_ROOT}/src/windows/glog
 		  )
 else(MSVC)
 	# Linux/OS X builds
-    find_path(GLOG_INCLUDE_DIR NAMES raw_logging.h
+    find_path(GLOG_INCLUDE_DIR NAMES glog/raw_logging.h
         PATHS
           ${GLOG_ROOT}/include/glog
 		  )
@@ -90,11 +90,11 @@ FIND_PACKAGE_HANDLE_STANDARD_ARGS(Glog DEFAULT_MSG
 if(MSVC)
     string(REGEX REPLACE "/glog$" "" VAR_WITHOUT ${GLOG_INCLUDE_DIR})
     string(REGEX REPLACE "/windows$" "" VAR_WITHOUT ${VAR_WITHOUT})
-    set(GLOG_INCLUDE_DIRS ${GLOG_INCLUDE_DIRS} "${VAR_WITHOUT}")
+    set(GLOG_INCLUDE_DIR ${GLOG_INCLUDE_DIR} "${VAR_WITHOUT}")
     string(REGEX REPLACE "/libglog.lib" "" GLOG_LIBRARY_DIR ${GLOG_LIBRARY})
 else(MSVC)
 	# Linux/OS X builds
-    set(GLOG_INCLUDE_DIRS ${GLOG_INCLUDE_DIR})
+    set(GLOG_INCLUDE_DIR ${GLOG_INCLUDE_DIR})
     string(REGEX REPLACE "/libglog.so" "" GLOG_LIBRARY_DIR ${GLOG_LIBRARY})
 endif(MSVC)
 

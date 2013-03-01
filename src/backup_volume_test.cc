@@ -214,7 +214,8 @@ TEST_F(BackupVolumeTest, CreateAddChunkAndClose) {
   chunk_header.encoded_size = chunk_data.size();
   chunk_header.unencoded_size = chunk_data.size();
   chunk_header.encoding_type = kEncodingTypeRaw;
-  chunk_header.md5sum = {123, 456};
+  chunk_header.md5sum.hi = 123;
+  chunk_header.md5sum.lo = 456;
   file->Write(&chunk_header, sizeof(chunk_header));
   file->Write(&chunk_data.at(0), chunk_data.size());
 
@@ -281,7 +282,8 @@ TEST_F(BackupVolumeTest, CreateAddChunkAndCloseWithCompression) {
   chunk_header.encoded_size = encoded_data.size();
   chunk_header.unencoded_size = chunk_data.size();
   chunk_header.encoding_type = kEncodingTypeZlib;
-  chunk_header.md5sum = {123, 456};
+  chunk_header.md5sum.hi = 123;
+  chunk_header.md5sum.lo = 456;
   file->Write(&chunk_header, sizeof(chunk_header));
   file->Write(&encoded_data.at(0), encoded_data.size());
 
@@ -356,7 +358,8 @@ TEST_F(BackupVolumeTest, CreateAddChunkAndCloseWithBigCompression) {
   chunk_header.encoded_size = chunk_data.size();
   chunk_header.unencoded_size = chunk_data.size();
   chunk_header.encoding_type = kEncodingTypeRaw;
-  chunk_header.md5sum = {123, 456};
+  chunk_header.md5sum.hi = 123;
+  chunk_header.md5sum.lo = 456;
   file->Write(&chunk_header, sizeof(chunk_header));
   file->Write(&chunk_data.at(0), chunk_data.size());
 
@@ -429,7 +432,8 @@ TEST_F(BackupVolumeTest, CreateAddChunkAndCloseWithFileSet) {
   chunk_header.encoded_size = chunk_data.size();
   chunk_header.unencoded_size = chunk_data.size();
   chunk_header.encoding_type = kEncodingTypeRaw;
-  chunk_header.md5sum = {123, 456};
+  chunk_header.md5sum.hi = 123;
+  chunk_header.md5sum.lo = 456;
   file->Write(&chunk_header, sizeof(chunk_header));
   file->Write(&chunk_data.at(0), chunk_data.size());
 
@@ -529,7 +533,8 @@ TEST_F(BackupVolumeTest, ReadChunks) {
   chunk_header.encoded_size = chunk_data.size();
   chunk_header.unencoded_size = chunk_data.size();
   chunk_header.encoding_type = kEncodingTypeRaw;
-  chunk_header.md5sum = {123, 456};
+  chunk_header.md5sum.hi = 123;
+  chunk_header.md5sum.lo = 456;
   file->Write(&chunk_header, sizeof(chunk_header));
   file->Write(&chunk_data.at(0), chunk_data.size());
 
@@ -541,7 +546,8 @@ TEST_F(BackupVolumeTest, ReadChunks) {
   chunk_header2.encoded_size = encoded_data2.size();
   chunk_header2.unencoded_size = chunk_data2.size();
   chunk_header2.encoding_type = kEncodingTypeZlib;
-  chunk_header2.md5sum = {456, 789};
+  chunk_header.md5sum.hi = 456;
+  chunk_header.md5sum.lo = 789;
   file->Write(&chunk_header2, sizeof(chunk_header2));
   file->Write(&encoded_data2.at(0), encoded_data2.size());
 
@@ -578,13 +584,15 @@ TEST_F(BackupVolumeTest, ReadChunks) {
   EXPECT_TRUE(volume.Init().ok());
 
   FileChunk lookup_chunk1;
-  lookup_chunk1.md5sum = {123, 456};
+  lookup_chunk1.md5sum.hi = 123;
+  lookup_chunk1.md5sum.lo = 456;
   lookup_chunk1.volume_num = 0;
   lookup_chunk1.chunk_offset = 0;
   lookup_chunk1.unencoded_size = chunk_data.size();
 
   FileChunk lookup_chunk2;
-  lookup_chunk2.md5sum = {456, 789};
+  lookup_chunk2.md5sum.hi = 456;
+  lookup_chunk2.md5sum.lo = 789;
   lookup_chunk2.volume_num = 0;
   lookup_chunk2.chunk_offset = 16;
   lookup_chunk2.unencoded_size = chunk_data2.size();
@@ -627,7 +635,8 @@ TEST_F(BackupVolumeTest, ReadBackupSets) {
     chunk_header.encoded_size = chunk_data.size();
     chunk_header.unencoded_size = chunk_data.size();
     chunk_header.encoding_type = kEncodingTypeRaw;
-    chunk_header.md5sum = {123, 456};
+    chunk_header.md5sum.hi = 123;
+	chunk_header.md5sum.lo = 456;
     file->Write(&chunk_header, sizeof(chunk_header));
     file->Write(&chunk_data.at(0), chunk_data.size());
 
@@ -688,7 +697,8 @@ TEST_F(BackupVolumeTest, ReadBackupSets) {
     chunk_header.encoded_size = chunk_data.size();
     chunk_header.unencoded_size = chunk_data.size();
     chunk_header.encoding_type = kEncodingTypeRaw;
-    chunk_header.md5sum = {456, 789};
+    chunk_header.md5sum.hi = 456;
+	chunk_header.md5sum.lo = 789;
     file->Write(&chunk_header, sizeof(chunk_header));
     file->Write(&chunk_data.at(0), chunk_data.size());
 

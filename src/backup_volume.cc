@@ -423,7 +423,7 @@ Status BackupVolume::WriteBackupDescriptor2(const FileSet& fileset) {
   // Write the BackupFile and BackupChunk headers.
   for (const FileEntry* backup_file : fileset.GetFiles()) {
     const BackupFile* metadata = backup_file->GetBackupFile();
-    VLOG(4) << "Data for " << metadata->filename
+    VLOG(4) << "Data for " << backup_file->filename()
             << "(size = " << metadata->file_size << ")";
     retval = file_->Write(metadata, sizeof(*metadata));
     if (!retval.ok()) {

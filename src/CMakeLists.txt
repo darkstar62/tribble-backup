@@ -7,19 +7,41 @@ INCLUDE(LintRules)
 INCLUDE(UseCodeCoverage)
 
 FIND_PACKAGE(Boost COMPONENTS system filesystem REQUIRED)
+INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIRS})
+LINK_DIRECTORIES(${Boost_LIBRARY_DIRS})
+
 FIND_PACKAGE(GFlags REQUIRED)
+INCLUDE_DIRECTORIES(${GFLAGS_INCLUDE_DIR})
+
 FIND_PACKAGE(Glog REQUIRED)
+INCLUDE_DIRECTORIES(${GLOG_INCLUDE_DIR})
+
 FIND_PACKAGE(GMock REQUIRED)
+INCLUDE_DIRECTORIES(${GMOCK_INCLUDE_DIRS})
+
 FIND_PACKAGE(GTest REQUIRED)
+INCLUDE_DIRECTORIES(${GTEST_INCLUDE_DIR})
+
 FIND_PACKAGE(GooglePerfTools REQUIRED)
+IF(GOOGLE_PERFTOOLS_FOUND)
+  INCLUDE_DIRECTORIES(${GOOGLE_PERFTOOLS_INCLUDE_DIR})
+ENDIF(GOOGLE_PERFTOOLS_FOUND)
+
 FIND_PACKAGE(Threads REQUIRED)
 FIND_PACKAGE(ZLIB REQUIRED)
+INCLUDE_DIRECTORIES(${ZLIB_INCLUDE_DIR})
 
-IF(NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
-ENDIF(NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wnon-virtual-dtor -Wall -Werror -std=gnu++0x -Wextra")
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_FILE_OFFSET_BITS=64")
+IF(MSVC)
+  INCLUDE_DIRECTORIES(${BACKUP_ROOT_PATH}/src/msvc)
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /D_VARIADIC_MAX=10")
+ELSE(MSVC)
+  IF(NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
+  ENDIF(NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Werror -std=gnu++0x -Wextra")
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_FILE_OFFSET_BITS=64")
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wnon-virtual-dtor")
+ENDIF(MSVC)
 
 MACRO(MAKE_TEST test)
   ADD_EXECUTABLE(
@@ -37,12 +59,6 @@ ENDMACRO(MAKE_TEST)
     common_headers_SOURCES
       common.h
   )
-  ADD_LIBRARY(common_headers ${common_headers_SOURCES})
-  SET_TARGET_PROPERTIES(common_headers PROPERTIES LINKER_LANGUAGE CXX)
-  TARGET_LINK_LIBRARIES(
-    common_headers
-      ${Boost_SYSTEM_LIBRARY}
-    )
 
 # LIBRARY: mocks_and_fakes
   LINT_SOURCES(
@@ -52,12 +68,6 @@ ENDMACRO(MAKE_TEST)
       mock_file.h
       mock_md5_generator.h
     )
-  ADD_LIBRARY(mocks_and_fakes ${mocks_and_fakes_SOURCES})
-  SET_TARGET_PROPERTIES(mocks_and_fakes PROPERTIES LINKER_LANGUAGE CXX)
-  TARGET_LINK_LIBRARIES(
-    mocks_and_fakes
-      ${GMOCK_LIBRARIES}
-    )
 
 # LIBRARY: status
   LINT_SOURCES(
@@ -66,10 +76,6 @@ ENDMACRO(MAKE_TEST)
       status.h
     )
   ADD_LIBRARY(status ${status_SOURCES})
-  TARGET_LINK_LIBRARIES(
-    status
-      common_headers
-    )
 
 # TEST: status_test
   LINT_SOURCES(
@@ -96,7 +102,6 @@ ENDMACRO(MAKE_TEST)
   TARGET_LINK_LIBRARIES(
     backup_driver
       backup_volume
-      common_headers
       file
       fileset
       gzip_encoder
@@ -114,7 +119,6 @@ ENDMACRO(MAKE_TEST)
   TARGET_LINK_LIBRARIES(
     restore_driver
       backup_volume
-      common_headers
       file
       fileset
       gzip_encoder
@@ -135,7 +139,6 @@ ENDMACRO(MAKE_TEST)
   ADD_LIBRARY(backup_volume ${backup_volume_SOURCES})
   TARGET_LINK_LIBRARIES(
     backup_volume
-      common_headers
       file
     )
 
@@ -150,9 +153,9 @@ ENDMACRO(MAKE_TEST)
       backup_volume
       file
       fileset
-      mocks_and_fakes
       status
       ${CMAKE_THREAD_LIBS_INIT}
+      ${GFLAGS_LIBRARY}
       ${GLOG_LIBRARY}
       ${GTEST_LIBRARY}
       ${GTEST_MAIN_LIBRARY}
@@ -182,10 +185,6 @@ ENDMACRO(MAKE_TEST)
       fileset.h
     )
   ADD_LIBRARY(fileset ${file_SOURCES})
-  TARGET_LINK_LIBRARIES(
-    fileset
-      common_headers
-    )
 
 # LIBRARY: gzip_encoder
   LINT_SOURCES(
@@ -197,7 +196,6 @@ ENDMACRO(MAKE_TEST)
   ADD_LIBRARY(gzip_encoder ${gzip_encoder_SOURCES})
   TARGET_LINK_LIBRARIES(
     gzip_encoder
-      common_headers
       ${ZLIB_LIBRARY}
     )
 
@@ -210,10 +208,6 @@ ENDMACRO(MAKE_TEST)
       # md5.h -- disabled, we don't want to lint this.
     )
   ADD_LIBRARY(md5_generator ${md5_generator_SOURCES})
-  TARGET_LINK_LIBRARIES(
-    md5_generator
-      common_headers
-    )
 
 # BINARY: cli_main
   LINT_SOURCES(

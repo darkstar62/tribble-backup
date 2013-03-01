@@ -7,7 +7,6 @@
 #include <string>
 #include <vector>
 
-#include "gflags/gflags.h"
 #include "glog/logging.h"
 #include "src/backup_volume.h"
 #include "src/file.h"

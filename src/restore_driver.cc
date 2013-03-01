@@ -71,7 +71,7 @@ int RestoreDriver::Restore() {
 
     // Create the destination directories if they don't exist, and open the
     // destination file.
-    File file(dest.native());
+    File file(dest.string());
     CHECK(file.CreateDirectories().ok());
     CHECK(file.Open(File::Mode::kModeAppend).ok());
 
