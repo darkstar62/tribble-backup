@@ -238,6 +238,21 @@ ENDMACRO(MAKE_TEST)
     )
   ADD_LIBRARY(md5_generator ${md5_generator_SOURCES})
 
+# TEST: md5_generator_test
+  LINT_SOURCES(
+    md5_generator_test_SOURCES
+      md5_generator_test.cc
+    )
+  MAKE_TEST(md5_generator_test)
+  TARGET_LINK_LIBRARIES(
+    md5_generator_test
+      md5_generator
+      ${GLOG_LIBRARY}
+      ${GTEST_LIBRARY}
+      ${GTEST_MAIN_LIBRARY}
+      ${TCMALLOC_LIBRARIES}
+    )
+
 # BINARY: cli_main
   LINT_SOURCES(
     cli_main_SOURCES
