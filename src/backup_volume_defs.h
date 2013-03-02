@@ -43,7 +43,7 @@ enum HeaderType {
 
 // Chunk header for each chunk.  These provide descriptions of the data
 // following this header.
-typedef struct ChunkHeader {
+struct ChunkHeader {
   ChunkHeader() {
     memset(this, 0, sizeof(ChunkHeader));
     header_type = kHeaderTypeChunkHeader;
@@ -69,7 +69,7 @@ typedef struct ChunkHeader {
 // Backup Descriptor 1 is stored towards the end of the file.  It contains only
 // data about the contents of the file, not the entire backup.  This descriptor
 // is required for all backup volumes.
-typedef struct BackupDescriptor1 {
+struct BackupDescriptor1 {
   BackupDescriptor1() {
     memset(this, 0, sizeof(BackupDescriptor1));
     header_type = kHeaderTypeDescriptor1;
@@ -89,7 +89,7 @@ typedef struct BackupDescriptor1 {
 // enumerate all the MD5 chunks in the set without having to scan the entire
 // file.  All this header contains is the MD5 checksum and the location of the
 // ChunkHeader within the backup volume (relative to the beginning of the file).
-typedef struct BackupDescriptor1Chunk {
+struct BackupDescriptor1Chunk {
   BackupDescriptor1Chunk() {
     memset(this, 0, sizeof(BackupDescriptor1Chunk));
     header_type = kHeaderTypeDescriptor1Chunk;
@@ -119,7 +119,7 @@ typedef struct BackupDescriptor1Chunk {
 // reconstituted by walking backward through the backup set.
 //
 // Following this header is a structure for each backed-up file.
-typedef struct BackupDescriptor2 {
+struct BackupDescriptor2 {
   BackupDescriptor2() {
     memset(this, 0, sizeof(BackupDescriptor2));
     header_type = kHeaderTypeDescriptor2;
@@ -172,7 +172,7 @@ typedef struct BackupDescriptor2 {
 
 // This structure represents a single file in the backup set.  It precedes the
 // chunk data for the file, and comes one after another after BackupDescriptor2.
-typedef struct BackupFile {
+struct BackupFile {
   BackupFile() {
     memset(this, 0, sizeof(BackupFile));
     header_type = kHeaderTypeBackupFile;
@@ -208,7 +208,7 @@ typedef struct BackupFile {
 // following a BackupFile header until the entire file is described.  Chunks
 // described here must be looked up in the backup volume's backup descriptor 1
 // header to find the precise location in the backup volume for the data.
-typedef struct FileChunk {
+struct FileChunk {
   FileChunk() {
     memset(this, 0, sizeof(FileChunk));
     header_type = kHeaderTypeFileChunk;
@@ -222,7 +222,7 @@ typedef struct FileChunk {
 
   // Which volume number this chunk exists in.  This can even be volume numbers
   // before this backup set due to deduplication.
-  uint8_t volume_num;
+  uint64_t volume_num;
 
   // Offset in the file that this chunk should be placed on restore.
   uint64_t chunk_offset;

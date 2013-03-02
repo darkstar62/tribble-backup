@@ -23,7 +23,7 @@ class Md5GeneratorInterface;
 // Configuration options to construct the backup with.  These options are stored
 // in backup descriptor 2 so subsequent backups to the same volumes will re-use
 // the options.
-typedef struct ConfigOptions {
+struct ConfigOptions {
   ConfigOptions() { memset(this, 0, sizeof(ConfigOptions)); }
 
   // Maximum size in MB to make each backup volume.

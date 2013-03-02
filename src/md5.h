@@ -328,31 +328,6 @@ public:
   // a "printf'd" version of the digest.
   char digestChars[ 33 ] ;
 
-  /// Load a file from disk and digest it
-  // Digests a file and returns the result.
-  char* digestFile( char *filename )
-  {
-    Init() ;
-
-    FILE *file;
-
-    int len;
-    unsigned char buffer[1024] ;
-
-    if( (file = fopen (filename, "rb")) == NULL )
-      printf( "%s can't be opened\n", filename ) ;
-    else
-    {
-      while( len = fread( buffer, 1, 1024, file ) )
-        Update( buffer, len ) ;
-      Final();
-
-      fclose( file );
-    }
-
-    return digestChars ;
-  }
-
   /// Digests a byte-array already in memory
   char* digestMemory( BYTE *memchunk, int len )
   {

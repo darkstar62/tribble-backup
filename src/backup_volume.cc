@@ -104,7 +104,8 @@ Status BackupVolume::CheckVersion() {
 
 Status BackupVolume::CheckBackupDescriptors() {
   // Read the backup header.  This is stored at the end of the file.
-  Status retval = file_->Seek(-sizeof(BackupDescriptorHeader));
+  Status retval = file_->Seek(
+      -static_cast<int32_t>(sizeof(BackupDescriptorHeader)));
   if (!retval.ok()) {
     LOG(ERROR) << "Could not seek to header at EOF: " << retval.ToString();
     return retval;
