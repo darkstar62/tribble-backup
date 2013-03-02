@@ -1,6 +1,12 @@
 // Copyright (C) 2013, All Rights Reserved.
 // Author: Cory Maccarrone <darkstar6262@gmail.com>
 
+#ifdef _WIN32
+#define _CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES 1
+#define _CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES_COUNT 1
+#define _CRT_SECURE_NO_WARNINGS 1
+#endif  // _WIN32
+
 #include <string>
 #include <vector>
 
