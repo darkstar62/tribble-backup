@@ -25,6 +25,7 @@ class MockFile : public FileInterface {
   MOCK_METHOD1(ReadLines, Status(std::vector<std::string>* lines));
   MOCK_METHOD2(Write, Status(const void* buffer, size_t length));
   MOCK_METHOD0(CreateDirectories, Status());
+  MOCK_METHOD0(RelativePath, std::string());
 };
 
 }  // namespace backup2

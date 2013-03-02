@@ -27,6 +27,7 @@ class File : public FileInterface {
   virtual Status ReadLines(std::vector<std::string>* strings);
   virtual Status Write(const void* buffer, size_t length);
   virtual Status CreateDirectories();
+  virtual std::string RelativePath();
 
  private:
   const std::string filename_;

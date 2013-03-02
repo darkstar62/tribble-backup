@@ -92,6 +92,10 @@ class FakeFile : public FileInterface {
     return Status::OK;
   }
 
+  virtual std::string RelativePath() {
+    return "THIS NEEDS TO BE IMPLEMENTED";
+  }
+
   //////////////////
 
   // Make the current contents the expected contents and reset for the test.

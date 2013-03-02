@@ -65,6 +65,9 @@ class FileInterface {
   // Create the directories recursively leading to the file represented by this
   // class.
   virtual Status CreateDirectories() = 0;
+
+  // Return the relative path of the given filename.
+  virtual std::string RelativePath() = 0;
 };
 
 }  // namespace backup2

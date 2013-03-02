@@ -42,10 +42,10 @@ Status File::Open(const Mode mode) {
   string mode_str;
   switch (mode) {
     case kModeRead:
-      mode_str = "r";
+      mode_str = "rb";
       break;
     case kModeAppend:
-      mode_str = "a+";
+      mode_str = "a+b";
       break;
     default:
       LOG(FATAL) << "Unknown mode type: " << mode;
@@ -207,6 +207,11 @@ Status File::CreateDirectories() {
   boost::filesystem::path parent = orig_path.parent_path();
   boost::filesystem::create_directories(parent);
   return Status::OK;
+}
+
+string File::RelativePath() {
+  boost::filesystem::path orig_path(filename_);
+  return orig_path.relative_path().string();
 }
 
 }  // namespace backup2

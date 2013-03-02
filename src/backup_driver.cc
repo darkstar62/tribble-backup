@@ -94,11 +94,11 @@ int BackupDriver::PerformBackup(
     Status status = Status::OK;
 
     // Create the metadata for the file and stat() it to get the details.
-    filename += '\0';
+    string relative_filename = file->RelativePath() + '\0';
     BackupFile* metadata = new BackupFile;
     // TODO(darkstar62): Add file stat() support and add it to the metadata.
 
-    FileEntry* entry = new FileEntry(filename, metadata);
+    FileEntry* entry = new FileEntry(relative_filename, metadata);
 
     do {
       uint64_t current_offset = file->Tell();
@@ -107,7 +107,6 @@ int BackupDriver::PerformBackup(
       data.resize(64*1024);
       status = file->Read(&data.at(0), data.size(), &read);
       data.resize(read);
-
       Status retval = volume->AddChunk(data, current_offset, entry);
       if (!retval.ok()) {
         LOG(FATAL) << "Could not add chunk to volume: " << retval.ToString();
