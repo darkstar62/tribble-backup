@@ -190,6 +190,23 @@ ENDMACRO(MAKE_TEST)
       ${Boost_SYSTEM_LIBRARY}
     )
 
+# TEST: file_test
+  LINT_SOURCES(
+    file_test_SOURCES
+      file_test.cc
+    )
+  MAKE_TEST(file_test)
+  TARGET_LINK_LIBRARIES(
+    file_test
+      file
+      status
+      ${Boost_FILESYSTEM_LIBRARY}
+      ${GLOG_LIBRARY}
+      ${GTEST_LIBRARY}
+      ${GTEST_MAIN_LIBRARY}
+      ${TCMALLOC_LIBRARIES}
+    )
+
 # LIBRARY: fileset
   LINT_SOURCES(
     file_SOURCES
