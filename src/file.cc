@@ -7,7 +7,9 @@
 #define _CRT_SECURE_NO_WARNINGS 1
 #endif  // _WIN32
 
+#include <algorithm>
 #include <string>
+#include <sstream>
 #include <vector>
 
 #include "boost/algorithm/string/classification.hpp"
@@ -17,6 +19,7 @@
 #include "src/file.h"
 #include "src/status.h"
 
+using std::ostringstream;
 using std::string;
 using std::vector;
 
@@ -218,6 +221,105 @@ Status File::CreateDirectories() {
 string File::RelativePath() {
   boost::filesystem::path orig_path(filename_);
   return orig_path.relative_path().string();
+}
+
+Status File::FindBasenameAndLastVolume(string* basename_out,
+                                       uint64_t* last_vol_out) {
+  // List the directory and find entries that have the same base name as the
+  // file this class represents.
+  boost::filesystem::path basename;
+  Status retval = FilenameToVolumeNumber(
+      boost::filesystem::path(filename_), NULL, &basename);
+  if (!retval.ok()) {
+    LOG(ERROR) << retval.ToString();
+    return retval;
+  }
+
+  boost::filesystem::path parent = basename.parent_path();
+  vector<boost::filesystem::directory_entry> files;
+  for (boost::filesystem::directory_iterator iter =
+           boost::filesystem::directory_iterator(parent);
+       iter != boost::filesystem::directory_iterator(); ++iter) {
+    files.push_back(*iter);
+  }
+
+  // Go through the files and look for any that have the right basename.
+  boost::filesystem::path test_basename;
+  uint64_t test_vol_num;
+  uint64_t max_vol_num = 0;
+
+  for (boost::filesystem::directory_entry test_path : files) {
+    retval = FilenameToVolumeNumber(test_path.path(), &test_vol_num,
+                                    &test_basename);
+    if (!retval.ok()) {
+      // Couldn't parse it, skip.
+      continue;
+    }
+
+    if (test_basename != basename) {
+      // Different basename, skip it.
+    }
+
+    if (test_vol_num > max_vol_num) {
+      max_vol_num = test_vol_num;
+    }
+  }
+
+  *basename_out = basename.string();
+  *last_vol_out = max_vol_num;
+  return Status::OK;
+}
+
+std::string File::BasenameAndVolumeToFilename(
+    const std::string& basename, uint64_t volume) {
+  ostringstream file_str;
+  file_str << basename << "." << volume << ".bkp";
+  return file_str.str();
+}
+
+Status File::FilenameToVolumeNumber(
+    const boost::filesystem::path filename,
+    uint64_t* vol_num, boost::filesystem::path* base_name) {
+  boost::filesystem::path base_filename = filename.filename();
+
+  if (base_filename.extension().string() != ".bkp") {
+    return Status(kStatusInvalidArgument, "Filename must end with .bkp");
+  }
+
+  // Strip off the file extension and isolate the number.
+  boost::filesystem::path stem = base_filename.stem();
+  string number_part = stem.extension().string();
+  if (number_part == "") {
+    return Status(kStatusInvalidArgument,
+                  "Filename must have a number before the extension.");
+  }
+
+  // Strip off the leading dot.
+  number_part = number_part.substr(1, string::npos);
+
+  // Try and parse the number.
+  uint64_t volume_number = 0;
+  try {
+    volume_number = stoull(number_part, NULL, 10);
+  } catch(const std::exception& e) {
+    return Status(kStatusInvalidArgument,
+                  "Filename must have a number before the extension.");
+  } catch(...) {
+    return Status(kStatusInvalidArgument,
+                  "Filename must have a number before the extension.");
+  }
+
+  // Construct the base name.
+  boost::filesystem::path containing_dir = filename.parent_path();
+  boost::filesystem::path base_path = containing_dir / stem.stem();
+
+  if (vol_num) {
+    *vol_num = volume_number;
+  }
+  if (base_name) {
+    *base_name = base_path;
+  }
+  return Status::OK;
 }
 
 }  // namespace backup2

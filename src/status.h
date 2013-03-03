@@ -20,6 +20,7 @@ enum ErrorCode {
   kStatusGenericError,
   kStatusShortRead,
   kStatusNotLastVolume,
+  kStatusInvalidArgument,
 };
 
 // Descriptions of the error codes.  These must be in the same order as the enum
@@ -36,6 +37,7 @@ static struct Errordescriptions {
   { kStatusGenericError, "Generic error" },
   { kStatusShortRead, "Short read" },
   { kStatusNotLastVolume, "Backup volume is not the last in the set" },
+  { kStatusInvalidArgument, "Invalid argument" },
 };
 
 // A generic object that can be used to return detailed status about an

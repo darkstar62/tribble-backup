@@ -96,6 +96,11 @@ class FakeFile : public FileInterface {
     return "THIS NEEDS TO BE IMPLEMENTED";
   }
 
+  virtual Status FindBasenameAndLastVolume(
+      std::string* basename_out, uint64_t* last_vol_out) {
+    return Status::NOT_IMPLEMENTED;
+  }
+
   //////////////////
 
   // Make the current contents the expected contents and reset for the test.

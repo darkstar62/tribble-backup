@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include "boost/filesystem.hpp"
 #include "src/file_interface.h"
 #include "src/status.h"
 
@@ -28,8 +29,19 @@ class File : public FileInterface {
   virtual Status Write(const void* buffer, size_t length);
   virtual Status CreateDirectories();
   virtual std::string RelativePath();
+  virtual Status FindBasenameAndLastVolume(
+      std::string* basename_out, uint64_t* last_vol_out);
+
+  static std::string BasenameAndVolumeToFilename(
+      const std::string& basename, uint64_t volume);
 
  private:
+  // Given a path, decode from it the base path and the volume number it
+  // represents.
+  Status FilenameToVolumeNumber(
+    const boost::filesystem::path filename,
+    uint64_t* vol_num, boost::filesystem::path* base_name);
+
   const std::string filename_;
   FILE* file_;
 };

@@ -10,7 +10,7 @@
 #include "boost/filesystem.hpp"
 #include "gflags/gflags.h"
 #include "glog/logging.h"
-#include "src/backup_volume.h"
+#include "src/backup_library.h"
 #include "src/callback.h"
 #include "src/common.h"
 #include "src/file.h"
@@ -32,25 +32,28 @@ using std::vector;
 
 namespace backup2 {
 
-BackupVolume* RestoreDriver::LoadBackupVolume(
-    uint64_t /* volume_number */, bool /* init_set */) {
-  LOG(ERROR) << "LoadBackupSet not implemented";
-  return NULL;
+RestoreDriver::RestoreDriver(
+    const string& backup_filename,
+    const string& restore_path)
+    : backup_filename_(backup_filename),
+      restore_path_(restore_path),
+      volume_change_callback_(
+          NewPermanentCallback(this, &RestoreDriver::ChangeBackupVolume)) {
 }
 
 int RestoreDriver::Restore() {
   // Load up the restore volume.  This should already exist and contain at least
   // one backup set.
-  unique_ptr<BackupVolume> volume(
-      new BackupVolume(new File(backup_filename_),
-                       new Md5Generator,
-                       new GzipEncoder));
-  Status retval = volume->Init();
-  CHECK(retval.ok()) << retval.ToString();
+  BackupLibrary library(backup_filename_, volume_change_callback_.get(),
+                        new Md5Generator(),
+                        new GzipEncoder());
+  Status retval = library.Init();
+  if (!retval.ok()) {
+    LOG(FATAL) << retval.ToString();
+  }
 
   // Get all the file sets contained in the backup.
-  StatusOr<vector<FileSet*> > filesets = volume->LoadFileSets(
-      false, NewPermanentCallback(this, &RestoreDriver::LoadBackupVolume));
+  StatusOr<vector<FileSet*> > filesets = library.LoadFileSets(false);
   CHECK(filesets.ok()) << filesets.status().ToString();
 
   LOG(INFO) << "Found " << filesets.value().size() << " backup sets.";
@@ -89,7 +92,7 @@ int RestoreDriver::Restore() {
     // the data as we read it.
     for (FileChunk chunk : file_entry->GetChunks()) {
       string data;
-      retval = volume->ReadChunk(chunk, &data);
+      retval = library.ReadChunk(chunk, &data);
       CHECK(retval.ok()) << retval.ToString();
 
       if (data.size() == 0) {
@@ -108,15 +111,12 @@ int RestoreDriver::Restore() {
 int RestoreDriver::List() {
   // Load up the restore volume.  This should already exist and contain at least
   // one backup set.
-  unique_ptr<BackupVolume> volume(
-      new BackupVolume(new File(backup_filename_),
-                       new Md5Generator,
-                       new GzipEncoder));
-  Status retval = volume->Init();
-  CHECK(retval.ok()) << retval.ToString();
+  BackupLibrary library(backup_filename_, volume_change_callback_.get(),
+                        new Md5Generator(),
+                        new GzipEncoder());
 
   // Get all the file sets contained in the backup.
-  StatusOr<vector<FileSet*> > filesets = volume->LoadFileSets(false, NULL);
+  StatusOr<vector<FileSet*> > filesets = library.LoadFileSets(false);
   CHECK(filesets.ok()) << filesets.status().ToString();
 
   LOG(INFO) << "Found " << filesets.value().size() << " backup sets.";
@@ -125,6 +125,14 @@ int RestoreDriver::List() {
   }
 
   return 0;
+}
+
+string RestoreDriver::ChangeBackupVolume(string /* needed_filename */) {
+  // If we're here, it means the backup library couldn't find the needed file,
+  // and we need to ask the user for the location of the file.
+
+  // TODO(darkstar62): The implementation of this will depend on the UI in use.
+  return "";
 }
 
 }  // namespace backup2

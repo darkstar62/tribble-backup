@@ -42,12 +42,19 @@ class FileSet {
   const std::string& description() const { return description_; }
   void set_description(std::string description) { description_ = description; }
 
+  // Get/set the backup type.
+  const BackupType backup_type() const { return backup_type_; }
+  void set_backup_type(BackupType backup_type) { backup_type_ = backup_type; }
+
  private:
   // Vector of files in the file set.
   std::vector<FileEntry*> files_;
 
   // Description of the backup fileset.
   std::string description_;
+
+  // Backup type.
+  BackupType backup_type_;
 
   DISALLOW_COPY_AND_ASSIGN(FileSet);
 };

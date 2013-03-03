@@ -3,8 +3,10 @@
 #ifndef BACKUP2_SRC_RESTORE_DRIVER_H_
 #define BACKUP2_SRC_RESTORE_DRIVER_H_
 
+#include <memory>
 #include <string>
 
+#include "src/backup_library.h"
 #include "src/common.h"
 
 namespace backup2 {
@@ -18,10 +20,7 @@ class RestoreDriver {
  public:
   RestoreDriver(
       const std::string& backup_filename,
-      const std::string& restore_path)
-    : backup_filename_(backup_filename),
-      restore_path_(restore_path) {
-  }
+      const std::string& restore_path);
 
   // Perform the restore operation.
   int Restore();
@@ -33,7 +32,9 @@ class RestoreDriver {
   const std::string backup_filename_;
   const std::string restore_path_;
 
-  BackupVolume* LoadBackupVolume(uint64_t volume_number, bool init_set);
+  std::string ChangeBackupVolume(std::string needed_filename);
+
+  std::unique_ptr<BackupLibrary::VolumeChangeCallback> volume_change_callback_;
 
   DISALLOW_COPY_AND_ASSIGN(RestoreDriver);
 };

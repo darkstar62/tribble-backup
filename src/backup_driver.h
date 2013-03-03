@@ -4,7 +4,10 @@
 #define BACKUP2_SRC_BACKUP_DRIVER_H_
 
 #include <string>
+#include <vector>
 
+#include "src/backup_library.h"
+#include "src/backup_volume_defs.h"
 #include "src/common.h"
 
 namespace backup2 {
@@ -18,41 +21,33 @@ class BackupDriver {
  public:
   BackupDriver(
       const std::string& backup_filename,
-      const std::string& backup_type,
+      const BackupType backup_type,
       const std::string& backup_description,
       const uint64_t max_volume_size_mb,
       const bool enable_compression,
-      const std::string& filelist_filename)
-    : backup_filename_(backup_filename),
-      backup_type_(backup_type),
-      description_(backup_description),
-      max_volume_size_mb_(max_volume_size_mb),
-      enable_compression_(enable_compression),
-      filelist_filename_(filelist_filename) {
-  }
+      const std::string& filelist_filename);
 
   // Run the driver.  The return value is suitable for return from main().
   int Run();
 
  private:
-  // Initialize, one way or another, a BackupVolume.  If create is true and the
-  // given filename doesn't point to an existing valid file, this will create
-  // and initialize it, ready for backup content.
-  BackupVolume* InitializeBackupVolume(
-      const std::string& filename, uint64_t max_volume_size_mb, bool create);
+  std::string ChangeBackupVolume(std::string needed_filename);
 
-  // Perform a backup to the given volume, with files in the filename pointed to
-  // by filelist_filename.  The return value of this function is suitable for
-  // return from main().
-  int PerformBackup(BackupVolume* volume, const std::string& filelist_filename,
-                    const std::string& description);
+  void LoadIncrementalFilelist(BackupLibrary* library,
+                               std::vector<std::string>* filelist);
+
+  void LoadDifferentialFilelist(BackupLibrary* library,
+                                std::vector<std::string>* filelist);
+
+  void LoadFullFilelist(std::vector<std::string>* filelist);
 
   const std::string backup_filename_;
-  const std::string backup_type_;
+  const BackupType backup_type_;
   const std::string description_;
   const uint64_t max_volume_size_mb_;
   const bool enable_compression_;
   const std::string filelist_filename_;
+  std::unique_ptr<BackupLibrary::VolumeChangeCallback> volume_change_callback_;
 
   DISALLOW_COPY_AND_ASSIGN(BackupDriver);
 };

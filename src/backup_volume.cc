@@ -26,12 +26,8 @@ namespace backup2 {
 
 const std::string BackupVolume::kFileVersion = "BKP_0000";
 
-BackupVolume::BackupVolume(FileInterface* file,
-                           Md5GeneratorInterface* md5_maker,
-                           EncodingInterface* encoder)
+BackupVolume::BackupVolume(FileInterface* file)
     : file_(file),
-      md5_maker_(md5_maker),
-      encoder_(encoder),
       descriptor1_(),
       descriptor_header_(),
       descriptor2_offset_(0),
@@ -177,58 +173,14 @@ Status BackupVolume::Create(const ConfigOptions& options) {
   return Status::OK;
 }
 
-Status BackupVolume::AddChunk(const string& data, const uint64_t chunk_offset,
-                              FileEntry* entry) {
-  // Create the chunk checksum.
-  Uint128 md5 = md5_maker_->Checksum(data);
-
-  FileChunk chunk;
-  chunk.chunk_offset = chunk_offset;
-  chunk.unencoded_size = data.size();
-  chunk.md5sum = md5;
-  chunk.volume_num = volume_number();
-
-  auto chunk_iter = chunks_.find(chunk.md5sum);
-  if (chunk_iter != chunks_.end()) {
-    entry->AddChunk(chunk);
-    return Status::OK;
-  }
-
-  // If compression is enabled, compress the data.
-  if (options_.enable_compression) {
-    string compressed_data;
-    Status status = encoder_->Encode(data, &compressed_data);
-    if (!status.ok()) {
-      LOG(ERROR) << "Failed to compress data";
-      return status;
-    }
-
-    VLOG(5) << "Compressed " << data.size() << " to " << compressed_data.size();
-
-    if (compressed_data.size() >= data.size()) {
-      VLOG(5)
-          << "Compressed larger than or equal to raw, using raw encoding for "
-          << "chunk";
-      WriteChunk(chunk.md5sum, data, data.size(), kEncodingTypeRaw);
-    } else {
-      WriteChunk(chunk.md5sum, compressed_data, data.size(), kEncodingTypeZlib);
-    }
-  } else {
-    WriteChunk(chunk.md5sum, data, data.size(), kEncodingTypeRaw);
-  }
-  entry->AddChunk(chunk);
-  return Status::OK;
-}
-
-Status BackupVolume::ReadChunk(const FileChunk& chunk, string* data_out) {
+Status BackupVolume::ReadChunk(const FileChunk& chunk, string* data_out,
+                               EncodingType* encoding_type_out) {
   BackupDescriptor1Chunk chunk_meta;
-  auto iter = chunks_.find(chunk.md5sum);
-  if (iter == chunks_.end()) {
+  if (!chunks_.GetChunk(chunk.md5sum, &chunk_meta)) {
     LOG(ERROR) << "Chunk not found: "
                << std::hex << chunk.md5sum.hi << chunk.md5sum.lo;
     return Status(kStatusGenericError, "Chunk not found'");
   }
-  chunk_meta = iter->second;
 
   // Seek to the offset specified in the chunk data and read the chunk.
   Status retval = file_->Seek(chunk_meta.offset);
@@ -263,38 +215,20 @@ Status BackupVolume::ReadChunk(const FileChunk& chunk, string* data_out) {
   // If the encoded size is zero, don't bother reading anything -- we won't have
   // written anything.
   if (header.encoded_size == 0) {
+    *encoding_type_out = kEncodingTypeRaw;
     return Status::OK;
   }
 
   // Read the chunk.
-  string encoded_data;
-  encoded_data.resize(header.encoded_size);
-  retval = file_->Read(&encoded_data.at(0), header.encoded_size, NULL);
+  data_out->resize(header.encoded_size);
+  retval = file_->Read(&data_out->at(0), header.encoded_size, NULL);
   if (!retval.ok()) {
     LOG(ERROR) << "Error reading chunk";
+    data_out->clear();
     return retval;
   }
 
-  // Decompress if encoded.
-  if (header.encoding_type == kEncodingTypeZlib) {
-    data_out->resize(header.unencoded_size);
-    retval = encoder_->Decode(encoded_data, data_out);
-    if (!retval.ok()) {
-      LOG(ERROR) << "Error decompressing chunk";
-      return retval;
-    }
-  } else {
-    *data_out = encoded_data;
-  }
-
-  // Validate the MD5.
-  Uint128 md5 = md5_maker_->Checksum(*data_out);
-  if (md5 != header.md5sum) {
-    LOG(ERROR) << "Chunk MD5 mismatch: expected " << std::hex
-               << header.md5sum.hi << header.md5sum.lo << ", got "
-               << md5.hi << md5.lo;
-    return Status(kStatusCorruptBackup, "Chunk MD5 mismatch");
-  }
+  *encoding_type_out = header.encoding_type;
   return Status::OK;
 }
 
@@ -363,7 +297,8 @@ Status BackupVolume::WriteChunk(
   BackupDescriptor1Chunk descriptor_chunk;
   descriptor_chunk.md5sum = md5sum;
   descriptor_chunk.offset = chunk_offset;
-  chunks_.insert(make_pair(md5sum, descriptor_chunk));
+  descriptor_chunk.volume_number = volume_number();
+  chunks_.Add(md5sum, descriptor_chunk);
 
   modified_ = true;
   return Status::OK;
@@ -409,6 +344,7 @@ Status BackupVolume::WriteBackupDescriptor2(const FileSet& fileset) {
   descriptor2_.num_files = fileset.num_files();
   descriptor2_.description_size = fileset.description().size();
   descriptor2_.previous_backup_offset = descriptor2_offset_;
+  descriptor2_.backup_type = fileset.backup_type();
   retval = file_->Write(&descriptor2_, sizeof(BackupDescriptor2));
   if (!retval.ok()) {
     return retval;
@@ -512,7 +448,7 @@ Status BackupVolume::ReadBackupDescriptor1() {
        chunk_num++) {
     BackupDescriptor1Chunk chunk;
     retval = file_->Read(&chunk, sizeof(BackupDescriptor1Chunk), NULL);
-    chunks_.insert(make_pair(chunk.md5sum, chunk));
+    chunks_.Add(chunk.md5sum, chunk);
   }
 
   descriptor1_ = descriptor1;
@@ -520,8 +456,8 @@ Status BackupVolume::ReadBackupDescriptor1() {
 }
 
 StatusOr<vector<FileSet*> > BackupVolume::LoadFileSets(
-    bool load_all, VolumeChangeCallback* volume_change_cb) {
-  CHECK_NOTNULL(volume_change_cb);
+    bool load_all, int64_t* next_volume) {
+  CHECK_NOTNULL(next_volume);
 
   // Seek to the descriptor 2 offset.
   if (!descriptor_header_.backup_descriptor_2_present) {
@@ -534,11 +470,10 @@ StatusOr<vector<FileSet*> > BackupVolume::LoadFileSets(
   vector<FileSet*> filesets;
 
   // An offset of zero indicates we've reached the end.
-  BackupVolume* current_volume = this;
   Status retval = Status::OK;
   while (current_offset > 0) {
     VLOG(4) << "Seeking to 0x" << std::hex << current_offset;
-    retval = current_volume->file_->Seek(current_offset);
+    retval = file_->Seek(current_offset);
     if (!retval.ok()) {
       retval = Status(kStatusCorruptBackup,
                       "Could not seek to descriptor 2 offset");
@@ -549,8 +484,7 @@ StatusOr<vector<FileSet*> > BackupVolume::LoadFileSets(
     BackupDescriptor2 descriptor2;
 
     // This first read doesn't include the string for the description
-    retval = current_volume->file_->Read(
-        &descriptor2, sizeof(descriptor2), NULL);
+    retval = file_->Read(&descriptor2, sizeof(descriptor2), NULL);
     if (!retval.ok()) {
       break;
     }
@@ -564,7 +498,7 @@ StatusOr<vector<FileSet*> > BackupVolume::LoadFileSets(
     string description = "";
     if (descriptor2.description_size > 0) {
       description.resize(descriptor2.description_size);
-      retval = current_volume->file_->Read(
+      retval = file_->Read(
           &description.at(0), descriptor2.description_size, NULL);
       if (!retval.ok()) {
         break;
@@ -577,7 +511,7 @@ StatusOr<vector<FileSet*> > BackupVolume::LoadFileSets(
 
     // Read in all the files, and the file chunks.
     for (uint64_t file_num = 0; file_num < descriptor2.num_files; ++file_num) {
-      StatusOr<FileEntry*> entry = current_volume->ReadFileEntry();
+      StatusOr<FileEntry*> entry = ReadFileEntry();
       if (!entry.ok()) {
         retval = entry.status();
         break;
@@ -590,51 +524,25 @@ StatusOr<vector<FileSet*> > BackupVolume::LoadFileSets(
 
     filesets.push_back(fileset);
 
+    VLOG(3) << "Backup type: " << descriptor2.backup_type;
+    // TODO(darkstar62): Check the backup type is valid
     if (descriptor2.backup_type == kBackupTypeFull && !load_all) {
       // We found the most recent full backup -- break out.
+      VLOG(3) << "Found full backup, done.";
       break;
     }
 
     current_offset = descriptor2.previous_backup_offset;
-    if (descriptor2.previous_backup_volume_number !=
-            current_volume->volume_number()) {
-      // We need another volume -- prompt the user to supply it.
-
-      current_volume->Close();
-      if (current_volume != this) {
-        delete current_volume;
-      }
-      current_volume = NULL;
-
-      current_volume = volume_change_cb->Run(
-          descriptor2.previous_backup_volume_number,
-          false);
-      if (!current_volume) {
-        retval = Status(kStatusCorruptBackup,
-                        "Could not load needed volume");
-        break;
-      }
+    VLOG(3) << "Current offset: " << current_offset;
+    if (descriptor2.previous_backup_volume_number != volume_number()) {
+      // We're done here -- return back with the next volume number.
+      *next_volume = descriptor2.previous_backup_volume_number;
+      return filesets;
     }
   }
-  if (current_volume != this) {
-    if (current_volume) {
-      current_volume->Close();
-      delete current_volume;
-    }
 
-    // Ask the user to put the last volume back in.  We won't request that the
-    // volume be created by the backup driver this time.
-    volume_change_cb->Run(volume_number(), true);
-
-    // Re-init our backup volume.
-    Init();
-  }
-
-  if (!retval.ok()) {
-    return retval;
-  }
-
-  VLOG(2) << "Backup sets: " << filesets.size();
+  VLOG(3) << "Done";
+  *next_volume = -1;
   return filesets;
 }
 

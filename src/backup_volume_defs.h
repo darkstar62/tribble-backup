@@ -24,6 +24,7 @@ enum EncodingType {
 // Type of backup.  This is stored in descriptor 2 for each backup set, and
 // indicates how the backup set is to be treated relative to every other set.
 enum BackupType {
+  kBackupTypeInvalid,
   kBackupTypeFull,
   kBackupTypeDifferential,
   kBackupTypeIncremental,
@@ -105,6 +106,11 @@ struct BackupDescriptor1Chunk {
   // Offset into the backup volume where the ChunkHeader for this MD5sum can be
   // found.
   uint64_t offset;
+
+  // Backup volume this chunk is in.  This seems redundant, but it's needed to
+  // allow us to quickly know which chunks are where without scanning the entire
+  // backup series.
+  uint64_t volume_number;
 };
 
 // BackupDescriptor2 is stored only in the last backup volume in the set, and

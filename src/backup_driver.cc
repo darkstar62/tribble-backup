@@ -8,11 +8,11 @@
 #include <vector>
 
 #include "glog/logging.h"
-#include "src/backup_volume.h"
+#include "src/backup_library.h"
+#include "src/callback.h"
 #include "src/file.h"
-#include "src/fileset.h"
-#include "src/gzip_encoder.h"
 #include "src/md5_generator.h"
+#include "src/gzip_encoder.h"
 #include "src/status.h"
 
 using std::string;
@@ -21,84 +21,80 @@ using std::unique_ptr;
 
 namespace backup2 {
 
+BackupDriver::BackupDriver(
+    const string& backup_filename,
+    const BackupType backup_type,
+    const string& backup_description,
+    const uint64_t max_volume_size_mb,
+    const bool enable_compression,
+    const string& filelist_filename)
+    : backup_filename_(backup_filename),
+      backup_type_(backup_type),
+      description_(backup_description),
+      max_volume_size_mb_(max_volume_size_mb),
+      enable_compression_(enable_compression),
+      filelist_filename_(filelist_filename),
+      volume_change_callback_(
+          NewPermanentCallback(this, &BackupDriver::ChangeBackupVolume)) {
+}
+
 int BackupDriver::Run() {
-  // Create a BackupVolume from the file.  Regardless of what operation we're
-  // ultimately going to want to use, we still need to either create or read in
-  // the backup set metadata.
-  bool create = false;
-  if (backup_type_ == "full") {
-    create = true;
-  }
-
-  unique_ptr<BackupVolume> volume(InitializeBackupVolume(
-      backup_filename_, max_volume_size_mb_, create));
-
-  // Now we have our backup volume.  We can start doing whatever the user asked
-  // us to do.
-  if (backup_type_ == "full") {
-    return PerformBackup(volume.get(), filelist_filename_, description_);
-  } else {
-    LOG(FATAL) << "Unknown backup type: " << backup_type_;
-  }
-  return 1;
-}
-
-BackupVolume* BackupDriver::InitializeBackupVolume(
-    const string& filename, uint64_t max_volume_size_mb, bool create) {
-  unique_ptr<BackupVolume> volume(
-      new BackupVolume(new File(filename),
-                       new Md5Generator,
-                       new GzipEncoder));
-  Status retval = volume->Init();
+  // Create a backup library using the filename we were given.
+  BackupLibrary library(backup_filename_, volume_change_callback_.get(),
+                        new Md5Generator(),
+                        new GzipEncoder());
+  Status retval = library.Init();
   if (!retval.ok()) {
-    if (retval.code() != kStatusNoSuchFile) {
-      LOG(FATAL) << "Error initializing backup volume: " << retval.ToString();
-    } else if (!create) {
-      LOG(FATAL) << "Must specify an existing file.";
-    }
-
-    // Initialize the file.  We have to have been configured with options on how
-    // to build the backup.  Since this is the first file, our backup volume
-    // number is 0.
-    ConfigOptions options;
-    options.max_volume_size_mb = max_volume_size_mb;
-    options.volume_number = 0;
-    options.enable_compression = enable_compression_;
-    retval = volume->Create(options);
-    if (!retval.ok()) {
-      LOG(FATAL) << "Could not create backup volume: " << retval.ToString();
-    }
+    LOG(FATAL) << retval.ToString();
   }
-  return volume.release();
-}
 
-int BackupDriver::PerformBackup(
-    BackupVolume* volume, const string& filelist_filename,
-    const string& description) {
-  // Open the filelist and grab the files to read.
-  FileInterface* file = new File(filelist_filename);
-  file->Open(File::Mode::kModeRead);
-  vector<string> filenames;
-  file->ReadLines(&filenames);
-  file->Close();
-  delete file;
+  // Get the filenames to backup.  This will be different depending on the
+  // backup type.
+  vector<string> filelist;
 
-  // Create a FileSet to contain our backup.
-  FileSet* backup = new FileSet;
-  backup->set_description(description);
+  // If this is an incremental backup, we need to use the FileSets from the
+  // previous backups to determine what to back up.
+  switch (backup_type_) {
+    case kBackupTypeIncremental:
+      LoadIncrementalFilelist(&library, &filelist);
+      break;
 
-  for (string filename : filenames) {
+    case kBackupTypeDifferential:
+      LoadDifferentialFilelist(&library, &filelist);
+      break;
+
+    case kBackupTypeFull:
+      LoadFullFilelist(&filelist);
+      break;
+
+    default:
+      LOG(FATAL) << "Invalid backup type: " << backup_type_;
+  }
+
+  // Now we've got our filelist.  It doesn't much matter at this point what kind
+  // of backup we're doing, because the backup type only defines what files we
+  // add to the backup set.
+
+  // Create and initialize the backup.
+  library.CreateBackup(
+      BackupOptions().set_description(description_)
+                     .set_type(backup_type_)
+                     .set_max_volume_size_mb(max_volume_size_mb_)
+                     .set_enable_compression(enable_compression_));
+
+  // Start processing files.
+  for (string filename : filelist) {
     VLOG(3) << "Processing " << filename;
-    file = new File(filename);
+    unique_ptr<File> file(new File(filename));
     file->Open(File::Mode::kModeRead);
     Status status = Status::OK;
 
     // Create the metadata for the file and stat() it to get the details.
     string relative_filename = file->RelativePath() + '\0';
-    BackupFile* metadata = new BackupFile;
+    BackupFile metadata;
     // TODO(darkstar62): Add file stat() support and add it to the metadata.
 
-    FileEntry* entry = new FileEntry(relative_filename, metadata);
+    FileEntry* entry = library.CreateFile(relative_filename, metadata);
 
     do {
       uint64_t current_offset = file->Tell();
@@ -107,7 +103,7 @@ int BackupDriver::PerformBackup(
       data.resize(64*1024);
       status = file->Read(&data.at(0), data.size(), &read);
       data.resize(read);
-      Status retval = volume->AddChunk(data, current_offset, entry);
+      Status retval = library.AddChunk(data, current_offset, entry);
       if (!retval.ok()) {
         LOG(FATAL) << "Could not add chunk to volume: " << retval.ToString();
       }
@@ -115,13 +111,38 @@ int BackupDriver::PerformBackup(
 
     // We've reached the end of the file.  Close it out and start the next one.
     file->Close();
-    backup->AddFile(entry);
-    delete file;
   }
 
   // All done with the backup, close out the file set.
-  volume->CloseWithFileSet(*backup);
+  library.CloseBackup();
   return 0;
+}
+
+string BackupDriver::ChangeBackupVolume(string /* needed_filename */) {
+  // If we're here, it means the backup library couldn't find the needed file,
+  // and we need to ask the user for the location of the file.
+
+  // TODO(darkstar62): The implementation of this will depend on the UI in use.
+  return "";
+}
+
+void BackupDriver::LoadIncrementalFilelist(
+    BackupLibrary* /* library */, vector<string>* /* filelist */) {
+  LOG(FATAL) << "Not implemented";
+}
+
+void BackupDriver::LoadDifferentialFilelist(
+    BackupLibrary* /* library */, vector<string>* /* filelist */) {
+  LOG(FATAL) << "Not implemented";
+}
+
+void BackupDriver::LoadFullFilelist(vector<string>* filelist) {
+  // Open the filelist and grab the files to read.
+  FileInterface* file = new File(filelist_filename_);
+  file->Open(File::Mode::kModeRead);
+  file->ReadLines(filelist);
+  file->Close();
+  delete file;
 }
 
 }  // namespace backup2

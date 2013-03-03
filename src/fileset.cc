@@ -16,7 +16,6 @@ FileSet::FileSet()
 
 FileSet::~FileSet() {
   for (FileEntry* entry : files_) {
-    LOG(INFO) << "Delete entry: 0x" << std::hex << entry;
     delete entry;
   }
 }

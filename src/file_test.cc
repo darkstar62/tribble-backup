@@ -157,4 +157,90 @@ TEST_F(FileTest, ReadLines) {
   EXPECT_EQ("EFGH", lines[1]);
 }
 
+TEST_F(FileTest, FindBasenameAndLastVolume) {
+  // This test verifies that a backup directory containing many different files
+  // can be used to determine a backup prefix.
+
+  // Create a directory and a bunch of test files.
+  File file0("./__test__/backup.000.bkp");
+  File file1("./__test__/backup.001.bkp");
+  File file2("./__test__/backup.002.bkp");
+  File file3("./__test__/backup.003.bkp");
+  File file4("./__test__/backup.004.bkp");
+  File file5("./__test__/sdflkjvo");
+
+  ASSERT_TRUE(file0.CreateDirectories().ok());
+  file0.Open(File::Mode::kModeAppend);
+  file0.Write("a", 1);
+  file0.Close();
+
+  file1.Open(File::Mode::kModeAppend);
+  file1.Write("a", 1);
+  file1.Close();
+
+  file2.Open(File::Mode::kModeAppend);
+  file2.Write("a", 1);
+  file2.Close();
+
+  file3.Open(File::Mode::kModeAppend);
+  file3.Write("a", 1);
+  file3.Close();
+
+  file4.Open(File::Mode::kModeAppend);
+  file4.Write("a", 1);
+  file4.Close();
+
+  file5.Open(File::Mode::kModeAppend);
+  file5.Write("a", 1);
+  file5.Close();
+
+  string basename;
+  uint64_t last_vol = 0;
+
+  // Run it on the first file.
+  Status retval = file0.FindBasenameAndLastVolume(&basename, &last_vol);
+  EXPECT_TRUE(retval.ok());
+  EXPECT_EQ("./__test__/backup", basename);
+  EXPECT_EQ(4, last_vol);
+
+  // Run it on the second file.
+  basename = "";
+  last_vol = 0;
+  retval = file1.FindBasenameAndLastVolume(&basename, &last_vol);
+  EXPECT_TRUE(retval.ok());
+  EXPECT_EQ("./__test__/backup", basename);
+  EXPECT_EQ(4, last_vol);
+
+  basename = "";
+  last_vol = 0;
+  retval = file2.FindBasenameAndLastVolume(&basename, &last_vol);
+  EXPECT_TRUE(retval.ok());
+  EXPECT_EQ("./__test__/backup", basename);
+  EXPECT_EQ(4, last_vol);
+
+  basename = "";
+  last_vol = 0;
+  retval = file3.FindBasenameAndLastVolume(&basename, &last_vol);
+  EXPECT_TRUE(retval.ok());
+  EXPECT_EQ("./__test__/backup", basename);
+  EXPECT_EQ(4, last_vol);
+
+  basename = "";
+  last_vol = 0;
+  retval = file4.FindBasenameAndLastVolume(&basename, &last_vol);
+  EXPECT_TRUE(retval.ok());
+  EXPECT_EQ("./__test__/backup", basename);
+  EXPECT_EQ(4, last_vol);
+
+  // This last file should come back with an error.
+  basename = "";
+  last_vol = 0;
+  retval = file5.FindBasenameAndLastVolume(&basename, &last_vol);
+  EXPECT_FALSE(retval.ok());
+  EXPECT_EQ(kStatusInvalidArgument, retval.code());
+
+  // Clean up.
+  boost::filesystem::remove_all(boost::filesystem::path("./__test__"));
+}
+
 }  // namespace backup2

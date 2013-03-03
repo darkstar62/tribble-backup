@@ -24,6 +24,12 @@ DEFINE_string(filelist, "",
               "File to read the list of files to backup.  The file should be "
               "formatted with filenames, one per line.");
 
+using backup2::BackupType;
+using backup2::kBackupTypeDifferential;
+using backup2::kBackupTypeFull;
+using backup2::kBackupTypeIncremental;
+using backup2::kBackupTypeInvalid;
+
 int main(int argc, char* argv[]) {
   google::SetUsageMessage("TODO: Add message");
   google::ParseCommandLineFlags(&argc, &argv, true);
@@ -37,9 +43,17 @@ int main(int argc, char* argv[]) {
       << "Must specify a backup filename to work with.";
 
   if (FLAGS_operation == "backup") {
+    BackupType backup_type = kBackupTypeInvalid;
+    if (FLAGS_backup_type == "full") {
+      backup_type = kBackupTypeFull;
+    } else if (FLAGS_backup_type == "incremental") {
+      backup_type = kBackupTypeIncremental;
+    } else if (FLAGS_backup_type == "differential") {
+      backup_type = kBackupTypeDifferential;
+    }
     backup2::BackupDriver driver(
         FLAGS_backup_filename,
-        FLAGS_backup_type,
+        backup_type,
         FLAGS_backup_description,
         FLAGS_max_volume_size_mb,
         FLAGS_enable_compression,

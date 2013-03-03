@@ -131,11 +131,9 @@ ENDMACRO(MAKE_TEST)
   ADD_LIBRARY(backup_driver ${backup_driver_SOURCES})
   TARGET_LINK_LIBRARIES(
     backup_driver
-      backup_volume
+      backup_library
       file
       fileset
-      gzip_encoder
-      md5_generator
       status
     )
 
@@ -148,7 +146,7 @@ ENDMACRO(MAKE_TEST)
   ADD_LIBRARY(restore_driver ${restore_driver_SOURCES})
   TARGET_LINK_LIBRARIES(
     restore_driver
-      backup_volume
+      backup_library
       file
       fileset
       gzip_encoder
@@ -172,26 +170,43 @@ ENDMACRO(MAKE_TEST)
       file
     )
 
-# TEST: backup_volume_test
+# LIBRARY: backup_library
   LINT_SOURCES(
-    backup_volume_test_SOURCES
-      backup_volume_test.cc
-    )
-  MAKE_TEST(backup_volume_test)
+    backup_library_SOURCES
+      backup_library.cc
+      backup_library.h
+  )
+  ADD_LIBRARY(backup_library ${backup_library_SOURCES})
   TARGET_LINK_LIBRARIES(
-    backup_volume_test
+    backup_library
       backup_volume
       file
       fileset
+      gzip_encoder
+      md5_generator
       status
-      ${CMAKE_THREAD_LIBS_INIT}
-      ${GFLAGS_LIBRARY}
-      ${GLOG_LIBRARY}
-      ${GTEST_LIBRARY}
-      ${GTEST_MAIN_LIBRARY}
-      ${GMOCK_LIBRARIES}
-      ${TCMALLOC_LIBRARIES}
     )
+
+# TEST: backup_volume_test
+#   LINT_SOURCES(
+#     backup_volume_test_SOURCES
+#       backup_volume_test.cc
+#     )
+#   MAKE_TEST(backup_volume_test)
+#   TARGET_LINK_LIBRARIES(
+#     backup_volume_test
+#       backup_volume
+#       file
+#       fileset
+#       status
+#       ${CMAKE_THREAD_LIBS_INIT}
+#       ${GFLAGS_LIBRARY}
+#       ${GLOG_LIBRARY}
+#       ${GTEST_LIBRARY}
+#       ${GTEST_MAIN_LIBRARY}
+#       ${GMOCK_LIBRARIES}
+#       ${TCMALLOC_LIBRARIES}
+#     )
 
 # LIBRARY: file
   LINT_SOURCES(
