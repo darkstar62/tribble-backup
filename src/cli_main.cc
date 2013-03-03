@@ -23,6 +23,9 @@ DEFINE_uint64(max_volume_size_mb, 0,
 DEFINE_string(filelist, "",
               "File to read the list of files to backup.  The file should be "
               "formatted with filenames, one per line.");
+DEFINE_uint64(restore_set_number, 0,
+              "Restore set to restore from, numbered according to the list "
+              "command.");
 
 using backup2::BackupType;
 using backup2::kBackupTypeDifferential;
@@ -62,12 +65,14 @@ int main(int argc, char* argv[]) {
   } else if (FLAGS_operation == "list") {
     backup2::RestoreDriver driver(
         FLAGS_backup_filename,
-        FLAGS_restore_path);
+        FLAGS_restore_path,
+        0);
     return driver.List();
   } else if (FLAGS_operation == "restore") {
     backup2::RestoreDriver driver(
         FLAGS_backup_filename,
-        FLAGS_restore_path);
+        FLAGS_restore_path,
+        FLAGS_restore_set_number);
     return driver.Restore();
   } else {
     LOG(ERROR) << "Unknown operation: " << FLAGS_operation;

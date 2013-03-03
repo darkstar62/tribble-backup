@@ -112,11 +112,28 @@ void BackupLibrary::CreateBackup(BackupOptions options) {
       StatusOr<BackupVolume*> volume_result = GetBackupVolume(0, true);
       CHECK(volume_result.ok()) << volume_result.status().ToString();
       current_backup_volume_ = volume_result.value();
+
+      // Set previous backups at zero -- there is nothing else.
+      file_set_->set_previous_backup_volume(0);
+      file_set_->set_previous_backup_offset(0);
     } else {
       LOG(FATAL) << "BUG: Multi-volume backup with no chunks?!";
     }
   } else {
-    // Lotsa chunks, we're good to go.  Create a new backup volume to contain
+    // Lotsa chunks, we're good to go.
+
+    // Load previous backup information from the last volume.  We'll need this
+    // when completing our backup to link the new one to the previous existing
+    // one.
+    StatusOr<BackupVolume*> volume_result = GetBackupVolume(last_volume_, true);
+    CHECK(volume_result.ok()) << volume_result.status().ToString();
+    file_set_->set_previous_backup_volume(
+        volume_result.value()->volume_number());
+    file_set->set_previous_backup_offset(
+        volume_result.value()->last_backup_offset());
+    volume_result.value()->Close();
+
+    // Create a new backup volume to contain
     // this backup, and limit it in size to our max minus the cumulative total
     // of all last backup volumes we have that are smaller than the max size
     // (i.e. bin-pack our volumes).
@@ -124,7 +141,7 @@ void BackupLibrary::CreateBackup(BackupOptions options) {
     // set.
     LOG(INFO) << "Existing backup";
     last_volume_++;
-    StatusOr<BackupVolume*> volume_result = GetBackupVolume(last_volume_, true);
+    volume_result = GetBackupVolume(last_volume_, true);
     CHECK(volume_result.ok()) << volume_result.status().ToString();
     current_backup_volume_ = volume_result.value();
   }
@@ -271,7 +288,6 @@ Status BackupLibrary::LoadAllChunkData() {
 
     ChunkMap chunks;
     volume->GetChunks(&chunks);
-
     chunks_.Merge(chunks);
   }
 
@@ -286,6 +302,7 @@ StatusOr<BackupVolume*> BackupLibrary::GetBackupVolume(
   }
 
   string filename = File::BasenameAndVolumeToFilename(basename_, volume_num);
+  LOG(INFO) << "Loading backup volume: " << filename;
   File* file = new File(filename);
   unique_ptr<BackupVolume> volume(new BackupVolume(file));
 

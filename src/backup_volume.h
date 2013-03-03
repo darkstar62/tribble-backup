@@ -161,6 +161,12 @@ class BackupVolume {
     return descriptor_header_.volume_number;
   }
 
+  // Return the offset into the most recent backup.  This is used by
+  // BackupLibrary to propagate metadata for chaining sets.
+  const uint64_t last_backup_offset() const {
+    return descriptor2_offset_;
+  }
+
  private:
   // Verify the version header in the file.
   Status CheckVersion();

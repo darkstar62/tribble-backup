@@ -347,7 +347,8 @@ Status BackupVolume::WriteBackupDescriptor2(const FileSet& fileset) {
   descriptor_header_.backup_descriptor_2_present = 1;
   descriptor2_.num_files = fileset.num_files();
   descriptor2_.description_size = fileset.description().size();
-  descriptor2_.previous_backup_offset = descriptor2_offset_;
+  descriptor2_.previous_backup_offset = fileset.previous_backup_offset();
+  descriptor2_.previous_backup_volume_number = fileset.previous_backup_volume();
   descriptor2_.backup_type = fileset.backup_type();
   retval = file_->Write(&descriptor2_, sizeof(BackupDescriptor2));
   if (!retval.ok()) {
@@ -538,6 +539,11 @@ StatusOr<vector<FileSet*> > BackupVolume::LoadFileSets(
 
     current_offset = descriptor2.previous_backup_offset;
     VLOG(3) << "Current offset: " << current_offset;
+    if (descriptor2.previous_backup_volume_number == 0 && current_offset == 0) {
+      // 0 / 0 means we're done and there's no more left.
+      break;
+    }
+
     if (descriptor2.previous_backup_volume_number != volume_number()) {
       // We're done here -- return back with the next volume number.
       *next_volume = descriptor2.previous_backup_volume_number;

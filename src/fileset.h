@@ -46,6 +46,22 @@ class FileSet {
   const BackupType backup_type() const { return backup_type_; }
   void set_backup_type(BackupType backup_type) { backup_type_ = backup_type; }
 
+  // Get/set the previous backup volume and offset.  These are stored in the
+  // next backup to allow linking backwards.
+  const uint64_t previous_backup_volume() const {
+    return previous_backup_volume_;
+  }
+  void set_previous_backup_volume(uint64_t volume) {
+    previous_backup_volume_ = volume;
+  }
+
+  const uint64_t previous_backup_offset() const {
+    return previous_backup_offset_;
+  }
+  void set_previous_backup_offset(uint64_t offset) {
+    previous_backup_offset_ = offset;
+  }
+
  private:
   // Vector of files in the file set.
   std::vector<FileEntry*> files_;
@@ -55,6 +71,10 @@ class FileSet {
 
   // Backup type.
   BackupType backup_type_;
+
+  // Previous backup information.
+  uint64_t previous_backup_volume_;
+  uint64_t previous_backup_offset_;
 
   DISALLOW_COPY_AND_ASSIGN(FileSet);
 };

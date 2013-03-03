@@ -20,7 +20,8 @@ class RestoreDriver {
  public:
   RestoreDriver(
       const std::string& backup_filename,
-      const std::string& restore_path);
+      const std::string& restore_path,
+      const uint64_t set_number);
 
   // Perform the restore operation.
   int Restore();
@@ -31,6 +32,7 @@ class RestoreDriver {
  private:
   const std::string backup_filename_;
   const std::string restore_path_;
+  const uint64_t set_number_;
 
   std::string ChangeBackupVolume(std::string needed_filename);
 

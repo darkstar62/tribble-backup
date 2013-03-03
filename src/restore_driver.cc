@@ -34,9 +34,11 @@ namespace backup2 {
 
 RestoreDriver::RestoreDriver(
     const string& backup_filename,
-    const string& restore_path)
+    const string& restore_path,
+    const uint64_t set_number)
     : backup_filename_(backup_filename),
       restore_path_(restore_path),
+      set_number_(set_number),
       volume_change_callback_(
           NewPermanentCallback(this, &RestoreDriver::ChangeBackupVolume)) {
 }
@@ -53,7 +55,7 @@ int RestoreDriver::Restore() {
   }
 
   // Get all the file sets contained in the backup.
-  StatusOr<vector<FileSet*> > filesets = library.LoadFileSets(false);
+  StatusOr<vector<FileSet*> > filesets = library.LoadFileSets(true);
   CHECK(filesets.ok()) << filesets.status().ToString();
 
   LOG(INFO) << "Found " << filesets.value().size() << " backup sets.";
@@ -72,7 +74,7 @@ int RestoreDriver::Restore() {
   // them.
 
   // Start the restore process by iterating through the restore sets.
-  FileSet* fileset = filesets.value()[0];
+  FileSet* fileset = filesets.value()[set_number_];
   vector<FileEntry*> files = fileset->GetFiles();
   for (FileEntry* file_entry : files) {
     LOG(INFO) << "Restoring " << file_entry->filename();
@@ -114,14 +116,19 @@ int RestoreDriver::List() {
   BackupLibrary library(backup_filename_, volume_change_callback_.get(),
                         new Md5Generator(),
                         new GzipEncoder());
+  Status retval = library.Init();
+  if (!retval.ok()) {
+    LOG(FATAL) << retval.ToString();
+  }
 
   // Get all the file sets contained in the backup.
-  StatusOr<vector<FileSet*> > filesets = library.LoadFileSets(false);
+  StatusOr<vector<FileSet*> > filesets = library.LoadFileSets(true);
   CHECK(filesets.ok()) << filesets.status().ToString();
 
   LOG(INFO) << "Found " << filesets.value().size() << " backup sets.";
-  for (FileSet* fileset : filesets.value()) {
-    LOG(INFO) << "  " << fileset->description();
+  for (uint64_t index = 0; index < filesets.value().size(); ++index) {
+    FileSet* fileset = filesets.value()[index];
+    LOG(INFO) << "  " << index << " " << fileset->description();
   }
 
   return 0;
