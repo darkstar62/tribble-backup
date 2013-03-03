@@ -146,6 +146,7 @@ Status BackupLibrary::AddChunk(const string& data, const uint64_t chunk_offset,
   chunk.chunk_offset = chunk_offset;
   chunk.unencoded_size = data.size();
   chunk.md5sum = md5;
+  chunk.volume_num = current_backup_volume_->volume_number();
 
   if (chunks_.HasChunk(chunk.md5sum)) {
     // We already have this chunk, just add it to the entry.
@@ -186,6 +187,23 @@ Status BackupLibrary::AddChunk(const string& data, const uint64_t chunk_offset,
         chunk.md5sum, data, data.size(), kEncodingTypeRaw);
   }
   file->AddChunk(chunk);
+
+  // Check the volume size -- if it's too big, start a new one.
+  if (options_.max_volume_size_mb() > 0 &&
+      current_backup_volume_->EstimatedSize() >= (
+          options_.max_volume_size_mb() * 1048576)) {
+    // Close out the current volume.  We need to grab the chunk list from the
+    // volume so we can continue to de-dup.
+    current_backup_volume_->Close();
+    current_backup_volume_->GetChunks(&chunks_);
+
+    // Start a new volume.
+    last_volume_++;
+    StatusOr<BackupVolume*> volume_result = GetBackupVolume(last_volume_, true);
+    CHECK(volume_result.ok()) << volume_result.status().ToString();
+    current_backup_volume_ = volume_result.value();
+  }
+
   return Status::OK;
 }
 

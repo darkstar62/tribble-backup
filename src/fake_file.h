@@ -101,6 +101,10 @@ class FakeFile : public FileInterface {
     return Status::NOT_IMPLEMENTED;
   }
 
+  virtual uint64_t size() const {
+    return data_.size();
+  }
+
   //////////////////
 
   // Make the current contents the expected contents and reset for the test.

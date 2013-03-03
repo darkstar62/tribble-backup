@@ -263,6 +263,10 @@ Status BackupVolume::CloseWithFileSet(const FileSet& fileset) {
   return Status::OK;
 }
 
+uint64_t BackupVolume::EstimatedSize() const {
+  return file_->size() + chunks_.disk_size();
+}
+
 Status BackupVolume::WriteChunk(
     Uint128 md5sum, const string& data, uint64_t raw_size, EncodingType type) {
   Status retval = file_->SeekEof();

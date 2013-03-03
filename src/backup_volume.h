@@ -75,6 +75,9 @@ class ChunkMap {
   }
 
   uint64_t size() const { return chunks_.size(); }
+  uint64_t disk_size() const {
+    return chunks_.size() * sizeof(BackupDescriptor1Chunk);
+  }
 
  private:
   ChunkMapType chunks_;
@@ -148,6 +151,10 @@ class BackupVolume {
   // only leave descriptor 1 and the backup header.
   Status Close();
   Status CloseWithFileSet(const FileSet& fileset);
+
+  // Returns the estimated disk size of the volume, including metadata (but not
+  // descriptor 2, as that can't be known until after the backup).
+  uint64_t EstimatedSize() const;
 
   // Return the volume number this backup volume represents.
   const uint64_t volume_number() const {

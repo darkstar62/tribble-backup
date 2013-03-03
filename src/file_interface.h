@@ -74,6 +74,9 @@ class FileInterface {
   // backup file prefix and determine how many backup volumes there are.
   virtual Status FindBasenameAndLastVolume(
       std::string* basename_out, uint64_t* last_vol_out) = 0;
+
+  // Return the current size of the file.
+  virtual uint64_t size() const = 0;
 };
 
 }  // namespace backup2

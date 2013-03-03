@@ -26,6 +26,7 @@ class MockFile : public FileInterface {
   MOCK_METHOD2(Write, Status(const void* buffer, size_t length));
   MOCK_METHOD0(CreateDirectories, Status());
   MOCK_METHOD0(RelativePath, std::string());
+  MOCK_CONST_METHOD0(size, uint64_t());
 };
 
 }  // namespace backup2

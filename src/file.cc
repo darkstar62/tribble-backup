@@ -270,6 +270,11 @@ Status File::FindBasenameAndLastVolume(string* basename_out,
   return Status::OK;
 }
 
+uint64_t File::size() const {
+  return boost::filesystem::file_size(
+      boost::filesystem::path(filename_));
+}
+
 std::string File::BasenameAndVolumeToFilename(
     const std::string& basename, uint64_t volume) {
   ostringstream file_str;
