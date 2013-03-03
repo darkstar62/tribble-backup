@@ -161,13 +161,33 @@ TEST_F(FileTest, FindBasenameAndLastVolume) {
   // This test verifies that a backup directory containing many different files
   // can be used to determine a backup prefix.
 
+#ifdef _WIN32
+  string filename0 = ".\\__test__\\backup.000.bkp";
+  string filename1 = ".\\__test__\\backup.001.bkp";
+  string filename2 = ".\\__test__\\backup.002.bkp";
+  string filename3 = ".\\__test__\\backup.003.bkp";
+  string filename4 = ".\\__test__\\backup.004.bkp";
+  string filename5 = ".\\__test__\\sdflkjvo";
+  string expected_prefix = ".\\__test__\\backup";
+  string test_dir = ".\\__test__";
+#else
+  string filename0 = "./__test__/backup.000.bkp";
+  string filename1 = "./__test__/backup.001.bkp";
+  string filename2 = "./__test__/backup.002.bkp";
+  string filename3 = "./__test__/backup.003.bkp";
+  string filename4 = "./__test__/backup.004.bkp";
+  string filename5 = "./__test__/sdflkjvo";
+  string expected_prefix = "./__test__/backup";
+  string test_dir = "./__test__";
+#endif
+
   // Create a directory and a bunch of test files.
-  File file0("./__test__/backup.000.bkp");
-  File file1("./__test__/backup.001.bkp");
-  File file2("./__test__/backup.002.bkp");
-  File file3("./__test__/backup.003.bkp");
-  File file4("./__test__/backup.004.bkp");
-  File file5("./__test__/sdflkjvo");
+  File file0(filename0);
+  File file1(filename1);
+  File file2(filename2);
+  File file3(filename3);
+  File file4(filename4);
+  File file5(filename5);
 
   ASSERT_TRUE(file0.CreateDirectories().ok());
   file0.Open(File::Mode::kModeAppend);
@@ -200,7 +220,7 @@ TEST_F(FileTest, FindBasenameAndLastVolume) {
   // Run it on the first file.
   Status retval = file0.FindBasenameAndLastVolume(&basename, &last_vol);
   EXPECT_TRUE(retval.ok());
-  EXPECT_EQ("./__test__/backup", basename);
+  EXPECT_EQ(expected_prefix, basename);
   EXPECT_EQ(4, last_vol);
 
   // Run it on the second file.
@@ -208,28 +228,28 @@ TEST_F(FileTest, FindBasenameAndLastVolume) {
   last_vol = 0;
   retval = file1.FindBasenameAndLastVolume(&basename, &last_vol);
   EXPECT_TRUE(retval.ok());
-  EXPECT_EQ("./__test__/backup", basename);
+  EXPECT_EQ(expected_prefix, basename);
   EXPECT_EQ(4, last_vol);
 
   basename = "";
   last_vol = 0;
   retval = file2.FindBasenameAndLastVolume(&basename, &last_vol);
   EXPECT_TRUE(retval.ok());
-  EXPECT_EQ("./__test__/backup", basename);
+  EXPECT_EQ(expected_prefix, basename);
   EXPECT_EQ(4, last_vol);
 
   basename = "";
   last_vol = 0;
   retval = file3.FindBasenameAndLastVolume(&basename, &last_vol);
   EXPECT_TRUE(retval.ok());
-  EXPECT_EQ("./__test__/backup", basename);
+  EXPECT_EQ(expected_prefix, basename);
   EXPECT_EQ(4, last_vol);
 
   basename = "";
   last_vol = 0;
   retval = file4.FindBasenameAndLastVolume(&basename, &last_vol);
   EXPECT_TRUE(retval.ok());
-  EXPECT_EQ("./__test__/backup", basename);
+  EXPECT_EQ(expected_prefix, basename);
   EXPECT_EQ(4, last_vol);
 
   // This last file should come back with an error.
@@ -240,7 +260,7 @@ TEST_F(FileTest, FindBasenameAndLastVolume) {
   EXPECT_EQ(kStatusInvalidArgument, retval.code());
 
   // Clean up.
-  boost::filesystem::remove_all(boost::filesystem::path("./__test__"));
+  boost::filesystem::remove_all(boost::filesystem::path(test_dir));
 }
 
 }  // namespace backup2

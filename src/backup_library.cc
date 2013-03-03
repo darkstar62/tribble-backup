@@ -284,10 +284,8 @@ Status BackupLibrary::LoadAllChunkData() {
     if (!volume_result.ok()) {
       return volume_result.status();
     }
-    BackupVolume* volume = volume_result.value();
-
     ChunkMap chunks;
-    volume->GetChunks(&chunks);
+    volume_result.value()->GetChunks(&chunks);
     chunks_.Merge(chunks);
   }
 
