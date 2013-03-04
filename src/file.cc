@@ -5,6 +5,11 @@
 #define _CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES 1
 #define _CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES_COUNT 1
 #define _CRT_SECURE_NO_WARNINGS 1
+#define FSEEK64 _fseeki64
+#define FTELL64 _ftelli64
+#else
+#define FSEEK64 fseeko
+#define FTELL64 ftello
 #endif  // _WIN32
 
 #include <algorithm>
@@ -86,26 +91,20 @@ Status File::Unlink() {
   return Status::OK;
 }
 
-int32_t File::Tell() {
-  // TODO(darkstar62): These functions only support 32-bit accesses, which
-  // limits file sizes to 2GB.  We need to be able to support 64-bit sizes, but
-  // do so portably.
+int64_t File::Tell() {
   CHECK_NOTNULL(file_);
-  return ftell(file_);
+  return FTELL64(file_);
 }
 
-Status File::Seek(int32_t offset) {
-  // TODO(darkstar62): These functions only support 32-bit accesses, which
-  // limits file sizes to 2GB.  We need to be able to support 64-bit sizes, but
-  // do so portably.
+Status File::Seek(int64_t offset) {
   CHECK_NOTNULL(file_);
   clearerr(file_);
-  int32_t retval = 0;
+  int64_t retval = 0;
   if (offset < 0) {
     // Seek from the end of the file.
-    retval = fseek(file_, offset, SEEK_END);
+    retval = FSEEK64(file_, offset, SEEK_END);
   } else {
-    retval = fseek(file_, offset, SEEK_SET);
+    retval = FSEEK64(file_, offset, SEEK_SET);
   }
 
   if (retval == -1) {
@@ -117,12 +116,9 @@ Status File::Seek(int32_t offset) {
 }
 
 Status File::SeekEof() {
-  // TODO(darkstar62): These functions only support 32-bit accesses, which
-  // limits file sizes to 2GB.  We need to be able to support 64-bit sizes, but
-  // do so portably.
   CHECK_NOTNULL(file_);
   clearerr(file_);
-  int32_t retval = fseek(file_, 0, SEEK_END);
+  int64_t retval = FSEEK64(file_, 0, SEEK_END);
   if (retval == -1) {
     LOG(ERROR) << "Error seeking to eof: " << strerror(errno);
     return Status(kStatusCorruptBackup, strerror(errno));
@@ -199,7 +195,7 @@ Status File::ReadLines(vector<string>* lines) {
 Status File::Write(const void* buffer, size_t length) {
   CHECK_NOTNULL(file_);
   // Seek to the end of the file.
-  if (fseek(file_, 0, SEEK_END) == -1) {
+  if (FSEEK64(file_, 0, SEEK_END) == -1) {
     return Status(kStatusCorruptBackup, strerror(errno));
   }
 

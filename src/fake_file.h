@@ -29,8 +29,8 @@ class FakeFile : public FileInterface {
   }
 
   virtual Status Unlink() { return Status::OK; }
-  virtual int32_t Tell() { return pos_; }
-  virtual Status Seek(int32_t offset) {
+  virtual int64_t Tell() { return pos_; }
+  virtual Status Seek(int64_t offset) {
     if (offset < 0) {
       pos_ = data_.size() + offset;
     } else {

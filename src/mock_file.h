@@ -18,8 +18,8 @@ class MockFile : public FileInterface {
   MOCK_METHOD1(Open, Status(FileInterface::Mode mode));
   MOCK_METHOD0(Close, Status());
   MOCK_METHOD0(Unlink, Status());
-  MOCK_METHOD0(Tell, int32_t());
-  MOCK_METHOD1(Seek, Status(int32_t offset));
+  MOCK_METHOD0(Tell, int64_t());
+  MOCK_METHOD1(Seek, Status(int64_t offset));
   MOCK_METHOD0(SeekEof, Status());
   MOCK_METHOD3(Read, Status(void* buffer, size_t length, size_t* read_bytes));
   MOCK_METHOD1(ReadLines, Status(std::vector<std::string>* lines));
