@@ -274,7 +274,7 @@ Status BackupVolume::WriteChunk(
     return retval;
   }
 
-  int32_t chunk_offset = file_->Tell();
+  int64_t chunk_offset = file_->Tell();
 
   ChunkHeader header;
   header.md5sum = md5sum;
