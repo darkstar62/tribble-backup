@@ -119,8 +119,6 @@ class FakeFile : public FileInterface {
     return data_ == expected_data_;
   }
 
-  uint64_t size() const { return data_.size(); }
-
  private:
   uint64_t pos_;
   bool open_;

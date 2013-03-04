@@ -188,25 +188,25 @@ ENDMACRO(MAKE_TEST)
     )
 
 # TEST: backup_volume_test
-#   LINT_SOURCES(
-#     backup_volume_test_SOURCES
-#       backup_volume_test.cc
-#     )
-#   MAKE_TEST(backup_volume_test)
-#   TARGET_LINK_LIBRARIES(
-#     backup_volume_test
-#       backup_volume
-#       file
-#       fileset
-#       status
-#       ${CMAKE_THREAD_LIBS_INIT}
-#       ${GFLAGS_LIBRARY}
-#       ${GLOG_LIBRARY}
-#       ${GTEST_LIBRARY}
-#       ${GTEST_MAIN_LIBRARY}
-#       ${GMOCK_LIBRARIES}
-#       ${TCMALLOC_LIBRARIES}
-#     )
+  LINT_SOURCES(
+    backup_volume_test_SOURCES
+      backup_volume_test.cc
+    )
+  MAKE_TEST(backup_volume_test)
+  TARGET_LINK_LIBRARIES(
+    backup_volume_test
+      backup_volume
+      file
+      fileset
+      status
+      ${CMAKE_THREAD_LIBS_INIT}
+      ${GFLAGS_LIBRARY}
+      ${GLOG_LIBRARY}
+      ${GTEST_LIBRARY}
+      ${GTEST_MAIN_LIBRARY}
+      ${GMOCK_LIBRARIES}
+      ${TCMALLOC_LIBRARIES}
+    )
 
 # LIBRARY: file
   LINT_SOURCES(
