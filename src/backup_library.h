@@ -8,15 +8,18 @@
 #include <vector>
 
 #include "src/backup_volume_defs.h"
-#include "src/backup_volume.h"
+#include "src/backup_volume_interface.h"
 #include "src/callback.h"
 #include "src/common.h"
+#include "src/chunk_map.h"
 #include "src/fileset.h"
 #include "src/status.h"
 
 namespace backup2 {
+class BackupVolumeFactoryInterface;
 class EncodingInterface;
 class FileEntry;
+class FileInterface;
 class FileSet;
 class Md5GeneratorInterface;
 
@@ -60,16 +63,19 @@ class BackupLibrary {
   // is returned, the operation is cancelled.
   typedef ResultCallback1<std::string, std::string> VolumeChangeCallback;
 
-  // Create a backup library using the given filename.  The filename supplied
-  // can be of any existing backup volume, or one that doesn't exist.  In the
-  // case of existing volumes, the library will try to determine if it is the
-  // last volume in the series or not, and if not, find the last one.  The
-  // VolumeChangeCallback is used when the backup library cannot find a file
-  // needed for backup or restore and must ask the user for it.
-  BackupLibrary(const std::string& filename,
+  // Create a backup library using the given file.  The file supplied should be
+  // of the last backup volume in the series, but can be of any existing backup
+  // volume, provided that the last volume is in the same directory.  It can
+  // also be one that doesn't exist.  In the case of existing volumes, the
+  // library will try to determine if it is the last volume in the series or
+  // not, and if not, find the last one.  The VolumeChangeCallback is used when
+  // the backup library cannot find a file needed for backup or restore and must
+  // ask the user for it.
+  BackupLibrary(FileInterface* file,
                 VolumeChangeCallback* volume_change_callback,
                 Md5GeneratorInterface* md5_maker,
-                EncodingInterface* gzip_encoder);
+                EncodingInterface* gzip_encoder,
+                BackupVolumeFactoryInterface* volume_factory);
 
   // Initialize the library.  This does cursory checks, like determining how
   // many backup volumes are in the library.
@@ -125,12 +131,16 @@ class BackupLibrary {
 
   // Find and initialize a BackupVolume for the given volume number, optionally
   // creating a new one if the requested one doesn't already exist.
-  StatusOr<BackupVolume*> GetBackupVolume(
+  StatusOr<BackupVolumeInterface*> GetBackupVolume(
       uint64_t volume, bool create_if_not_exist);
 
-  // Filename originally supplied to the constructor.  This is used only to
+  // Convert the base name and volume number to a path.
+  std::string FilenameFromVolume(uint64_t volume);
+
+  // File originally supplied to the constructor.  This is used only to
   // identify backup sets -- then filename handling is done more intelligently.
-  std::string filename_;
+  // NOTE: After Init() this will be NULL!
+  FileInterface* user_file_;
 
   // Callback issued when the library needs a volume it can't find.
   VolumeChangeCallback* volume_change_callback_;
@@ -138,6 +148,7 @@ class BackupLibrary {
   // Various interfaces to help perform the actions needed by this class.
   std::unique_ptr<Md5GeneratorInterface> md5_maker_;
   std::unique_ptr<EncodingInterface> gzip_encoder_;
+  std::unique_ptr<BackupVolumeFactoryInterface> volume_factory_;
 
   // The last volume number in the set (with 0 being first).
   uint64_t last_volume_;
@@ -154,13 +165,13 @@ class BackupLibrary {
   BackupOptions options_;
 
   // Current backup volume in use.  This is used when doing backups.
-  BackupVolume* current_backup_volume_;
+  BackupVolumeInterface* current_backup_volume_;
 
   // Vector of all chunks contained in this backup library.  This is loaded
   // from each backup volume before performing a backup.
   ChunkMap chunks_;
 
-  std::unique_ptr<BackupVolume> cached_backup_volume_;
+  std::unique_ptr<BackupVolumeInterface> cached_backup_volume_;
   DISALLOW_COPY_AND_ASSIGN(BackupLibrary);
 };
 

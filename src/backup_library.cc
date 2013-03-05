@@ -4,17 +4,19 @@
 #include "src/backup_library.h"
 
 #include <memory>
+#include <sstream>
 #include <string>
 #include <vector>
 
 #include "src/backup_volume_defs.h"
 #include "src/backup_volume.h"
 #include "src/encoding_interface.h"
-#include "src/file.h"
+#include "src/file_interface.h"
 #include "src/fileset.h"
 #include "src/md5_generator_interface.h"
 #include "src/status.h"
 
+using std::ostringstream;
 using std::stoull;
 using std::string;
 using std::unique_ptr;
@@ -22,14 +24,16 @@ using std::vector;
 namespace backup2 {
 
 BackupLibrary::BackupLibrary(
-    const std::string& filename,
+    FileInterface* file,
     VolumeChangeCallback* volume_change_callback,
     Md5GeneratorInterface* md5_maker,
-    EncodingInterface* gzip_encoder)
-    : filename_(filename),
+    EncodingInterface* gzip_encoder,
+    BackupVolumeFactoryInterface* volume_factory)
+    : user_file_(file),
       volume_change_callback_(volume_change_callback),
       md5_maker_(md5_maker),
       gzip_encoder_(gzip_encoder),
+      volume_factory_(volume_factory),
       last_volume_(0),
       basename_(""),
       file_set_(),
@@ -47,7 +51,7 @@ Status BackupLibrary::Init() {
   // file specified simply doesn't exist, the basename of the file given is
   // returned (assuming it's of good format), and the last volume is set to 0.
   // We can initialize a new BackupVolume with that.
-  Status retval = File(filename_).FindBasenameAndLastVolume(
+  Status retval = user_file_->FindBasenameAndLastVolume(
       &basename, &last_vol);
   if (!retval.ok()) {
     return retval;
@@ -55,6 +59,8 @@ Status BackupLibrary::Init() {
 
   last_volume_ = last_vol;
   basename_ = basename;
+  delete user_file_;
+  user_file_ = NULL;
 
   return Status::OK;
 }
@@ -66,11 +72,12 @@ StatusOr<vector<FileSet*> > BackupLibrary::LoadFileSets(bool load_all) {
   LOG(INFO) << filesets.size() << " filesets total (beginning)";
   int64_t next_volume = last_volume_;
   while (next_volume != -1) {
-    StatusOr<BackupVolume*> volume_result = GetBackupVolume(next_volume, false);
+    StatusOr<BackupVolumeInterface*> volume_result =
+        GetBackupVolume(next_volume, false);
     if (!volume_result.ok()) {
       return volume_result.status();
     }
-    BackupVolume* volume(volume_result.value());
+    BackupVolumeInterface* volume(volume_result.value());
 
     StatusOr<vector<FileSet*> > fileset_result = volume->LoadFileSets(
         load_all, &next_volume);
@@ -109,7 +116,7 @@ void BackupLibrary::CreateBackup(BackupOptions options) {
     if (last_volume_ == 0) {
       LOG(INFO) << "No chunks and 0 volume";
       // New set.
-      StatusOr<BackupVolume*> volume_result = GetBackupVolume(0, true);
+      StatusOr<BackupVolumeInterface*> volume_result = GetBackupVolume(0, true);
       CHECK(volume_result.ok()) << volume_result.status().ToString();
       current_backup_volume_ = volume_result.value();
 
@@ -125,7 +132,8 @@ void BackupLibrary::CreateBackup(BackupOptions options) {
     // Load previous backup information from the last volume.  We'll need this
     // when completing our backup to link the new one to the previous existing
     // one.
-    StatusOr<BackupVolume*> volume_result = GetBackupVolume(last_volume_, true);
+    StatusOr<BackupVolumeInterface*> volume_result =
+        GetBackupVolume(last_volume_, true);
     CHECK(volume_result.ok()) << volume_result.status().ToString();
     file_set_->set_previous_backup_volume(
         volume_result.value()->volume_number());
@@ -216,7 +224,8 @@ Status BackupLibrary::AddChunk(const string& data, const uint64_t chunk_offset,
 
     // Start a new volume.
     last_volume_++;
-    StatusOr<BackupVolume*> volume_result = GetBackupVolume(last_volume_, true);
+    StatusOr<BackupVolumeInterface*> volume_result = GetBackupVolume(
+        last_volume_, true);
     CHECK(volume_result.ok()) << volume_result.status().ToString();
     current_backup_volume_ = volume_result.value();
   }
@@ -226,12 +235,12 @@ Status BackupLibrary::AddChunk(const string& data, const uint64_t chunk_offset,
 
 Status BackupLibrary::ReadChunk(const FileChunk& chunk, string* data_out) {
   // Load up the volume needed for this chunk and read the data out.
-  StatusOr<BackupVolume*> volume_result = GetBackupVolume(
+  StatusOr<BackupVolumeInterface*> volume_result = GetBackupVolume(
       chunk.volume_num, false);
   if (!volume_result.ok()) {
     return volume_result.status();
   }
-  BackupVolume* volume = volume_result.value();
+  BackupVolumeInterface* volume = volume_result.value();
 
   EncodingType encoding_type;
   string encoded_data;
@@ -280,7 +289,8 @@ Status BackupLibrary::CloseBackup() {
 Status BackupLibrary::LoadAllChunkData() {
   // Iterate through all backup volumes loading the chunk data from each.
   for (int64_t volume = last_volume_; volume >= 0; --volume) {
-    StatusOr<BackupVolume*> volume_result = GetBackupVolume(volume, false);
+    StatusOr<BackupVolumeInterface*> volume_result = GetBackupVolume(
+        volume, false);
     if (!volume_result.ok()) {
       return volume_result.status();
     }
@@ -292,17 +302,17 @@ Status BackupLibrary::LoadAllChunkData() {
   return Status::OK;
 }
 
-StatusOr<BackupVolume*> BackupLibrary::GetBackupVolume(
+StatusOr<BackupVolumeInterface*> BackupLibrary::GetBackupVolume(
     uint64_t volume_num, bool create_if_not_exist) {
   if (cached_backup_volume_.get() &&
       cached_backup_volume_->volume_number() == volume_num) {
     return cached_backup_volume_.get();
   }
 
-  string filename = File::BasenameAndVolumeToFilename(basename_, volume_num);
+  string filename = FilenameFromVolume(volume_num);
   LOG(INFO) << "Loading backup volume: " << filename;
-  File* file = new File(filename);
-  unique_ptr<BackupVolume> volume(new BackupVolume(file));
+  unique_ptr<BackupVolumeInterface> volume(
+      volume_factory_->Create(filename));
 
   Status retval = volume->Init();
   if (!retval.ok()) {
@@ -327,6 +337,12 @@ StatusOr<BackupVolume*> BackupLibrary::GetBackupVolume(
   }
   cached_backup_volume_.reset(volume.release());
   return cached_backup_volume_.get();
+}
+
+std::string BackupLibrary::FilenameFromVolume(uint64_t volume) {
+  ostringstream file_str;
+  file_str << basename_ << "." << volume << ".bkp";
+  return file_str.str();
 }
 
 }  // namespace backup2

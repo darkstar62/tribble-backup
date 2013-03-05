@@ -33,10 +33,6 @@ class File : public FileInterface {
       std::string* basename_out, uint64_t* last_vol_out);
   virtual uint64_t size() const;
 
-  // Convert a base name and volume number to a path.
-  static std::string BasenameAndVolumeToFilename(
-      const std::string& basename, uint64_t volume);
-
  private:
   // Given a path, decode from it the base path and the volume number it
   // represents.

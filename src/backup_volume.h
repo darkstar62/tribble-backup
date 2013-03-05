@@ -3,13 +3,14 @@
 #ifndef BACKUP2_SRC_BACKUP_VOLUME_H_
 #define BACKUP2_SRC_BACKUP_VOLUME_H_
 
-#include <unordered_map>
 #include <memory>
 #include <string>
 #include <vector>
 
 #include "src/backup_volume_defs.h"
+#include "src/backup_volume_interface.h"
 #include "src/callback.h"
+#include "src/chunk_map.h"
 #include "src/common.h"
 #include "src/file.h"
 #include "src/status.h"
@@ -21,74 +22,10 @@ class FileInterface;
 class FileSet;
 class Md5GeneratorInterface;
 
-// Configuration options to construct the backup with.  These options are stored
-// in backup descriptor 2 so subsequent backups to the same volumes will re-use
-// the options.
-struct ConfigOptions {
-  ConfigOptions() { memset(this, 0, sizeof(ConfigOptions)); }
-
-  // Maximum size in MB to make each backup volume.
-  uint64_t max_volume_size_mb;
-
-  // Which volume of the series this volume represents.
-  uint64_t volume_number;
-
-  // Whether to enable compression or not.
-  bool enable_compression;
-};
-
-class ChunkMap {
- public:
-  typedef std::unordered_map<Uint128, BackupDescriptor1Chunk,
-                             boost::hash<Uint128> > ChunkMapType;
-
-  ChunkMap() {}
-
-  // Look up a chunk.
-  bool HasChunk(Uint128 md5sum) const {
-    return chunks_.find(md5sum) != chunks_.end();
-  }
-
-  void Merge(const ChunkMap& source) {
-    chunks_.insert(source.chunks_.begin(), source.chunks_.end());
-  }
-
-  void Add(Uint128 md5sum, BackupDescriptor1Chunk chunk) {
-    chunks_.insert(std::make_pair(md5sum, chunk));
-  }
-
-  bool GetChunk(Uint128 md5sum, BackupDescriptor1Chunk* out_chunk) {
-    auto iter = chunks_.find(md5sum);
-    if (iter == chunks_.end()) {
-      return false;
-    }
-    *out_chunk = iter->second;
-    return true;
-  }
-
-  ChunkMapType::iterator begin() {
-    return chunks_.begin();
-  }
-
-  ChunkMapType::iterator end() {
-    return chunks_.end();
-  }
-
-  uint64_t size() const { return chunks_.size(); }
-  uint64_t disk_size() const {
-    return chunks_.size() * sizeof(BackupDescriptor1Chunk);
-  }
-
- private:
-  ChunkMapType chunks_;
-
-  DISALLOW_COPY_AND_ASSIGN(ChunkMap);
-};
-
 // A BackupVolume represents a single backup volume file.  This could be
 // either a complete backup set (if there's only one file), or an increment
 // volume to a larger set.
-class BackupVolume {
+class BackupVolume : public BackupVolumeInterface {
  public:
   // Constructor.  This takes a FileInterface object that should be initialized
   // with its filename and ready to be Open()ed.  The Md5GeneratorInterface and
@@ -96,64 +33,25 @@ class BackupVolume {
   explicit BackupVolume(FileInterface* file);
   ~BackupVolume();
 
-  // Initialize.  This opens the file (if it exists) and reads in the backup
-  // descriptor.  Returns the error encountered if any.
-  Status Init() MUST_USE_RESULT;
-
-  // Initialize a new backup volume.  The configuration options passed in
-  // specify how the backup volume will be written.
-  Status Create(const ConfigOptions& options) MUST_USE_RESULT;
-
-  // Load the fileset for the backup set.  If load_all is true, this will work
-  // backward through the entire backup set (all volumes) and load the complete
-  // backup set history.  Otherwise, only the backup sets going back to the most
-  // recent full backup are loaded.  The returned vector is in order of newest
-  // to oldest.
-  //
-  // During processing, it may become necessary to change the media to another
-  // backup volume.  In this case, the function will return with Status::OK and
-  // next_volume will contain the volume number needed next to continue.  We're
-  // all done when next_volume is set to -1.
-  StatusOr<std::vector<FileSet*> > LoadFileSets(
+  // BackupVolumeInterface methods.
+  virtual Status Init() MUST_USE_RESULT;
+  virtual Status Create(const ConfigOptions& options) MUST_USE_RESULT;
+  virtual StatusOr<std::vector<FileSet*> > LoadFileSets(
       bool load_all, int64_t* next_volume);
-
-  // Look up a chunk.
-  bool HasChunk(Uint128 md5sum) {
-    return chunks_.HasChunk(md5sum);
-  }
-
-  // Populate a ChunkMap with the chunks in this volume.
-  void GetChunks(ChunkMap* dest) {
-    dest->Merge(chunks_);
-  }
-
-  // Write a chunk to the volume.
-  Status WriteChunk(Uint128 md5sum, const std::string& data, uint64_t raw_size,
-                    EncodingType type);
-
-  // Read a chunk from the volume.  If successful, the chunk data is returned in
-  // the passed string.
-  Status ReadChunk(const FileChunk& chunk, std::string* data_out,
-                   EncodingType* encoding_type_out);
-
-  // Close out the backup volume.  If this is the last volume in the backup a
-  // fileset is provided and we write descriptor 2 to the file.  Otherwise, we
-  // only leave descriptor 1 and the backup header.
-  Status Close();
-  Status CloseWithFileSet(const FileSet& fileset);
-
-  // Returns the estimated disk size of the volume, including metadata (but not
-  // descriptor 2, as that can't be known until after the backup).
-  uint64_t EstimatedSize() const;
-
-  // Return the volume number this backup volume represents.
-  const uint64_t volume_number() const {
+  virtual bool HasChunk(Uint128 md5sum) { return chunks_.HasChunk(md5sum); }
+  virtual void GetChunks(ChunkMap* dest) { dest->Merge(chunks_); }
+  virtual Status WriteChunk(
+      Uint128 md5sum, const std::string& data, uint64_t raw_size,
+      EncodingType type);
+  virtual Status ReadChunk(const FileChunk& chunk, std::string* data_out,
+                           EncodingType* encoding_type_out);
+  virtual Status Close();
+  virtual Status CloseWithFileSet(const FileSet& fileset);
+  virtual uint64_t EstimatedSize() const;
+  virtual const uint64_t volume_number() const {
     return descriptor_header_.volume_number;
   }
-
-  // Return the offset into the most recent backup.  This is used by
-  // BackupLibrary to propagate metadata for chaining sets.
-  const uint64_t last_backup_offset() const {
+  virtual const uint64_t last_backup_offset() const {
     return descriptor2_offset_;
   }
 
@@ -207,6 +105,21 @@ class BackupVolume {
   bool modified_;
 
   DISALLOW_COPY_AND_ASSIGN(BackupVolume);
+};
+
+// Factory for this BackupVolume.
+class BackupVolumeFactory : public BackupVolumeFactoryInterface {
+ public:
+  BackupVolumeFactory() {}
+
+  // BackupVolumeFactoryInterface methods.
+  virtual BackupVolumeInterface* Create(const std::string& filename) {
+    File* file = new File(filename);
+    return new BackupVolume(file);
+  }
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(BackupVolumeFactory);
 };
 
 }  // namespace backup2

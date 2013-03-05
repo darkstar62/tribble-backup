@@ -14,7 +14,6 @@
 
 #include <algorithm>
 #include <string>
-#include <sstream>
 #include <vector>
 
 #include "boost/algorithm/string/classification.hpp"
@@ -24,7 +23,6 @@
 #include "src/file.h"
 #include "src/status.h"
 
-using std::ostringstream;
 using std::string;
 using std::vector;
 
@@ -269,13 +267,6 @@ Status File::FindBasenameAndLastVolume(string* basename_out,
 uint64_t File::size() const {
   return boost::filesystem::file_size(
       boost::filesystem::path(filename_));
-}
-
-std::string File::BasenameAndVolumeToFilename(
-    const std::string& basename, uint64_t volume) {
-  ostringstream file_str;
-  file_str << basename << "." << volume << ".bkp";
-  return file_str.str();
 }
 
 Status File::FilenameToVolumeNumber(

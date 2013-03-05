@@ -11,6 +11,7 @@
 #include "gflags/gflags.h"
 #include "glog/logging.h"
 #include "src/backup_library.h"
+#include "src/backup_volume.h"
 #include "src/callback.h"
 #include "src/common.h"
 #include "src/file.h"
@@ -19,13 +20,6 @@
 #include "src/md5_generator.h"
 #include "src/status.h"
 
-using backup2::BackupVolume;
-using backup2::Status;
-using backup2::StatusOr;
-using backup2::File;
-using backup2::FileChunk;
-using backup2::FileEntry;
-using backup2::FileSet;
 using std::string;
 using std::unique_ptr;
 using std::vector;
@@ -46,9 +40,11 @@ RestoreDriver::RestoreDriver(
 int RestoreDriver::Restore() {
   // Load up the restore volume.  This should already exist and contain at least
   // one backup set.
-  BackupLibrary library(backup_filename_, volume_change_callback_.get(),
+  BackupLibrary library(new File(backup_filename_),
+                        volume_change_callback_.get(),
                         new Md5Generator(),
-                        new GzipEncoder());
+                        new GzipEncoder(),
+                        new BackupVolumeFactory());
   Status retval = library.Init();
   if (!retval.ok()) {
     LOG(FATAL) << retval.ToString();
@@ -113,9 +109,11 @@ int RestoreDriver::Restore() {
 int RestoreDriver::List() {
   // Load up the restore volume.  This should already exist and contain at least
   // one backup set.
-  BackupLibrary library(backup_filename_, volume_change_callback_.get(),
+  BackupLibrary library(new File(backup_filename_),
+                        volume_change_callback_.get(),
                         new Md5Generator(),
-                        new GzipEncoder());
+                        new GzipEncoder(),
+                        new BackupVolumeFactory());
   Status retval = library.Init();
   if (!retval.ok()) {
     LOG(FATAL) << retval.ToString();

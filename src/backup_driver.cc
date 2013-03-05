@@ -9,6 +9,7 @@
 
 #include "glog/logging.h"
 #include "src/backup_library.h"
+#include "src/backup_volume.h"
 #include "src/callback.h"
 #include "src/file.h"
 #include "src/md5_generator.h"
@@ -40,9 +41,11 @@ BackupDriver::BackupDriver(
 
 int BackupDriver::Run() {
   // Create a backup library using the filename we were given.
-  BackupLibrary library(backup_filename_, volume_change_callback_.get(),
+  BackupLibrary library(new File(backup_filename_),
+                        volume_change_callback_.get(),
                         new Md5Generator(),
-                        new GzipEncoder());
+                        new GzipEncoder(),
+                        new BackupVolumeFactory());
   Status retval = library.Init();
   if (!retval.ok()) {
     LOG(FATAL) << retval.ToString();

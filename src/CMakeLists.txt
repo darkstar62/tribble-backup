@@ -72,7 +72,9 @@ ENDMACRO(MAKE_TEST)
 # LIBRARY: common_headers
   LINT_SOURCES(
     common_headers_SOURCES
+      backup_volume_interface.h
       callback.h
+      chunk_map.h
       common.h
   )
 
