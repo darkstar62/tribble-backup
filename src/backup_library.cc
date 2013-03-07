@@ -78,16 +78,13 @@ StatusOr<vector<FileSet*> > BackupLibrary::LoadFileSets(bool load_all) {
   while (next_volume != -1) {
     StatusOr<BackupVolumeInterface*> volume_result =
         GetBackupVolume(next_volume, false);
-    if (!volume_result.ok()) {
-      return volume_result.status();
-    }
+    LOG_RETURN_IF_ERROR(volume_result.status(), "Error getting backup volume");
     BackupVolumeInterface* volume(volume_result.value());
 
     StatusOr<vector<FileSet*> > fileset_result = volume->LoadFileSets(
         load_all, &next_volume);
-    if (!fileset_result.ok()) {
-      return fileset_result.status();
-    }
+    LOG_RETURN_IF_ERROR(fileset_result.status(), "Error getting file sets");
+
     LOG(INFO) << fileset_result.value().size() << " filesets";
     for (FileSet* item : fileset_result.value()) {
       filesets.push_back(item);
@@ -112,10 +109,7 @@ Status BackupLibrary::CreateBackup(BackupOptions options) {
     if (chunks_.size() == 0) {
       LOG(INFO) << "Loading chunk data";
       Status retval = LoadAllChunkData();
-      if (!retval.ok() && retval.code() != kStatusNoSuchFile) {
-        LOG(ERROR) << "Error loading chunk data: " << retval.ToString();
-        return retval;
-      }
+      LOG_RETURN_IF_ERROR(retval, "Error loading chunk data");
     }
   }
 

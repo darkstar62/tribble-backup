@@ -22,7 +22,7 @@ class ChunkMap {
 
   // Look up a chunk.  Returns true if the chunk is in the map.
   bool HasChunk(Uint128 md5sum) const {
-    return chunks_.find(md5sum) != chunks_.end();
+    return (chunks_.find(md5sum) != chunks_.end());
   }
 
   // Merge the given source map into this chunk map.

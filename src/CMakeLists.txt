@@ -78,6 +78,17 @@ ENDMACRO(MAKE_TEST)
       common.h
   )
 
+# LIBRARY: mocks_and_fakes
+  LINT_SOURCES(
+    mocks_and_fakes_SOURCES
+      fake_backup_volume.h
+      fake_file.h
+      mock_backup_volume_factory.h
+      mock_encoder.h
+      mock_file.h
+      mock_md5_generator.h
+    )
+
 # TEST: callback_test
   LINT_SOURCES(
     callback_test_SOURCES
@@ -90,15 +101,6 @@ ENDMACRO(MAKE_TEST)
       ${GTEST_LIBRARY}
       ${GTEST_MAIN_LIBRARY}
       ${TCMALLOC_LIBRARIES}
-    )
-
-# LIBRARY: mocks_and_fakes
-  LINT_SOURCES(
-    mocks_and_fakes_SOURCES
-      fake_file.h
-      mock_encoder.h
-      mock_file.h
-      mock_md5_generator.h
     )
 
 # LIBRARY: status
@@ -172,6 +174,27 @@ ENDMACRO(MAKE_TEST)
       file
     )
 
+# TEST: backup_volume_test
+  LINT_SOURCES(
+    backup_volume_test_SOURCES
+      backup_volume_test.cc
+    )
+  MAKE_TEST(backup_volume_test)
+  TARGET_LINK_LIBRARIES(
+    backup_volume_test
+      backup_volume
+      file
+      fileset
+      status
+      ${CMAKE_THREAD_LIBS_INIT}
+      ${GFLAGS_LIBRARY}
+      ${GLOG_LIBRARY}
+      ${GTEST_LIBRARY}
+      ${GTEST_MAIN_LIBRARY}
+      ${GMOCK_LIBRARIES}
+      ${TCMALLOC_LIBRARIES}
+    )
+
 # LIBRARY: backup_library
   LINT_SOURCES(
     backup_library_SOURCES
@@ -189,15 +212,15 @@ ENDMACRO(MAKE_TEST)
       status
     )
 
-# TEST: backup_volume_test
+# TEST: backup_library_test
   LINT_SOURCES(
-    backup_volume_test_SOURCES
-      backup_volume_test.cc
+    backup_library_test_SOURCES
+      backup_library_test.cc
     )
-  MAKE_TEST(backup_volume_test)
+  MAKE_TEST(backup_library_test)
   TARGET_LINK_LIBRARIES(
-    backup_volume_test
-      backup_volume
+    backup_library_test
+      backup_library
       file
       fileset
       status
