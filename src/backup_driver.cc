@@ -47,9 +47,8 @@ int BackupDriver::Run() {
                         new GzipEncoder(),
                         new BackupVolumeFactory());
   Status retval = library.Init();
-  if (!retval.ok()) {
-    LOG(FATAL) << retval.ToString();
-  }
+  LOG_IF(FATAL, !retval.ok())
+      << "Could not init library: " << retval.ToString();
 
   // Get the filenames to backup.  This will be different depending on the
   // backup type.
@@ -79,11 +78,13 @@ int BackupDriver::Run() {
   // add to the backup set.
 
   // Create and initialize the backup.
-  library.CreateBackup(
+  retval = library.CreateBackup(
       BackupOptions().set_description(description_)
                      .set_type(backup_type_)
                      .set_max_volume_size_mb(max_volume_size_mb_)
                      .set_enable_compression(enable_compression_));
+  LOG_IF(FATAL, !retval.ok())
+      << "Couldn't create backup: " << retval.ToString();
 
   // Start processing files.
   for (string filename : filelist) {
@@ -107,9 +108,8 @@ int BackupDriver::Run() {
       status = file->Read(&data.at(0), data.size(), &read);
       data.resize(read);
       Status retval = library.AddChunk(data, current_offset, entry);
-      if (!retval.ok()) {
-        LOG(FATAL) << "Could not add chunk to volume: " << retval.ToString();
-      }
+      LOG_IF(FATAL, !retval.ok())
+          << "Could not add chunk to volume: " << retval.ToString();
     } while (status.code() != kStatusShortRead);
 
     // We've reached the end of the file.  Close it out and start the next one.

@@ -237,27 +237,19 @@ Status BackupLibrary::ReadChunk(const FileChunk& chunk, string* data_out) {
   // Load up the volume needed for this chunk and read the data out.
   StatusOr<BackupVolumeInterface*> volume_result = GetBackupVolume(
       chunk.volume_num, false);
-  if (!volume_result.ok()) {
-    return volume_result.status();
-  }
+  LOG_RETURN_IF_ERROR(volume_result.status(), "Could not get backup volume");
   BackupVolumeInterface* volume = volume_result.value();
 
   EncodingType encoding_type;
   string encoded_data;
   Status retval = volume->ReadChunk(chunk, &encoded_data, &encoding_type);
-  if (!retval.ok()) {
-    LOG(ERROR) << "Error reading chunk: " << retval.ToString();
-    return retval;
-  }
+  LOG_RETURN_IF_ERROR(retval, "Error reading chunk");
 
   // Decompress if encoded.
   if (encoding_type == kEncodingTypeZlib) {
     data_out->resize(chunk.unencoded_size);
     Status retval = gzip_encoder_->Decode(encoded_data, data_out);
-    if (!retval.ok()) {
-      LOG(ERROR) << "Error decompressing chunk";
-      return retval;
-    }
+    LOG_RETURN_IF_ERROR(retval, "Error decompressing chunk");
   } else {
     *data_out = encoded_data;
   }
@@ -275,9 +267,7 @@ Status BackupLibrary::ReadChunk(const FileChunk& chunk, string* data_out) {
 
 Status BackupLibrary::CloseBackup() {
   Status retval = current_backup_volume_->CloseWithFileSet(*file_set_.get());
-  if (!retval.ok()) {
-    return retval;
-  }
+  LOG_RETURN_IF_ERROR(retval, "Could not close backup volume");
 
   // Merge the backup volume's chunk data with ours.  This way we have all the
   // data we need if the user decides to initiate a second backup with this
@@ -291,9 +281,7 @@ Status BackupLibrary::LoadAllChunkData() {
   for (int64_t volume = last_volume_; volume >= 0; --volume) {
     StatusOr<BackupVolumeInterface*> volume_result = GetBackupVolume(
         volume, false);
-    if (!volume_result.ok()) {
-      return volume_result.status();
-    }
+    LOG_RETURN_IF_ERROR(volume_result.status(), "Could not get volume");
     ChunkMap chunks;
     volume_result.value()->GetChunks(&chunks);
     chunks_.Merge(chunks);
@@ -330,10 +318,7 @@ StatusOr<BackupVolumeInterface*> BackupLibrary::GetBackupVolume(
     options.volume_number = volume_num;
     options.enable_compression = options_.enable_compression();
     retval = volume->Create(options);
-    if (!retval.ok()) {
-      LOG(ERROR) << "Could not create backup volume: " << retval.ToString();
-      return retval;
-    }
+    LOG_RETURN_IF_ERROR(retval, "Could not create backup volume");
   }
   cached_backup_volume_.reset(volume.release());
   return cached_backup_volume_.get();

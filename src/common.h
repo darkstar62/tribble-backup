@@ -33,6 +33,13 @@
     T()
 #endif
 
+// Emit a log message and return retval if !retval.ok().
+#define LOG_RETURN_IF_ERROR(retval, log_message) \
+  if (!retval.ok()) { \
+    LOG(ERROR) << log_message << ": " << retval.ToString(); \
+    return retval; \
+  }
+
 // Storage class for 128-bit unsigned integers.
 struct Uint128 {
   uint64_t hi;

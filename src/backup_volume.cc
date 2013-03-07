@@ -44,37 +44,32 @@ BackupVolume::~BackupVolume() {
 Status BackupVolume::Init() {
   // Open the file and check the file header.
   Status retval = file_->Open(File::Mode::kModeRead);
-  if (!retval.ok()) {
-    LOG(ERROR) << "Error opening file: " << retval.ToString();
-    return retval;
-  }
+  LOG_RETURN_IF_ERROR(retval, "Error opening file");
 
   // Read the version from the file.
   retval = CheckVersion();
   if (!retval.ok()) {
     file_->Close();
-    LOG(ERROR) << "Error checking version: " << retval.ToString();
-    return retval;
+    LOG_RETURN_IF_ERROR(retval, "Error checking version");
   }
 
   // Check the backup descriptors.
   retval = CheckBackupDescriptors();
   if (!retval.ok()) {
-    LOG(ERROR) << "Error checking backup descriptors: " << retval.ToString();
     file_->Close();
-    return retval;
+    LOG_RETURN_IF_ERROR(retval, "Error checking backup descriptors");
   }
 
   // Everything is OK -- re-open the file in append mode.
   LOG(INFO) << "Closing file to re-open.";
   retval = file_->Close();
-  if (!retval.ok()) {
-    return retval;
-  }
+  LOG_RETURN_IF_ERROR(retval, "Error closing file");
 
   LOG(INFO) << "Re-opening append";
   retval = file_->Open(File::Mode::kModeAppend);
-  return retval;
+  LOG_RETURN_IF_ERROR(retval, "Error re-opening file");
+
+  return Status::OK;
 }
 
 Status BackupVolume::CheckVersion() {
@@ -84,14 +79,10 @@ Status BackupVolume::CheckVersion() {
   version.resize(kFileVersion.size());
 
   Status retval = file_->Seek(0);
-  if (!retval.ok()) {
-    return retval;
-  }
+  LOG_RETURN_IF_ERROR(retval, "Error seeking");
 
   retval = file_->Read(&version.at(0), version.size(), NULL);
-  if (!retval.ok()) {
-    return retval;
-  }
+  LOG_RETURN_IF_ERROR(retval, "Error reading");
 
   if (version != kFileVersion) {
     return Status(kStatusCorruptBackup, "Not a recognized backup volume");
@@ -103,27 +94,17 @@ Status BackupVolume::CheckBackupDescriptors() {
   // Read the backup header.  This is stored at the end of the file.
   Status retval = file_->Seek(
       -static_cast<int32_t>(sizeof(BackupDescriptorHeader)));
-  if (!retval.ok()) {
-    LOG(ERROR) << "Could not seek to header at EOF: " << retval.ToString();
-    return retval;
-  }
+  LOG_RETURN_IF_ERROR(retval, "Could not seek to header at EOF");
+
   uint64_t previous_header_offset = file_->Tell();
 
   retval = ReadBackupDescriptorHeader();
-  if (!retval.ok()) {
-    LOG(ERROR) << "Could not read descriptor header: " << retval.ToString();
-    return retval;
-  }
+  LOG_RETURN_IF_ERROR(retval, "Could not read descriptor header");
 
   retval = ReadBackupDescriptor1();
-  if (!retval.ok()) {
-    LOG(ERROR) << "Could not read descriptor1: " << retval.ToString();
-    return retval;
-  }
+  LOG_RETURN_IF_ERROR(retval, "Could not read descriptor1");
 
-  if (!descriptor_header_.backup_descriptor_2_present) {
-    LOG(INFO) << "No backup descriptor 2 -- not the last file!";
-  } else {
+  if (descriptor_header_.backup_descriptor_2_present) {
     // Stash away where backup descriptor 2 lives -- this way we can read it
     // later on in case we're doing a restore or list operation.
     descriptor2_offset_ = file_->Tell();
@@ -139,16 +120,13 @@ Status BackupVolume::Create(const ConfigOptions& options) {
   // Open the file and create the initial file.  We'll want to keep the file
   // open as we add file chunks.
   Status retval = file_->Open(File::Mode::kModeAppend);
-  if (!retval.ok()) {
-    LOG(ERROR) << "Error opening for append";
-    return retval;
-  }
+  LOG_RETURN_IF_ERROR(retval, "Error opening for append");
 
   retval = file_->Write(&kFileVersion.at(0), kFileVersion.size());
   if (!retval.ok()) {
     file_->Close();
     file_->Unlink();
-    return retval;
+    LOG_RETURN_IF_ERROR(retval, "Error writing version");
   }
 
   // Create (but don't yet write!) the backup descriptor 1.  We'll write this
@@ -184,18 +162,13 @@ Status BackupVolume::ReadChunk(const FileChunk& chunk, string* data_out,
 
   // Seek to the offset specified in the chunk data and read the chunk.
   Status retval = file_->Seek(chunk_meta.offset);
-  if (!retval.ok()) {
-    LOG(ERROR) << "Couldn't seek to chunk offset";
-    return retval;
-  }
+  LOG_RETURN_IF_ERROR(retval, "Couldn't seek to chunk offset");
 
   // Read the chunk header.
   ChunkHeader header;
   retval = file_->Read(&header, sizeof(header), NULL);
-  if (!retval.ok()) {
-    LOG(ERROR) << "Couldn't read chunk header";
-    return retval;
-  }
+  LOG_RETURN_IF_ERROR(retval, "Couldn't read chunk header");
+
   if (header.header_type != kHeaderTypeChunkHeader) {
     LOG(ERROR) << "Invalid chunk header found";
     return Status(kStatusCorruptBackup, "Invalid chunk header found");
@@ -223,9 +196,8 @@ Status BackupVolume::ReadChunk(const FileChunk& chunk, string* data_out,
   data_out->resize(header.encoded_size);
   retval = file_->Read(&data_out->at(0), header.encoded_size, NULL);
   if (!retval.ok()) {
-    LOG(ERROR) << "Error reading chunk";
     data_out->clear();
-    return retval;
+    LOG_RETURN_IF_ERROR(retval, "Error reading chunk");
   }
 
   *encoding_type_out = header.encoding_type;
@@ -240,9 +212,7 @@ Status BackupVolume::Close() {
   }
 
   Status retval = file_->Close();
-  if (!retval.ok()) {
-    return retval;
-  }
+  LOG_RETURN_IF_ERROR(retval, "Error closing file");
 
   modified_ = false;
   return Status::OK;
@@ -255,9 +225,7 @@ Status BackupVolume::CloseWithFileSet(const FileSet& fileset) {
   WriteBackupDescriptorHeader();
 
   Status retval = file_->Close();
-  if (!retval.ok()) {
-    return retval;
-  }
+  LOG_RETURN_IF_ERROR(retval, "Error closing file");
 
   modified_ = false;
   return Status::OK;
@@ -270,9 +238,7 @@ uint64_t BackupVolume::EstimatedSize() const {
 Status BackupVolume::WriteChunk(
     Uint128 md5sum, const string& data, uint64_t raw_size, EncodingType type) {
   Status retval = file_->SeekEof();
-  if (!retval.ok()) {
-    return retval;
-  }
+  LOG_RETURN_IF_ERROR(retval, "Error seeking to EOF");
 
   int64_t chunk_offset = file_->Tell();
 
@@ -283,18 +249,12 @@ Status BackupVolume::WriteChunk(
   header.encoding_type = type;
 
   retval = file_->Write(&header, sizeof(ChunkHeader));
-  if (!retval.ok()) {
-    LOG(ERROR) << "Could not write chunk header: " << retval.ToString();
-    return retval;
-  }
+  LOG_RETURN_IF_ERROR(retval, "Could not write chunk header");
 
   if (data.size() > 0) {
     // Write the chunk itself.
     retval = file_->Write(&data.at(0), data.size());
-    if (!retval.ok()) {
-      LOG(ERROR) << "Could not write chunk: " << retval.ToString();
-      return retval;
-    }
+    LOG_RETURN_IF_ERROR(retval, "Could not write chunk");
   }
 
   // Record the chunk in our descriptor.
@@ -313,25 +273,18 @@ Status BackupVolume::WriteBackupDescriptor1() {
   // the descriptor header.
   LOG(INFO) << "Writing descriptor 1";
   Status retval = file_->SeekEof();
-  if (!retval.ok()) {
-    return retval;
-  }
+  LOG_RETURN_IF_ERROR(retval, "Error seeking to EOF");
   descriptor_header_.backup_descriptor_1_offset = file_->Tell();
 
   // Grab the number of chunks we have, and write the descriptor.
   descriptor1_.total_chunks = chunks_.size();
   retval = file_->Write(&descriptor1_, sizeof(BackupDescriptor1));
-  if (!retval.ok()) {
-    return retval;
-  }
+  LOG_RETURN_IF_ERROR(retval, "Couldn't write descriptor 1 header");
 
   // Following this, we write all the descriptor chunks we have.
   for (auto chunk : chunks_) {
     retval = file_->Write(&chunk.second, sizeof(BackupDescriptor1Chunk));
-    if (!retval.ok()) {
-      LOG(ERROR) << "Could not write descriptor 1 chunk";
-      return retval;
-    }
+    LOG_RETURN_IF_ERROR(retval, "Couldn't write descriptor 1 chunk");
   }
   modified_ = true;
   return Status::OK;
@@ -341,9 +294,8 @@ Status BackupVolume::WriteBackupDescriptor2(const FileSet& fileset) {
   // Descriptor 2 is present in this file, so mark that in the header.
   LOG(INFO) << "Writing descriptor 2";
   Status retval = file_->SeekEof();
-  if (!retval.ok()) {
-    return retval;
-  }
+  LOG_RETURN_IF_ERROR(retval, "Error seeking to EOF");
+
   descriptor_header_.backup_descriptor_2_present = 1;
   descriptor2_.num_files = fileset.num_files();
   descriptor2_.description_size = fileset.description().size();
@@ -351,16 +303,12 @@ Status BackupVolume::WriteBackupDescriptor2(const FileSet& fileset) {
   descriptor2_.previous_backup_volume_number = fileset.previous_backup_volume();
   descriptor2_.backup_type = fileset.backup_type();
   retval = file_->Write(&descriptor2_, sizeof(BackupDescriptor2));
-  if (!retval.ok()) {
-    return retval;
-  }
+  LOG_RETURN_IF_ERROR(retval, "Couldn't write descriptor 2 header");
 
   if (fileset.description().size() > 0) {
     retval = file_->Write(
         &fileset.description().at(0), fileset.description().size());
-    if (!retval.ok()) {
-      return retval;
-    }
+    LOG_RETURN_IF_ERROR(retval, "Couldn't write file set description");
   }
 
   // Write the BackupFile and BackupChunk headers.
@@ -369,23 +317,17 @@ Status BackupVolume::WriteBackupDescriptor2(const FileSet& fileset) {
     VLOG(4) << "Data for " << backup_file->filename()
             << "(size = " << metadata->file_size << ")";
     retval = file_->Write(metadata, sizeof(*metadata));
-    if (!retval.ok()) {
-      return retval;
-    }
+    LOG_RETURN_IF_ERROR(retval, "Couldn't write FileEntry data");
 
     retval = file_->Write(&backup_file->filename().at(0),
                           backup_file->filename().size());
-    if (!retval.ok()) {
-      return retval;
-    }
+    LOG_RETURN_IF_ERROR(retval, "Couldn't write FileEntry filename");
 
     for (const FileChunk chunk : backup_file->GetChunks()) {
       VLOG(5) << "Writing chunk " << std::hex
               << chunk.md5sum.hi << chunk.md5sum.lo;
       retval = file_->Write(&chunk, sizeof(FileChunk));
-      if (!retval.ok()) {
-        return retval;
-      }
+      LOG_RETURN_IF_ERROR(retval, "Couldn't write FileChunk");
     }
   }
 
@@ -397,14 +339,12 @@ Status BackupVolume::WriteBackupDescriptorHeader() {
   // Write the backup header.
   LOG(INFO) << "Writing descriptor header";
   Status retval = file_->SeekEof();
-  if (!retval.ok()) {
-    return retval;
-  }
+  LOG_RETURN_IF_ERROR(retval, "Couldn't seek to EOF");
+
   retval = file_->Write(&descriptor_header_,
                         sizeof(BackupDescriptorHeader));
-  if (!retval.ok()) {
-    return retval;
-  }
+  LOG_RETURN_IF_ERROR(retval, "Couldn't write descriptor header");
+
   modified_ = true;
   return Status::OK;
 }
@@ -412,9 +352,8 @@ Status BackupVolume::WriteBackupDescriptorHeader() {
 Status BackupVolume::ReadBackupDescriptorHeader() {
   BackupDescriptorHeader header;
   Status retval = file_->Read(&header, sizeof(BackupDescriptorHeader), NULL);
-  if (!retval.ok()) {
-    return retval;
-  }
+  LOG_RETURN_IF_ERROR(retval, "Couldn't read descriptor header");
+
   if (header.header_type != kHeaderTypeDescriptorHeader) {
     LOG(ERROR) << "Backup descriptor header has invalid type: 0x" << hex
                << static_cast<uint32_t>(header.header_type);
@@ -431,15 +370,12 @@ Status BackupVolume::ReadBackupDescriptorHeader() {
 Status BackupVolume::ReadBackupDescriptor1() {
   // Read the backup descriptor 1.
   Status retval = file_->Seek(descriptor_header_.backup_descriptor_1_offset);
-  if (!retval.ok()) {
-    return retval;
-  }
+  LOG_RETURN_IF_ERROR(retval, "Couldn't seek to descriptor 1 offset");
 
   BackupDescriptor1 descriptor1;
   retval = file_->Read(&descriptor1, sizeof(BackupDescriptor1), NULL);
-  if (!retval.ok()) {
-    return retval;
-  }
+  LOG_RETURN_IF_ERROR(retval, "Couldn't read descriptor 1");
+
   if (descriptor1.header_type != kHeaderTypeDescriptor1) {
     LOG(ERROR) << "Backup descriptor 1 has invalid type: 0x" << hex
                << descriptor1.header_type;
@@ -453,6 +389,7 @@ Status BackupVolume::ReadBackupDescriptor1() {
        chunk_num++) {
     BackupDescriptor1Chunk chunk;
     retval = file_->Read(&chunk, sizeof(BackupDescriptor1Chunk), NULL);
+    LOG_RETURN_IF_ERROR(retval, "Couldn't read descriptor 1 chunk");
     chunks_.Add(chunk.md5sum, chunk);
   }
 
@@ -559,9 +496,8 @@ StatusOr<vector<FileSet*> > BackupVolume::LoadFileSets(
 StatusOr<FileEntry*> BackupVolume::ReadFileEntry() {
   unique_ptr<BackupFile> backup_file(new BackupFile);
   Status retval = file_->Read(backup_file.get(), sizeof(BackupFile), NULL);
-  if (!retval.ok()) {
-    return retval;
-  }
+  LOG_RETURN_IF_ERROR(retval, "Couldn't read BackupFile header");
+
   if (backup_file->header_type != kHeaderTypeBackupFile) {
     return Status(kStatusCorruptBackup, "Invalid header for BackupFile");
   }
@@ -569,9 +505,7 @@ StatusOr<FileEntry*> BackupVolume::ReadFileEntry() {
   string filename;
   filename.resize(backup_file->filename_size);
   retval = file_->Read(&filename.at(0), filename.size(), NULL);
-  if (!retval.ok()) {
-    return retval;
-  }
+  LOG_RETURN_IF_ERROR(retval, "Couldn't read BackupFile filename");
 
   // Store away and reset the file size in the metadata.  As we read chunks,
   // this should fill up to its original value (which we check to ensure the
@@ -584,11 +518,10 @@ StatusOr<FileEntry*> BackupVolume::ReadFileEntry() {
   VLOG(5) << "Found " << filename;
   unique_ptr<FileEntry> entry(new FileEntry(filename, backup_file.release()));
   retval = ReadFileChunks(num_chunks, entry.get());
-  if (retval.ok()) {
-    CHECK_EQ(file_size, entry->GetBackupFile()->file_size);
-    return entry.release();
-  }
-  return retval;
+  LOG_RETURN_IF_ERROR(retval, "Couldn't read file chunks");
+
+  CHECK_EQ(file_size, entry->GetBackupFile()->file_size);
+  return entry.release();
 }
 
 Status BackupVolume::ReadFileChunks(
@@ -596,9 +529,7 @@ Status BackupVolume::ReadFileChunks(
   for (uint64_t chunk_num = 0; chunk_num < num_chunks; ++chunk_num) {
     FileChunk chunk;
     Status retval = file_->Read(&chunk, sizeof(chunk), NULL);
-    if (!retval.ok()) {
-      return retval;
-    }
+    LOG_RETURN_IF_ERROR(retval, "Couldn't read file chunk");
     entry->AddChunk(chunk);
   }
   return Status::OK;

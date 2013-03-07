@@ -46,9 +46,8 @@ int RestoreDriver::Restore() {
                         new GzipEncoder(),
                         new BackupVolumeFactory());
   Status retval = library.Init();
-  if (!retval.ok()) {
-    LOG(FATAL) << retval.ToString();
-  }
+  LOG_IF(FATAL, !retval.ok())
+      << "Could not init library: " << retval.ToString();
 
   // Get all the file sets contained in the backup.
   StatusOr<vector<FileSet*> > filesets = library.LoadFileSets(true);
@@ -115,9 +114,8 @@ int RestoreDriver::List() {
                         new GzipEncoder(),
                         new BackupVolumeFactory());
   Status retval = library.Init();
-  if (!retval.ok()) {
-    LOG(FATAL) << retval.ToString();
-  }
+  LOG_IF(FATAL, !retval.ok())
+      << "Could not init library: " << retval.ToString();
 
   // Get all the file sets contained in the backup.
   StatusOr<vector<FileSet*> > filesets = library.LoadFileSets(true);
