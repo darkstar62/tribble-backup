@@ -35,6 +35,7 @@ BackupLibrary::BackupLibrary(
       gzip_encoder_(gzip_encoder),
       volume_factory_(volume_factory),
       last_volume_(0),
+      num_volumes_(0),
       basename_(""),
       file_set_(),
       current_backup_volume_(NULL),
@@ -44,23 +45,26 @@ Status BackupLibrary::Init() {
   // Try and figure out how many backup volumes we have, based on the filename
   // given.  All backup volumes are of the form "/path/to/backup_file.xxx.bkp"
   // where "xxx" is a number corresponding to the backup volume number.
-  string basename;
-  uint64_t last_vol;
+  string basename = "";
+  uint64_t last_vol = 0;
+  uint64_t num_vols = 0;
 
   // This will return bad status if some error prevented us processing.  If the
   // file specified simply doesn't exist, the basename of the file given is
   // returned (assuming it's of good format), and the last volume is set to 0.
   // We can initialize a new BackupVolume with that.
   Status retval = user_file_->FindBasenameAndLastVolume(
-      &basename, &last_vol);
+      &basename, &last_vol, &num_vols);
+  delete user_file_;
+  user_file_ = NULL;
+
   if (!retval.ok()) {
     return retval;
   }
 
   last_volume_ = last_vol;
+  num_volumes_ = num_vols;
   basename_ = basename;
-  delete user_file_;
-  user_file_ = NULL;
 
   return Status::OK;
 }
@@ -93,66 +97,61 @@ StatusOr<vector<FileSet*> > BackupLibrary::LoadFileSets(bool load_all) {
   return filesets;
 }
 
-void BackupLibrary::CreateBackup(BackupOptions options) {
+Status BackupLibrary::CreateBackup(BackupOptions options) {
   FileSet* file_set = new FileSet;
   file_set->set_description(options.description());
   file_set->set_backup_type(options.type());
   file_set_.reset(file_set);
   options_ = options;
 
-  // If there's no chunk data, do the scan on the backup set to populate our
-  // data.
-  if (chunks_.size() == 0) {
-    LOG(INFO) << "Loading chunk data";
-    Status retval = LoadAllChunkData();
-    if (!retval.ok() && retval.code() != kStatusNoSuchFile) {
-      LOG(FATAL) << "Error loading chunk data: " << retval.ToString();
+  // If we have no backup volumes, no use in trying to load chunk data.  Just
+  // skip to the next step.
+  if (num_volumes_ > 0) {
+    // If there's no chunk data, do the scan on the backup set to populate our
+    // data.
+    if (chunks_.size() == 0) {
+      LOG(INFO) << "Loading chunk data";
+      Status retval = LoadAllChunkData();
+      if (!retval.ok() && retval.code() != kStatusNoSuchFile) {
+        LOG(ERROR) << "Error loading chunk data: " << retval.ToString();
+        return retval;
+      }
     }
   }
 
-  // If there's still no chunk data, assume we're dealing with a new backup, and
-  // open the backup volume at volume 0.
-  if (chunks_.size() == 0) {
-    if (last_volume_ == 0) {
-      LOG(INFO) << "No chunks and 0 volume";
-      // New set.
-      StatusOr<BackupVolumeInterface*> volume_result = GetBackupVolume(0, true);
-      CHECK(volume_result.ok()) << volume_result.status().ToString();
-      current_backup_volume_ = volume_result.value();
+  // Load previous backup information from the last volume.  We'll need this
+  // when completing our backup to link the new one to the previous existing
+  // one.
+  StatusOr<BackupVolumeInterface*> volume_result =
+      GetBackupVolume(last_volume_, true);
+  LOG_RETURN_IF_ERROR(volume_result.status(), "Error opening volume");
 
-      // Set previous backups at zero -- there is nothing else.
-      file_set_->set_previous_backup_volume(0);
-      file_set_->set_previous_backup_offset(0);
-    } else {
-      LOG(FATAL) << "BUG: Multi-volume backup with no chunks?!";
-    }
+  file_set_->set_previous_backup_volume(
+      volume_result.value()->volume_number());
+  file_set->set_previous_backup_offset(
+      volume_result.value()->last_backup_offset());
+
+  if (num_volumes_ == 0) {
+    // We just created our first backup set -- increment num_volumes_, set up
+    // the metadata and we're done.
+    num_volumes_++;
+    current_backup_volume_ = volume_result.value();
   } else {
-    // Lotsa chunks, we're good to go.
-
-    // Load previous backup information from the last volume.  We'll need this
-    // when completing our backup to link the new one to the previous existing
-    // one.
-    StatusOr<BackupVolumeInterface*> volume_result =
-        GetBackupVolume(last_volume_, true);
-    CHECK(volume_result.ok()) << volume_result.status().ToString();
-    file_set_->set_previous_backup_volume(
-        volume_result.value()->volume_number());
-    file_set->set_previous_backup_offset(
-        volume_result.value()->last_backup_offset());
+    // We need to make a new backup volume to contain our new data.
     volume_result.value()->Close();
 
-    // Create a new backup volume to contain
-    // this backup, and limit it in size to our max minus the cumulative total
-    // of all last backup volumes we have that are smaller than the max size
-    // (i.e. bin-pack our volumes).
+    // Create a new backup volume to contain this backup, and limit it in size
+    // to our max minus the cumulative total of all last backup volumes we have
+    // that are smaller than the max size (i.e. bin-pack our volumes).
     // TODO(darkstar62): implement bin-packing.  For now, we just create a new
     // set.
-    LOG(INFO) << "Existing backup";
     last_volume_++;
+    num_volumes_++;
     volume_result = GetBackupVolume(last_volume_, true);
-    CHECK(volume_result.ok()) << volume_result.status().ToString();
+    LOG_RETURN_IF_ERROR(volume_result.status(), "Error creating volume");
     current_backup_volume_ = volume_result.value();
   }
+  return Status::OK;
 }
 
 FileEntry* BackupLibrary::CreateFile(

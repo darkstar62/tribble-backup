@@ -218,7 +218,8 @@ string File::RelativePath() {
 }
 
 Status File::FindBasenameAndLastVolume(string* basename_out,
-                                       uint64_t* last_vol_out) {
+                                       uint64_t* last_vol_out,
+                                       uint64_t* num_vols_out) {
   // List the directory and find entries that have the same base name as the
   // file this class represents.
   boost::filesystem::path basename;
@@ -241,6 +242,7 @@ Status File::FindBasenameAndLastVolume(string* basename_out,
   boost::filesystem::path test_basename;
   uint64_t test_vol_num;
   uint64_t max_vol_num = 0;
+  uint64_t num_vols = 0;
 
   for (boost::filesystem::directory_entry test_path : files) {
     retval = FilenameToVolumeNumber(test_path.path(), &test_vol_num,
@@ -252,15 +254,18 @@ Status File::FindBasenameAndLastVolume(string* basename_out,
 
     if (test_basename != basename) {
       // Different basename, skip it.
+      continue;
     }
 
     if (test_vol_num > max_vol_num) {
       max_vol_num = test_vol_num;
     }
+    num_vols++;
   }
 
   *basename_out = basename.string();
   *last_vol_out = max_vol_num;
+  *num_vols_out = num_vols;
   return Status::OK;
 }
 

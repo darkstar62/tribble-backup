@@ -60,11 +60,13 @@ class FileInterface {
   // Return the relative path of the given filename.
   virtual std::string RelativePath() = 0;
 
-  // Find the basename and last volume number corresponding to this File.  This
-  // is used with backup volume names to determine the construction of the
-  // backup file prefix and determine how many backup volumes there are.
+  // Find the basename, last volume number, and number of volumes corresponding
+  // to this File.  This is used with backup volume names to determine the
+  // construction of the backup file prefix and determine how many backup
+  // volumes there are.
   virtual Status FindBasenameAndLastVolume(
-      std::string* basename_out, uint64_t* last_vol_out) = 0;
+      std::string* basename_out, uint64_t* last_vol_out,
+      uint64_t* num_vols_out) = 0;
 
   // Return the current size of the file.
   virtual uint64_t size() const = 0;

@@ -97,7 +97,7 @@ class BackupLibrary {
   // Create a new backup.  This instantiates a new FileSet internally, and gets
   // it ready for backing up.  If this is the first time this is called, the
   // backup library will scan the volumes to populate its list of chunks.
-  void CreateBackup(BackupOptions options);
+  Status CreateBackup(BackupOptions options);
 
   // Create a file in the current backup.  The returned FileEntry can be used to
   // add chunks to the backup.  Ownership of the FileEntry remains with the
@@ -152,6 +152,9 @@ class BackupLibrary {
 
   // The last volume number in the set (with 0 being first).
   uint64_t last_volume_;
+
+  // Total number of volumes we have.
+  uint64_t num_volumes_;
 
   // Base name of files used for backup volumes, including the path.  This does
   // not include the volume number or extension.

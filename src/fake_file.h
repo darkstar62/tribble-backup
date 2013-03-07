@@ -97,7 +97,8 @@ class FakeFile : public FileInterface {
   }
 
   virtual Status FindBasenameAndLastVolume(
-      std::string* basename_out, uint64_t* last_vol_out) {
+      std::string* basename_out, uint64_t* last_vol_out,
+      uint64_t* num_vols_out) {
     return Status::NOT_IMPLEMENTED;
   }
 

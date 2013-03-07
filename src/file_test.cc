@@ -168,7 +168,9 @@ TEST_F(FileTest, FindBasenameAndLastVolume) {
   string filename3 = ".\\__test__\\backup.003.bkp";
   string filename4 = ".\\__test__\\backup.004.bkp";
   string filename5 = ".\\__test__\\sdflkjvo";
+  string filename6 = ".\\__test__\\notthere.000.bkp";
   string expected_prefix = ".\\__test__\\backup";
+  string expected_prefix6 = ".\\__test__\\notthere";
   string test_dir = ".\\__test__";
 #else
   string filename0 = "./__test__/backup.000.bkp";
@@ -177,7 +179,9 @@ TEST_F(FileTest, FindBasenameAndLastVolume) {
   string filename3 = "./__test__/backup.003.bkp";
   string filename4 = "./__test__/backup.004.bkp";
   string filename5 = "./__test__/sdflkjvo";
+  string filename6 = "./__test__/notthere.000.bkp";
   string expected_prefix = "./__test__/backup";
+  string expected_prefix6 = "./__test__/notthere";
   string test_dir = "./__test__";
 #endif
 
@@ -188,6 +192,7 @@ TEST_F(FileTest, FindBasenameAndLastVolume) {
   File file3(filename3);
   File file4(filename4);
   File file5(filename5);
+  File file6(filename6);
 
   ASSERT_TRUE(file0.CreateDirectories().ok());
   file0.Open(File::Mode::kModeAppend);
@@ -216,48 +221,70 @@ TEST_F(FileTest, FindBasenameAndLastVolume) {
 
   string basename;
   uint64_t last_vol = 0;
+  uint64_t num_vols = 0;
 
   // Run it on the first file.
-  Status retval = file0.FindBasenameAndLastVolume(&basename, &last_vol);
+  Status retval = file0.FindBasenameAndLastVolume(
+      &basename, &last_vol, &num_vols);
   EXPECT_TRUE(retval.ok());
   EXPECT_EQ(expected_prefix, basename);
   EXPECT_EQ(4, last_vol);
+  EXPECT_EQ(5, num_vols);
 
   // Run it on the second file.
   basename = "";
   last_vol = 0;
-  retval = file1.FindBasenameAndLastVolume(&basename, &last_vol);
+  num_vols = 0;
+  retval = file1.FindBasenameAndLastVolume(&basename, &last_vol, &num_vols);
   EXPECT_TRUE(retval.ok());
   EXPECT_EQ(expected_prefix, basename);
   EXPECT_EQ(4, last_vol);
+  EXPECT_EQ(5, num_vols);
 
   basename = "";
   last_vol = 0;
-  retval = file2.FindBasenameAndLastVolume(&basename, &last_vol);
+  num_vols = 0;
+  retval = file2.FindBasenameAndLastVolume(&basename, &last_vol, &num_vols);
   EXPECT_TRUE(retval.ok());
   EXPECT_EQ(expected_prefix, basename);
   EXPECT_EQ(4, last_vol);
+  EXPECT_EQ(5, num_vols);
 
   basename = "";
   last_vol = 0;
-  retval = file3.FindBasenameAndLastVolume(&basename, &last_vol);
+  num_vols = 0;
+  retval = file3.FindBasenameAndLastVolume(&basename, &last_vol, &num_vols);
   EXPECT_TRUE(retval.ok());
   EXPECT_EQ(expected_prefix, basename);
   EXPECT_EQ(4, last_vol);
+  EXPECT_EQ(5, num_vols);
 
   basename = "";
   last_vol = 0;
-  retval = file4.FindBasenameAndLastVolume(&basename, &last_vol);
+  num_vols = 0;
+  retval = file4.FindBasenameAndLastVolume(&basename, &last_vol, &num_vols);
   EXPECT_TRUE(retval.ok());
   EXPECT_EQ(expected_prefix, basename);
   EXPECT_EQ(4, last_vol);
+  EXPECT_EQ(5, num_vols);
 
   // This last file should come back with an error.
   basename = "";
   last_vol = 0;
-  retval = file5.FindBasenameAndLastVolume(&basename, &last_vol);
+  num_vols = 0;
+  retval = file5.FindBasenameAndLastVolume(&basename, &last_vol, &num_vols);
   EXPECT_FALSE(retval.ok());
   EXPECT_EQ(kStatusInvalidArgument, retval.code());
+
+  // This one should come back OK, but with 0 num volumes.
+  basename = "";
+  last_vol = 10;
+  num_vols = 10;
+  retval = file6.FindBasenameAndLastVolume(&basename, &last_vol, &num_vols);
+  EXPECT_TRUE(retval.ok());
+  EXPECT_EQ(expected_prefix6, basename);
+  EXPECT_EQ(0, last_vol);
+  EXPECT_EQ(0, num_vols);
 
   // Clean up.
   boost::filesystem::remove_all(boost::filesystem::path(test_dir));

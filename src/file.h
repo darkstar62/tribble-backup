@@ -30,7 +30,8 @@ class File : public FileInterface {
   virtual Status CreateDirectories();
   virtual std::string RelativePath();
   virtual Status FindBasenameAndLastVolume(
-      std::string* basename_out, uint64_t* last_vol_out);
+      std::string* basename_out, uint64_t* last_vol_out,
+      uint64_t* num_vols_out);
   virtual uint64_t size() const;
 
  private:
