@@ -34,10 +34,8 @@ class BackupDriver {
   std::string ChangeBackupVolume(std::string needed_filename);
 
   void LoadIncrementalFilelist(BackupLibrary* library,
-                               std::vector<std::string>* filelist);
-
-  void LoadDifferentialFilelist(BackupLibrary* library,
-                                std::vector<std::string>* filelist);
+                               std::vector<std::string>* filelist,
+                               bool differential);
 
   void LoadFullFilelist(std::vector<std::string>* filelist);
 
