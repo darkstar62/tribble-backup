@@ -44,11 +44,10 @@ Status File::Open(const Mode mode) {
 
   // Check if the file exists.  If not, return so -- the user will need to
   // Create() it.
-  if (mode == kModeRead) {
-    boost::filesystem::path path(filename_);
-    if (!boost::filesystem::exists(path)) {
-      return Status(kStatusNoSuchFile, filename_);
-    }
+  boost::filesystem::path path(filename_);
+  bool exists = boost::filesystem::exists(path);
+  if (mode == kModeRead && !exists) {
+    return Status(kStatusNoSuchFile, filename_);
   }
 
   string mode_str;
@@ -58,6 +57,16 @@ Status File::Open(const Mode mode) {
       break;
     case kModeAppend:
       mode_str = "a+b";
+      break;
+    case kModeReadWrite:
+      // This mode usually requires the file to already exist.  If it doesn't,
+      // we need to use "w+b" which will give us the desired mode, but create
+      // the file too.
+      if (!exists) {
+        mode_str = "w+b";
+      } else {
+        mode_str = "r+b";
+      }
       break;
     default:
       LOG(FATAL) << "Unknown mode type: " << mode;
@@ -192,11 +201,6 @@ Status File::ReadLines(vector<string>* lines) {
 
 Status File::Write(const void* buffer, size_t length) {
   CHECK_NOTNULL(file_);
-  // Seek to the end of the file.
-  if (FSEEK64(file_, 0, SEEK_END) == -1) {
-    return Status(kStatusCorruptBackup, strerror(errno));
-  }
-
   size_t written_bytes = fwrite(buffer, 1, length, file_);
   if (written_bytes < length) {
     LOG(ERROR) << "Wrote " << written_bytes << ", expected " << length;

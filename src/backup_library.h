@@ -5,6 +5,7 @@
 
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "src/backup_volume_defs.h"
@@ -118,7 +119,27 @@ class BackupLibrary {
   // and finalizes the backup volumes.
   Status CloseBackup();
 
+  // Given a list of files to restore, optimize the chunk ordering to minimize
+  // reads and volume changes.
+  std::vector<std::pair<FileChunk, const FileEntry*> >
+      OptimizeChunksForRestore(std::vector<FileEntry*> files);
+
  private:
+  // Chunk comparison functor.  This comparator is used in sorting file chunks
+  // for optimal performance, and sorts by volume first, then by offset within
+  // the volume.  This way, we read volumes one at a time, straight through,
+  // rather than bouncing back and forth randomly.
+  class ChunkComparator {
+   public:
+    explicit ChunkComparator(ChunkMap* chunk_map) : chunks_(chunk_map) {}
+    bool operator()(
+        std::pair<FileChunk, const FileEntry*> lhs,
+        std::pair<FileChunk, const FileEntry*> rhs);
+
+   private:
+    ChunkMap* chunks_;
+  };
+
   // Scan through the library and load all the chunk data.  This gives the
   // library knowledge of all available chunks in the library which can be
   // subsequently used for deduping in new backups.  The VolumeChangeCallback
@@ -173,6 +194,13 @@ class BackupLibrary {
   // Vector of all chunks contained in this backup library.  This is loaded
   // from each backup volume before performing a backup.
   ChunkMap chunks_;
+
+  // Cached MD5 and data for reading chunks.  This greatly speeds up reads of
+  // the same chunks, especially when used with an optimized chunk list, as the
+  // same chunk may be requested many times (to re-duplicate data).  This way
+  // we're not hitting the disk every time (or worse, the network).
+  Uint128 read_cached_md5sum_;
+  std::string read_cached_data_;
 
   std::unique_ptr<BackupVolumeInterface> cached_backup_volume_;
   DISALLOW_COPY_AND_ASSIGN(BackupLibrary);

@@ -254,9 +254,12 @@ TEST_F(BackupVolumeTest, CreateAddChunkAndClose) {
   // TODO(darkstar62): This should be a FakeFileEntry.
   BackupFile* entry_metadata = new BackupFile;
   FileEntry file_entry("/foo", entry_metadata);
+  uint64_t volume_offset = 0;
   EXPECT_TRUE(volume.WriteChunk(chunk_header.md5sum, chunk_data,
                                 chunk_header.encoded_size,
-                                chunk_header.encoding_type).ok());
+                                chunk_header.encoding_type,
+                                &volume_offset).ok());
+  EXPECT_EQ(descriptor1_chunk.offset, volume_offset);
   EXPECT_TRUE(volume.Close().ok());
 
   // Validate the contents.
@@ -355,9 +358,12 @@ TEST_F(BackupVolumeTest, CreateAddChunkAndCloseWithFileSet) {
   file_set.set_previous_backup_offset(0);
 
   LOG(INFO) << entry_metadata->filename_size;
+  uint64_t volume_offset = 0;
   EXPECT_TRUE(volume.WriteChunk(chunk_header.md5sum, chunk_data,
                                 chunk_header.encoded_size,
-                                chunk_header.encoding_type).ok());
+                                chunk_header.encoding_type,
+                                &volume_offset).ok());
+  EXPECT_EQ(descriptor1_chunk.offset, volume_offset);
   EXPECT_TRUE(volume.CloseWithFileSet(file_set).ok());
 
   // Validate the contents.

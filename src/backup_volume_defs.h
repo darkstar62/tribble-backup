@@ -230,6 +230,11 @@ struct FileChunk {
   // before this backup set due to deduplication.
   uint64_t volume_num;
 
+  // Offset in the volume this chunk resides.  Mostly used to sort chunks for
+  // rapid reading, but can also be used as a redundancy measure in case the
+  // backup descriptor 1 data gets corrupted.
+  uint64_t volume_offset;
+
   // Offset in the file that this chunk should be placed on restore.
   uint64_t chunk_offset;
 

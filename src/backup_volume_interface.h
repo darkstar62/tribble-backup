@@ -63,10 +63,15 @@ class BackupVolumeInterface {
   // Populate a ChunkMap with the chunks in this volume.
   virtual void GetChunks(ChunkMap* dest) = 0;
 
-  // Write a chunk to the volume.
+  // Get a single chunk from the volume.  This only returns metadata about
+  // the chunk.  Returns false if the chunk couldn't be found.
+  virtual bool GetChunk(Uint128 md5sum, BackupDescriptor1Chunk* chunk) = 0;
+
+  // Write a chunk to the volume.  The offset in the backup volume for this
+  // chunk is returned on success in chunk_offset_out.
   virtual Status WriteChunk(
       Uint128 md5sum, const std::string& data, uint64_t raw_size,
-      EncodingType type) = 0;
+      EncodingType type, uint64_t* chunk_offset_out) = 0;
 
   // Read a chunk from the volume.  If successful, the chunk data is returned in
   // the passed string.

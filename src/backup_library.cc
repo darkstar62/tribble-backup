@@ -3,9 +3,11 @@
 
 #include "src/backup_library.h"
 
+#include <algorithm>
 #include <memory>
 #include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "src/backup_volume_defs.h"
@@ -16,7 +18,9 @@
 #include "src/md5_generator_interface.h"
 #include "src/status.h"
 
+using std::make_pair;
 using std::ostringstream;
+using std::pair;
 using std::stoull;
 using std::string;
 using std::unique_ptr;
@@ -39,7 +43,11 @@ BackupLibrary::BackupLibrary(
       basename_(""),
       file_set_(),
       current_backup_volume_(NULL),
-      cached_backup_volume_() {}
+      read_cached_data_(""),
+      cached_backup_volume_() {
+  read_cached_md5sum_.hi = 0;
+  read_cached_md5sum_.lo = 0;
+}
 
 Status BackupLibrary::Init() {
   // Try and figure out how many backup volumes we have, based on the filename
@@ -171,15 +179,20 @@ Status BackupLibrary::AddChunk(const string& data, const uint64_t chunk_offset,
     BackupDescriptor1Chunk chunk_data;
     chunks_.GetChunk(chunk.md5sum, &chunk_data);
     chunk.volume_num = chunk_data.volume_number;
+    chunk.volume_offset = chunk_data.offset;
     file->AddChunk(chunk);
     return Status::OK;
   } else if (current_backup_volume_->HasChunk(chunk.md5sum)) {
-    chunk.volume_num = current_backup_volume_->volume_number();
+    BackupDescriptor1Chunk chunk_data;
+    current_backup_volume_->GetChunk(chunk.md5sum, &chunk_data);
+    chunk.volume_num = chunk_data.volume_number;
+    chunk.volume_offset = chunk_data.offset;
     file->AddChunk(chunk);
     return Status::OK;
   }
 
   // If compression is enabled, compress the data.
+  uint64_t volume_offset = 0;
   if (options_.enable_compression()) {
     string compressed_data;
     Status status = gzip_encoder_->Encode(data, &compressed_data);
@@ -195,15 +208,17 @@ Status BackupLibrary::AddChunk(const string& data, const uint64_t chunk_offset,
           << "Compressed larger than or equal to raw, using raw encoding for "
           << "chunk";
       current_backup_volume_->WriteChunk(
-          chunk.md5sum, data, data.size(), kEncodingTypeRaw);
+          chunk.md5sum, data, data.size(), kEncodingTypeRaw, &volume_offset);
     } else {
       current_backup_volume_->WriteChunk(
-          chunk.md5sum, compressed_data, data.size(), kEncodingTypeZlib);
+          chunk.md5sum, compressed_data, data.size(), kEncodingTypeZlib,
+          &volume_offset);
     }
   } else {
     current_backup_volume_->WriteChunk(
-        chunk.md5sum, data, data.size(), kEncodingTypeRaw);
+        chunk.md5sum, data, data.size(), kEncodingTypeRaw, &volume_offset);
   }
+  chunk.volume_offset = volume_offset;
   file->AddChunk(chunk);
 
   // Check the volume size -- if it's too big, start a new one.
@@ -228,6 +243,11 @@ Status BackupLibrary::AddChunk(const string& data, const uint64_t chunk_offset,
 
 Status BackupLibrary::ReadChunk(const FileChunk& chunk, string* data_out) {
   // Load up the volume needed for this chunk and read the data out.
+  if (chunk.md5sum == read_cached_md5sum_) {
+    *data_out = read_cached_data_;
+    return Status::OK;
+  }
+
   StatusOr<BackupVolumeInterface*> volume_result = GetBackupVolume(
       chunk.volume_num, false);
   LOG_RETURN_IF_ERROR(volume_result.status(), "Could not get backup volume");
@@ -255,6 +275,9 @@ Status BackupLibrary::ReadChunk(const FileChunk& chunk, string* data_out) {
                << md5.hi << md5.lo;
     return Status(kStatusCorruptBackup, "Chunk MD5 mismatch");
   }
+
+  read_cached_md5sum_ = md5;
+  read_cached_data_ = *data_out;
   return Status::OK;
 }
 
@@ -267,6 +290,23 @@ Status BackupLibrary::CloseBackup() {
   // library still open.
   current_backup_volume_->GetChunks(&chunks_);
   return Status::OK;
+}
+
+vector<pair<FileChunk, const FileEntry*> >
+    BackupLibrary::OptimizeChunksForRestore(vector<FileEntry*> files) {
+  // Construct a vector containing every chunk in the FileEntry vector given.
+  vector<pair<FileChunk, const FileEntry*> > chunk_list;
+  for (FileEntry* entry : files) {
+    for (FileChunk chunk : entry->GetChunks()) {
+      chunk_list.push_back(make_pair(chunk, entry));
+    }
+  }
+
+  // Sort the list by volume number, then by offset in the volume.
+  ChunkComparator comparator(&chunks_);
+  std::sort(chunk_list.begin(), chunk_list.end(), comparator);
+
+  return chunk_list;
 }
 
 Status BackupLibrary::LoadAllChunkData() {
@@ -321,6 +361,19 @@ std::string BackupLibrary::FilenameFromVolume(uint64_t volume) {
   ostringstream file_str;
   file_str << basename_ << "." << volume << ".bkp";
   return file_str.str();
+}
+
+bool BackupLibrary::ChunkComparator::operator()(
+    pair<FileChunk, const FileEntry*> lhs,
+    pair<FileChunk, const FileEntry*> rhs) {
+  if (lhs.first.volume_num < rhs.first.volume_num) {
+    return true;
+  } else if (lhs.first.volume_num > rhs.first.volume_num) {
+    return false;
+  }
+
+  // Volumes equal, compare the offsets.
+  return lhs.first.volume_offset < rhs.first.volume_offset;
 }
 
 }  // namespace backup2

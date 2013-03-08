@@ -236,7 +236,8 @@ uint64_t BackupVolume::EstimatedSize() const {
 }
 
 Status BackupVolume::WriteChunk(
-    Uint128 md5sum, const string& data, uint64_t raw_size, EncodingType type) {
+    Uint128 md5sum, const string& data, uint64_t raw_size, EncodingType type,
+    uint64_t* chunk_offset_out) {
   Status retval = file_->SeekEof();
   LOG_RETURN_IF_ERROR(retval, "Error seeking to EOF");
 
@@ -265,6 +266,9 @@ Status BackupVolume::WriteChunk(
   chunks_.Add(md5sum, descriptor_chunk);
 
   modified_ = true;
+  if (chunk_offset_out) {
+    *chunk_offset_out = chunk_offset;
+  }
   return Status::OK;
 }
 

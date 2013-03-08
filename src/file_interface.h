@@ -15,6 +15,7 @@ class FileInterface {
   enum Mode {
     kModeAppend,
     kModeRead,
+    kModeReadWrite,
   };
 
   virtual ~FileInterface() {}

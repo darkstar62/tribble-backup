@@ -5,6 +5,7 @@
 
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "boost/filesystem.hpp"
@@ -20,6 +21,7 @@
 #include "src/md5_generator.h"
 #include "src/status.h"
 
+using std::pair;
 using std::string;
 using std::unique_ptr;
 using std::vector;
@@ -60,46 +62,59 @@ int RestoreDriver::Restore() {
 
   // Pick out which set(s) we'll be restoring from, and what files to restore
   // from given user input.
-  // TODO(darkstar62): Implement this.
+  // TODO(darkstar62): Implement this.  Right now we have limited support, but
+  // only for restoring from a single fileset.
+  FileSet* fileset = filesets.value()[set_number_];
 
   // Determine the chunks we need, and in what order they should come for
   // maximum performance.
-  // TODO(darkstar62): Implement this.  Presently we don't do this, and possibly
-  // read chunks multiple times in whatever order the files we encounter ask for
-  // them.
+  vector<pair<FileChunk, const FileEntry*> > sorted_chunks =
+      library.OptimizeChunksForRestore(fileset->GetFiles());
 
   // Start the restore process by iterating through the restore sets.
-  FileSet* fileset = filesets.value()[set_number_];
-  vector<FileEntry*> files = fileset->GetFiles();
-  for (FileEntry* file_entry : files) {
-    LOG(INFO) << "Restoring " << file_entry->filename();
-    boost::filesystem::path restore_path(restore_path_);
-    boost::filesystem::path file_path(file_entry->filename());
-    boost::filesystem::path dest = restore_path;
-    dest /= file_path;
+  string last_filename = "";
+  File* file = NULL;
+  for (auto chunk_pair : sorted_chunks) {
+    FileChunk chunk = chunk_pair.first;
+    const FileEntry* entry = chunk_pair.second;
 
-    // Create the destination directories if they don't exist, and open the
-    // destination file.
-    File file(dest.string());
-    CHECK(file.CreateDirectories().ok());
-    CHECK(file.Open(File::Mode::kModeAppend).ok());
-
-    // For each file chunk, get the data from the volume and write it to the
-    // destination.  The volume will handle decompression and verification of
-    // the data as we read it.
-    for (FileChunk chunk : file_entry->GetChunks()) {
-      string data;
-      retval = library.ReadChunk(chunk, &data);
-      CHECK(retval.ok()) << retval.ToString();
-
-      if (data.size() == 0) {
-        // Skip empty files.
-        // TODO(darkstar62): We need a better way to handle this.
-        continue;
+    if (entry->filename() != last_filename) {
+      if (file) {
+        file->Close();
+        delete file;
+        file = NULL;
       }
-      file.Write(&data.at(0), data.size());
+
+      boost::filesystem::path restore_path(restore_path_);
+      boost::filesystem::path file_path(entry->filename());
+      boost::filesystem::path dest = restore_path;
+      dest /= file_path;
+
+      // Create the destination directories if they don't exist, and open the
+      // destination file.
+      file = new File(dest.string());
+      CHECK(file->CreateDirectories().ok());
+      CHECK(file->Open(File::Mode::kModeReadWrite).ok());
+
+      last_filename = entry->filename();
     }
-    file.Close();
+
+    string data;
+    retval = library.ReadChunk(chunk, &data);
+    CHECK(retval.ok()) << retval.ToString();
+
+    if (data.size() == 0) {
+      // Skip empty files.
+      // TODO(darkstar62): We need a better way to handle this.
+      continue;
+    }
+    // Seek to the location for this chunk.
+    file->Seek(chunk.chunk_offset);
+    file->Write(&data.at(0), data.size());
+  }
+  if (file) {
+    file->Close();
+    delete file;
   }
 
   return 0;

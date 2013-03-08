@@ -40,9 +40,12 @@ class BackupVolume : public BackupVolumeInterface {
       bool load_all, int64_t* next_volume);
   virtual bool HasChunk(Uint128 md5sum) { return chunks_.HasChunk(md5sum); }
   virtual void GetChunks(ChunkMap* dest) { dest->Merge(chunks_); }
+  virtual bool GetChunk(Uint128 md5sum, BackupDescriptor1Chunk* chunk) {
+    return chunks_.GetChunk(md5sum, chunk);
+  }
   virtual Status WriteChunk(
       Uint128 md5sum, const std::string& data, uint64_t raw_size,
-      EncodingType type);
+      EncodingType type, uint64_t* chunk_offset_out);
   virtual Status ReadChunk(const FileChunk& chunk, std::string* data_out,
                            EncodingType* encoding_type_out);
   virtual Status Close();

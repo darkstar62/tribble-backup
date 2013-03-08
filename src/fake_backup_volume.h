@@ -101,9 +101,13 @@ class FakeBackupVolume : public BackupVolumeInterface {
   }
   virtual void GetChunks(ChunkMap* dest) { dest->Merge(chunks_); }
 
+  virtual bool GetChunk(Uint128 md5sum, BackupDescriptor1Chunk* chunk) {
+    return chunks_.GetChunk(md5sum, chunk);
+  }
+
   virtual Status WriteChunk(
       Uint128 md5sum, const std::string& data, uint64_t raw_size,
-      EncodingType type) {
+      EncodingType type, uint64_t* chunk_offset_out) {
     chunk_data_.insert(std::make_pair(md5sum, data));
 
     BackupDescriptor1Chunk chunk;
@@ -118,6 +122,9 @@ class FakeBackupVolume : public BackupVolumeInterface {
     chunk_headers_.insert(std::make_pair(md5sum, chunk_header));
 
     estimated_size_ += raw_size;
+    if (chunk_offset_out) {
+      *chunk_offset_out = chunk.offset;
+    }
     return Status::OK;
   }
 
