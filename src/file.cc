@@ -30,7 +30,8 @@ namespace backup2 {
 
 File::File(const string& filename)
     : filename_(filename),
-      file_(NULL) {
+      file_(NULL),
+      mode_(kModeInvalid) {
 }
 
 File::~File() {
@@ -78,6 +79,7 @@ Status File::Open(const Mode mode) {
     return Status(kStatusCorruptBackup, strerror(errno));
   }
   file_ = file;
+  mode_ = mode;
   return Status::OK;
 }
 
@@ -201,6 +203,13 @@ Status File::ReadLines(vector<string>* lines) {
 
 Status File::Write(const void* buffer, size_t length) {
   CHECK_NOTNULL(file_);
+  if (mode_ == kModeAppend) {
+    // Reset the write position to EOF.  This is needed on some systems that
+    // don't do this automatically.
+    Status retval = SeekEof();
+    LOG_RETURN_IF_ERROR(retval, "Couldn't seek to end for write");
+  }
+
   size_t written_bytes = fwrite(buffer, 1, length, file_);
   if (written_bytes < length) {
     LOG(ERROR) << "Wrote " << written_bytes << ", expected " << length;

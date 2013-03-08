@@ -714,7 +714,7 @@ TEST_F(BackupVolumeTest, ReadBackupSetsMultiFile) {
   EXPECT_EQ(1, next_volume);
 
   // Check the first backup.
-  FileSet* file_set = file_sets.value()[1];
+  FileSet* file_set = file_sets.value()[0];
   EXPECT_EQ("backup", file_set->description());
   EXPECT_EQ(1, file_set->num_files());
   EXPECT_EQ("/foo/bar", file_set->GetFiles()[0]->filename());

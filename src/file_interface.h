@@ -13,6 +13,7 @@ namespace backup2 {
 class FileInterface {
  public:
   enum Mode {
+    kModeInvalid = 0,
     kModeAppend,
     kModeRead,
     kModeReadWrite,

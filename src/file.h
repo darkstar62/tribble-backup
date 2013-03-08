@@ -43,6 +43,7 @@ class File : public FileInterface {
 
   const std::string filename_;
   FILE* file_;
+  FileInterface::Mode mode_;
 };
 
 }  // namespace backup2
