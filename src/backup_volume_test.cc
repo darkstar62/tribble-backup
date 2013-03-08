@@ -315,6 +315,7 @@ TEST_F(BackupVolumeTest, CreateAddChunkAndCloseWithFileSet) {
   string filename = "/foo/bar";
   BackupFile backup_file;
   backup_file.file_size = chunk_data.size();
+  backup_file.file_type = BackupFile::kFileTypeRegularFile;
   backup_file.num_chunks = 1;
   backup_file.filename_size = filename.size();
   file->Write(&backup_file, sizeof(backup_file));
@@ -346,6 +347,8 @@ TEST_F(BackupVolumeTest, CreateAddChunkAndCloseWithFileSet) {
   EXPECT_TRUE(volume.Create(options).ok());
 
   BackupFile* entry_metadata = new BackupFile;
+  entry_metadata->file_size = chunk_data.size();
+  entry_metadata->file_type = BackupFile::kFileTypeRegularFile;
 
   FileEntry* file_entry = new FileEntry("/foo/bar", entry_metadata);
   file_entry->AddChunk(file_chunk);

@@ -147,8 +147,8 @@ struct BackupDescriptor2 {
   uint64_t previous_backup_offset;
   uint64_t previous_backup_volume_number;
 
-  // Date and time of the backup.
-  DateTime backup_date;
+  // Date and time of the backup in seconds since the epoch.
+  uint64_t backup_date;
 
   // Type of backup.
   BackupType backup_type;
@@ -184,17 +184,26 @@ struct BackupFile {
     header_type = kHeaderTypeBackupFile;
   }
 
+  enum FileType {
+    kFileTypeInvalid = 0,
+    kFileTypeRegularFile,
+    kFileTypeDirectory
+  };
+
   // Type of header.
   HeaderType header_type;
 
-  // Unencoded size of the file.
+  // Unencoded size of the file.  This is zero for directories.
   uint64_t file_size;
 
-  // Creation date of the file.
-  DateTime create_date;
+  // Type of the file.
+  FileType file_type;
 
-  // Modification date of the file.
-  DateTime modify_date;
+  // Creation date of the file in seconds since the epoch.
+  uint64_t create_date;
+
+  // Modification date of the file in seconds since the epoch.
+  uint64_t modify_date;
 
   // Attributes of the file.  This is filesystem-dependent.
   // TODO(darkstar62): How are these encoded?

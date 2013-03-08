@@ -61,16 +61,4 @@ struct Uint128 {
   }
 };
 
-// Storage class for date/time data.
-struct DateTime {
-  DateTime() { memset(this, 0, sizeof(DateTime)); }
-
-  uint8_t month;
-  uint8_t day;
-  uint32_t year;
-  uint8_t hour;
-  uint8_t minute;
-  uint8_t second;
-};
-
 #endif  // BACKUP2_SRC_COMMON_H_

@@ -20,6 +20,7 @@
 #include "boost/algorithm/string/split.hpp"
 #include "boost/filesystem.hpp"
 #include "glog/logging.h"
+#include "src/backup_volume_defs.h"
 #include "src/file.h"
 #include "src/status.h"
 
@@ -218,16 +219,41 @@ Status File::Write(const void* buffer, size_t length) {
   return Status::OK;
 }
 
-Status File::CreateDirectories() {
+Status File::CreateDirectories(bool strip_leaf) {
   boost::filesystem::path orig_path(filename_);
-  boost::filesystem::path parent = orig_path.parent_path();
-  boost::filesystem::create_directories(parent);
+  if (strip_leaf) {
+    boost::filesystem::path parent = orig_path.parent_path();
+    boost::filesystem::create_directories(parent);
+  } else {
+    boost::filesystem::create_directories(orig_path);
+  }
   return Status::OK;
 }
 
 string File::RelativePath() {
   boost::filesystem::path orig_path(filename_);
   return orig_path.relative_path().string();
+}
+
+Status File::FillBackupFile(BackupFile* metadata) {
+  boost::filesystem::path filepath(filename_);
+  metadata->modify_date = boost::filesystem::last_write_time(filepath);
+
+  boost::filesystem::file_status status = boost::filesystem::status(filepath);
+  switch (status.type()) {
+    case boost::filesystem::regular_file:
+      metadata->file_type = BackupFile::kFileTypeRegularFile;
+      metadata->file_size = size();
+      break;
+    case boost::filesystem::directory_file:
+      metadata->file_type = BackupFile::kFileTypeDirectory;
+      metadata->file_size = 0;
+      break;
+    default:
+      LOG(FATAL) << "Cannot handle files of type " << status.type();
+      break;
+  }
+  return Status::OK;
 }
 
 Status File::FindBasenameAndLastVolume(string* basename_out,

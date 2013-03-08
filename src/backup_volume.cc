@@ -516,7 +516,6 @@ StatusOr<FileEntry*> BackupVolume::ReadFileEntry() {
   // backup is good).
   uint64_t file_size = backup_file->file_size;
   uint64_t num_chunks = backup_file->num_chunks;
-  backup_file->file_size = 0;
   backup_file->num_chunks = 0;
 
   VLOG(5) << "Found " << filename;

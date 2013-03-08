@@ -9,6 +9,7 @@
 
 #include "glog/logging.h"
 #include "gmock/gmock.h"
+#include "src/backup_volume_defs.h"
 #include "src/file_interface.h"
 #include "src/status.h"
 
@@ -88,12 +89,18 @@ class FakeFile : public FileInterface {
     return Status::OK;
   }
 
-  virtual Status CreateDirectories() {
+  virtual Status CreateDirectories(bool strip_leaf) {
     return Status::OK;
   }
 
   virtual std::string RelativePath() {
     return "THIS NEEDS TO BE IMPLEMENTED";
+  }
+
+  virtual Status FillBackupFile(BackupFile* metadata) {
+    metadata->file_size = size();
+    metadata->file_type = BackupFile::kFileTypeRegularFile;
+    return Status::NOT_IMPLEMENTED;
   }
 
   virtual Status FindBasenameAndLastVolume(

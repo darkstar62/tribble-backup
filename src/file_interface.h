@@ -9,6 +9,7 @@
 #include "src/status.h"
 
 namespace backup2 {
+class BackupFile;
 
 class FileInterface {
  public:
@@ -56,11 +57,15 @@ class FileInterface {
   virtual Status Write(const void* buffer, size_t length) = 0;
 
   // Create the directories recursively leading to the file represented by this
-  // class.
-  virtual Status CreateDirectories() = 0;
+  // class.  If strip_leaf is false, the filename pointed to by this File is
+  // taken to be a directory as well, and it is not stripped.
+  virtual Status CreateDirectories(bool strip_leaf) = 0;
 
   // Return the relative path of the given filename.
   virtual std::string RelativePath() = 0;
+
+  // Fill a BackupFile entry with metadata from the file.
+  virtual Status FillBackupFile(BackupFile* metadata) = 0;
 
   // Find the basename, last volume number, and number of volumes corresponding
   // to this File.  This is used with backup volume names to determine the

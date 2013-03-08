@@ -66,6 +66,22 @@ int RestoreDriver::Restore() {
   // only for restoring from a single fileset.
   FileSet* fileset = filesets.value()[set_number_];
 
+  // Extract out the directories from the filelist (these'll be ignored by the
+  // optimization below).  We need to create them first anyway.
+  for (FileEntry* entry : fileset->GetFiles()) {
+    if (entry->GetBackupFile()->file_type == BackupFile::kFileTypeDirectory) {
+      boost::filesystem::path restore_path(restore_path_);
+      boost::filesystem::path file_path(entry->filename());
+      boost::filesystem::path dest = restore_path;
+      dest /= file_path;
+
+      // Create the destination directories if they don't exist, and open the
+      // destination file.
+      File file(dest.string());
+      CHECK(file.CreateDirectories(false).ok());
+    }
+  }
+
   // Determine the chunks we need, and in what order they should come for
   // maximum performance.
   vector<pair<FileChunk, const FileEntry*> > sorted_chunks =
@@ -93,7 +109,7 @@ int RestoreDriver::Restore() {
       // Create the destination directories if they don't exist, and open the
       // destination file.
       file = new File(dest.string());
-      CHECK(file->CreateDirectories().ok());
+      CHECK(file->CreateDirectories(true).ok());
       CHECK(file->Open(File::Mode::kModeReadWrite).ok());
 
       last_filename = entry->filename();

@@ -90,30 +90,37 @@ int BackupDriver::Run() {
   for (string filename : filelist) {
     VLOG(3) << "Processing " << filename;
     unique_ptr<File> file(new File(filename));
-    file->Open(File::Mode::kModeRead);
-    Status status = Status::OK;
 
     // Create the metadata for the file and stat() it to get the details.
     string relative_filename = file->RelativePath() + '\0';
     BackupFile metadata;
-    // TODO(darkstar62): Add file stat() support and add it to the metadata.
+    file->FillBackupFile(&metadata);
 
     FileEntry* entry = library.CreateFile(relative_filename, metadata);
 
-    do {
-      uint64_t current_offset = file->Tell();
-      size_t read = 0;
-      string data;
-      data.resize(64*1024);
-      status = file->Read(&data.at(0), data.size(), &read);
-      data.resize(read);
-      Status retval = library.AddChunk(data, current_offset, entry);
-      LOG_IF(FATAL, !retval.ok())
-          << "Could not add chunk to volume: " << retval.ToString();
-    } while (status.code() != kStatusShortRead);
+    // If the file type is a directory, we don't store any chunks or try and
+    // read from it.
 
-    // We've reached the end of the file.  Close it out and start the next one.
-    file->Close();
+    if (metadata.file_type == BackupFile::kFileTypeRegularFile) {
+      file->Open(File::Mode::kModeRead);
+      Status status = Status::OK;
+
+      do {
+        uint64_t current_offset = file->Tell();
+        size_t read = 0;
+        string data;
+        data.resize(64*1024);
+        status = file->Read(&data.at(0), data.size(), &read);
+        data.resize(read);
+        Status retval = library.AddChunk(data, current_offset, entry);
+        LOG_IF(FATAL, !retval.ok())
+            << "Could not add chunk to volume: " << retval.ToString();
+      } while (status.code() != kStatusShortRead);
+
+      // We've reached the end of the file.  Close it out and start the next
+      // one.
+      file->Close();
+    }
   }
 
   // All done with the backup, close out the file set.

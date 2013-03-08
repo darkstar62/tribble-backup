@@ -24,8 +24,9 @@ class MockFile : public FileInterface {
   MOCK_METHOD3(Read, Status(void* buffer, size_t length, size_t* read_bytes));
   MOCK_METHOD1(ReadLines, Status(std::vector<std::string>* lines));
   MOCK_METHOD2(Write, Status(const void* buffer, size_t length));
-  MOCK_METHOD0(CreateDirectories, Status());
+  MOCK_METHOD1(CreateDirectories, Status(bool strip_leaf));
   MOCK_METHOD0(RelativePath, std::string());
+  MOCK_METHOD1(FillBackupFile, Status(BackupFile* metadata));
   MOCK_METHOD3(FindBasenameAndLastVolume,
                Status(std::string* basename_out, uint64_t* last_vol_out,
                       uint64_t* num_vols_out));

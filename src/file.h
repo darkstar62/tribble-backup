@@ -27,8 +27,9 @@ class File : public FileInterface {
   virtual Status Read(void* buffer, size_t length, size_t* read_bytes);
   virtual Status ReadLines(std::vector<std::string>* strings);
   virtual Status Write(const void* buffer, size_t length);
-  virtual Status CreateDirectories();
+  virtual Status CreateDirectories(bool strip_leaf);
   virtual std::string RelativePath();
+  virtual Status FillBackupFile(BackupFile* metadata);
   virtual Status FindBasenameAndLastVolume(
       std::string* basename_out, uint64_t* last_vol_out,
       uint64_t* num_vols_out);

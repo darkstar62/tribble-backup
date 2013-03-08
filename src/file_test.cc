@@ -194,7 +194,7 @@ TEST_F(FileTest, FindBasenameAndLastVolume) {
   File file5(filename5);
   File file6(filename6);
 
-  ASSERT_TRUE(file0.CreateDirectories().ok());
+  ASSERT_TRUE(file0.CreateDirectories(true).ok());
   file0.Open(File::Mode::kModeAppend);
   file0.Write("a", 1);
   file0.Close();

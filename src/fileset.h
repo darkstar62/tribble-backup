@@ -95,7 +95,6 @@ class FileEntry {
   void AddChunk(FileChunk chunk) {
     chunks_.push_back(chunk);
     metadata_->num_chunks++;
-    metadata_->file_size += chunk.unencoded_size;
   }
 
   // Return the BackupFile structure maintained by this entry.  This is used
