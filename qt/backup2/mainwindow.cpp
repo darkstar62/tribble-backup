@@ -3,17 +3,19 @@
 #include <QFileDialog>
 
 #include <string>
+#include <vector>
 
 #include "glog/logging.h"
 #include "qt/backup2/mainwindow.h"
 #include "qt/backup2/file_selector_model.h"
-#include "qt/backup2/ui_mainwindow.h"
 #include "src/backup_library.h"
 #include "src/backup_volume.h"
 #include "src/callback.h"
 #include "src/file.h"
 #include "src/md5_generator.h"
 #include "src/gzip_encoder.h"
+
+#include "ui_mainwindow.h"  // NOLINT
 
 using backup2::BackupLibrary;
 using backup2::BackupOptions;
@@ -25,6 +27,7 @@ using backup2::Md5Generator;
 using backup2::NewPermanentCallback;
 using backup2::Status;
 using std::string;
+using std::vector;
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent),
@@ -180,11 +183,22 @@ void MainWindow::RunBackup() {
     options.set_max_volume_size_mb(0);
   }
 
+  // Create the backup library with our settings.
+  LOG(INFO) << "Creating backup library";
   File* file = new File(ui_->backup_dest->text().toStdString());
   BackupLibrary library(
       file, NewPermanentCallback(this, &MainWindow::GetBackupVolume),
       new Md5Generator(), new GzipEncoder(),
       new BackupVolumeFactory());
   Status retval = library.Init();
-  LOG(INFO) << retval.ToString();
+  if (!retval.ok()) {
+    // TODO(darkstar62): Handle the error.
+    LOG(FATAL) << "Could not init library: " << retval.ToString();
+  }
+
+  // Grab the selected filelist from the model.
+  vector<string> selected_files = model_->GetSelectedPaths();
+  for (string file : selected_files) {
+    LOG(INFO) << file;
+  }
 }

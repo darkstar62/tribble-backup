@@ -19,6 +19,9 @@ class FileSelectorModel : public QFileSystemModel {
 
   virtual ~FileSelectorModel() {}
 
+  // Return the user-selected files and directories.
+  std::vector<std::string> GetSelectedPaths();
+
   // QDirModel overrides.
   virtual Qt::ItemFlags flags(const QModelIndex& index) const;
   virtual QVariant data(const QModelIndex& index,
@@ -26,15 +29,22 @@ class FileSelectorModel : public QFileSystemModel {
   virtual bool setData(const QModelIndex& index, const QVariant& value,
                        int role = Qt::EditRole);
 
-  virtual bool setData(const QModelIndex& index, const QVariant& value,
-                       int role = Qt::EditRole, bool no_parents = false);
-
  private slots:  // NOLINT
   void OnDirectoryLoaded(const QString& path);
 
  private:
+  // This version of setData is used to iterate through and update the visuals
+  // in the tree.
+  virtual bool setData(const QModelIndex& index, const QVariant& value,
+                       int role = Qt::EditRole, bool no_parents = false);
+
+  // These sets indicate the checked state of each path, only for GUI
+  // interactions.
   QSet<QString> checked_;
   QSet<QString> tristate_;
+
+  // This set contains the paths that the user actually selected.
+  QSet<QString> user_selected_;
 };
 
 #endif  // BACKUP2_QT_BACKUP2_FILE_SELECTOR_MODEL_H_

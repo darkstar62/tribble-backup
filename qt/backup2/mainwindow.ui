@@ -23,10 +23,16 @@
    </size>
   </property>
   <property name="windowTitle">
-   <string>MainWindow</string>
+   <string>Tribble Backup</string>
+  </property>
+  <property name="windowIcon">
+   <iconset resource="Graphics.qrc">
+    <normaloff>:/icons/graphics/ac6e_tribbles_duo.png</normaloff>:/icons/graphics/ac6e_tribbles_duo.png</iconset>
   </property>
   <property name="styleSheet">
-   <string notr="true"/>
+   <string notr="true">#MainWindow {
+  background-color: rgb(47, 47, 47);
+}</string>
   </property>
   <property name="documentMode">
    <bool>true</bool>
@@ -69,7 +75,7 @@
       </property>
       <property name="styleSheet">
        <string notr="true">#frame {
-  background-color: qradialgradient(spread:pad, cx:0.494318, cy:1, radius:0.5, fx:1, fy:0.494, stop:0 rgba(115, 115, 115, 255), stop:1 rgba(88, 88, 88, 255));
+  background-color: qradialgradient(spread:pad, cx:0.494318, cy:1, radius:0.5, fx:1, fy:0.494, stop:0 rgba(80,80,80, 255), stop:1 rgba(46, 46, 46, 255));
   border: 0px;
 }</string>
       </property>
@@ -131,35 +137,49 @@
        <cursorShape>ArrowCursor</cursorShape>
       </property>
       <property name="autoFillBackground">
-       <bool>false</bool>
+       <bool>true</bool>
       </property>
       <property name="styleSheet">
        <string notr="true">#tabWidget {
+  background-color: rgb(46, 46, 46);
   border: 0px;
-  margin: 0px;
-  padding: 0px;
+  margin: -2px;
+  padding: -2px;
 }
 
-QTabBar {
-  background-color: qradialgradient(spread:pad, cx:1, cy:0.494318, radius:0.5, fx:1, fy:0.494, stop:0 rgba(115, 115, 115, 255), stop:1 rgba(80, 80, 80, 255));
-  border: 0px;
+QTabWidget &gt; QTabBar {
+  background-color: qradialgradient(spread:pad, cx:1, cy:0.494318, radius:0.5, fx:1, fy:0.494, stop:0 rgba(80, 80, 80, 255), stop:1 rgba(46, 46, 46, 255));
+  margin: -2px;
+  padding: -2px;
+  gridline-color: rgb(46, 46, 46);
 }
 
 QTabBar::tab {
-  padding-top: 10px;
-  padding-bottom: 10px;
+  padding-top: 0px;
+  padding-bottom: 5px;
   padding-left: 30px;
+  padding-right: 0px;
+  margin: 0px;
   border: 0px;
   width: 205px;
   height: 42px;
+  gridline-color: rgb(46, 46, 46);
 }
 
 QTabWidget#tabWidget::pane {
   border: 0px;
-  margin: 0px;
-  padding: 0px;
+  margin: -2px;
+  padding: -2px;
+  background-color: rgb(46, 46, 46);
+  gridline-color: rgb(46, 46, 46);
 }
-</string>
+
+.QFrame {
+  border: 3px solid rgb(20, 20, 20);
+  margin: -2px;
+  padding: -2px;
+  background-color: rgb(46, 46, 46);
+}</string>
       </property>
       <property name="tabPosition">
        <enum>QTabWidget::West</enum>
@@ -172,12 +192,12 @@ QTabWidget#tabWidget::pane {
       </property>
       <property name="iconSize">
        <size>
-        <width>42</width>
+        <width>30</width>
         <height>205</height>
        </size>
       </property>
       <property name="elideMode">
-       <enum>Qt::ElideNone</enum>
+       <enum>Qt::ElideRight</enum>
       </property>
       <property name="usesScrollButtons">
        <bool>false</bool>
@@ -199,7 +219,7 @@ QTabWidget#tabWidget::pane {
         <bool>false</bool>
        </property>
        <property name="styleSheet">
-        <string notr="true">background-color: rgb(100, 100, 100);</string>
+        <string notr="true">background-color: rgb(46, 46, 46);</string>
        </property>
        <attribute name="icon">
         <iconset resource="Graphics.qrc">
@@ -219,7 +239,7 @@ QTabWidget#tabWidget::pane {
        <attribute name="icon">
         <iconset resource="Graphics.qrc">
          <normaloff>:/icons/graphics/backup_inactive_button.svg</normaloff>
-         <normalon>:/icons/Backup Button</normalon>:/icons/graphics/backup_inactive_button.svg</iconset>
+         <normalon>:/icons/graphics/backup_button.svg</normalon>:/icons/graphics/backup_inactive_button.svg</iconset>
        </attribute>
        <attribute name="title">
         <string/>
@@ -288,7 +308,7 @@ QTabBar::tab:selected {
            <enum>QTabWidget::Rounded</enum>
           </property>
           <property name="currentIndex">
-           <number>2</number>
+           <number>0</number>
           </property>
           <property name="elideMode">
            <enum>Qt::ElideNone</enum>
@@ -1085,6 +1105,8 @@ QTabBar::tab:selected {
      </widget>
     </item>
    </layout>
+   <zorder>main_tabset</zorder>
+   <zorder>frame</zorder>
   </widget>
  </widget>
  <layoutdefault spacing="6" margin="11"/>

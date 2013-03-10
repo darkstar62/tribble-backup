@@ -1,8 +1,25 @@
 // Copyright (C) 2013 Cory Maccarrone
 // Author: Cory Maccarrone <darkstar6262@gmail.com>
-#include <QDebug>
-
 #include "qt/backup2/file_selector_model.h"
+
+#include <string>
+#include <vector>
+
+#include <QString>
+#include <QSet>
+
+#include "glog/logging.h"
+
+using std::string;
+using std::vector;
+
+vector<string> FileSelectorModel::GetSelectedPaths() {
+  vector<string> retval;
+  for (QString path : user_selected_) {
+    retval.push_back(path.toStdString());
+  }
+  return retval;
+}
 
 Qt::ItemFlags FileSelectorModel::flags(const QModelIndex& index) const {
   Qt::ItemFlags f = QFileSystemModel::flags(index);
@@ -28,6 +45,18 @@ QVariant FileSelectorModel::data(const QModelIndex& index, int role) const {
 
 bool FileSelectorModel::setData(const QModelIndex& index, const QVariant& value,
                                 int role) {
+  if (index.isValid() && index.column() == 0 && role == Qt::CheckStateRole) {
+    // Store checked paths, remove unchecked paths.
+    if (value.toInt() == Qt::Checked) {
+      user_selected_.insert(filePath(index));
+      LOG(INFO) << "Added " << filePath(index).toStdString();
+    } else if (value.toInt() == Qt::Unchecked) {
+      user_selected_.remove(filePath(index));
+      LOG(INFO) << "Removed " << filePath(index).toStdString();
+    } else {
+      LOG(FATAL) << "BUG: We shouldn't be getting partially checked here!";
+    }
+  }
   return setData(index, value, role, false);
 }
 
@@ -73,7 +102,7 @@ bool FileSelectorModel::setData(const QModelIndex& index, const QVariant& value,
       } else if (!all_clear && !all_checked) {
         setData(parent(index), Qt::PartiallyChecked, Qt::CheckStateRole, false);
       } else {
-        qDebug() << "Invalid state!";
+        LOG(FATAL) << "BUG: Invalid state!";
       }
     }
 
@@ -95,7 +124,7 @@ void FileSelectorModel::OnDirectoryLoaded(const QString& path) {
   QModelIndex path_index = index(path, 0);
   QVariant value = data(path_index, Qt::CheckStateRole);
   if (value.toInt() == Qt::PartiallyChecked) {
-    qDebug() << "Odd, partially checked, but content not loaded?";
+    LOG(WARNING) << "Odd, partially checked, but content not loaded?";
     return;
   }
 

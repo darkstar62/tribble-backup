@@ -10,8 +10,8 @@
    xmlns:xlink="http://www.w3.org/1999/xlink"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-   width="42.14286"
-   height="204.97414"
+   width="30.02103"
+   height="205.01099"
    id="svg2"
    version="1.1"
    inkscape:version="0.48.4 r9939"
@@ -43,7 +43,7 @@
     <linearGradient
        id="linearGradient3757">
       <stop
-         style="stop-color:#505050;stop-opacity:1;"
+         style="stop-color:#2e2e2e;stop-opacity:1;"
          offset="0"
          id="stop3759" />
       <stop
@@ -140,10 +140,10 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="0.98994949"
-     inkscape:cx="76.486912"
-     inkscape:cy="225.1032"
+     inkscape:cx="104.42777"
+     inkscape:cy="101.64425"
      inkscape:document-units="px"
-     inkscape:current-layer="g3805"
+     inkscape:current-layer="layer1"
      showgrid="false"
      fit-margin-top="0"
      fit-margin-left="0"
@@ -170,12 +170,12 @@
      inkscape:label="Layer 1"
      inkscape:groupmode="layer"
      id="layer1"
-     transform="translate(-242.12141,12.624881)">
+     transform="translate(-248.18232,12.643299)">
     <g
        id="g3821"
-       transform="matrix(0,1,-1,0,353.05503,-173.33066)">
+       transform="matrix(-1,0,0,-1,526.38569,179.7244)">
       <g
-         transform="matrix(1.180921,0,0,1,-40.025492,12.5)"
+         transform="matrix(0,-1.180921,0.71236336,0,208.08287,393.08054)"
          id="g3805">
         <rect
            y="57.362183"
@@ -216,17 +216,35 @@
            x="169.97858"
            y="56.290756" />
       </g>
-      <text
-         sodipodi:linespacing="125%"
-         id="text3817"
-         y="95.033081"
-         x="172.85715"
-         style="font-size:20px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#ffffff;fill-opacity:1;stroke:none;font-family:Arimo;-inkscape-font-specification:Arimo"
-         xml:space="preserve"><tspan
-           y="95.033081"
-           x="172.85715"
-           id="tspan3819"
-           sodipodi:role="line">Backup</tspan></text>
+      <g
+         id="g4980">
+        <text
+           transform="matrix(0,-1,1,0,0,0)"
+           xml:space="preserve"
+           style="font-size:20px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Arimo;-inkscape-font-specification:Arimo"
+           x="-180.19789"
+           y="268.36374"
+           id="text3817"
+           sodipodi:linespacing="125%"><tspan
+             style="font-size:14px;fill:#000000;fill-opacity:1;stroke:none"
+             sodipodi:role="line"
+             id="tspan3819"
+             x="-180.19789"
+             y="268.36374">Backup</tspan></text>
+        <text
+           sodipodi:linespacing="125%"
+           id="text4976"
+           y="266.36374"
+           x="-182.19789"
+           style="font-size:20px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#ffffff;fill-opacity:1;stroke:none;font-family:Arimo;-inkscape-font-specification:Arimo"
+           xml:space="preserve"
+           transform="matrix(0,-1,1,0,0,0)"><tspan
+             y="266.36374"
+             x="-182.19789"
+             id="tspan4978"
+             sodipodi:role="line"
+             style="font-size:14px;fill:#ffffff;fill-opacity:1;stroke:none">Backup</tspan></text>
+      </g>
     </g>
   </g>
 </svg>
