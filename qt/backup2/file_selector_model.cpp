@@ -2,11 +2,11 @@
 // Author: Cory Maccarrone <darkstar6262@gmail.com>
 #include "qt/backup2/file_selector_model.h"
 
-#include <string>
-#include <vector>
-
 #include <QString>
 #include <QSet>
+
+#include <string>
+#include <vector>
 
 #include "glog/logging.h"
 

@@ -7,6 +7,9 @@
 #include <QSet>
 #include <QString>
 
+#include <string>
+#include <vector>
+
 class FileSelectorModel : public QFileSystemModel {
   Q_OBJECT
 
