@@ -173,13 +173,7 @@ QTabWidget#tabWidget::pane {
   background-color: rgb(46, 46, 46);
   gridline-color: rgb(46, 46, 46);
 }
-
-.QFrame {
-  border: 3px solid rgb(20, 20, 20);
-  margin: -2px;
-  padding: -2px;
-  background-color: rgb(46, 46, 46);
-}</string>
+</string>
       </property>
       <property name="tabPosition">
        <enum>QTabWidget::West</enum>
@@ -188,7 +182,7 @@ QTabWidget#tabWidget::pane {
        <enum>QTabWidget::Rounded</enum>
       </property>
       <property name="currentIndex">
-       <number>1</number>
+       <number>0</number>
       </property>
       <property name="iconSize">
        <size>
