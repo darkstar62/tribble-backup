@@ -37,23 +37,24 @@ DEPENDPATH += $$PWD/../../src/Release
 
 win32:CONFIG(release, debug|release): LIBS += -L$$PWD/../../../boost_1_53_0/stage/lib/ -lboost_filesystem-vc110-mt-1_53
 else:win32:CONFIG(debug, debug|release): LIBS += -L$$PWD/../../../boost_1_53_0/stage/lib/ -lboost_filesystem-vc110-mt-1_53d
-else:unix: LIBS += -L$$PWD/../../../boost_1_53_0/stage/lib/ -lboost_filesystem-vc110-mt-1_53
+else:unix: LIBS += -L$$PWD/../../../boost_1_53_0/stage/lib/ -lboost_filesystem -lboost_system
 
 INCLUDEPATH += $$PWD/../../../boost_1_53_0/stage
 DEPENDPATH += $$PWD/../../../boost_1_53_0/stage
 
 win32:CONFIG(release, debug|release): LIBS += -L$$PWD/../../../glog-0.3.3/x64/release/ -llibglog
 else:win32:CONFIG(debug, debug|release): LIBS += -L$$PWD/../../../glog-0.3.3/x64/debug/ -llibglog
-else:unix: LIBS += -L$$PWD/../../../glog-0.3.3/x64/ -llibglog
+else:unix: LIBS += -L$$PWD/../../../glog-0.3.3/x64/ -lglog
 
 INCLUDEPATH += $$PWD/../../../glog-0.3.3/x64/Release
 DEPENDPATH += $$PWD/../../../glog-0.3.3/x64/Release
 
 win32:CONFIG(release, debug|release): LIBS += -L$$PWD/../../../zlib-1.2.3/contrib/vstudio/vc8/x64/ZlibDllReleaseWithoutAsm/ -lzlibwapi
 else:win32:CONFIG(debug, debug|release): LIBS += -L$$PWD/../../../zlib-1.2.3/contrib/vstudio/vc8/x64/ZlibDllReleaseWithoutAsm/ -lzlibwapid
-else:unix: LIBS += -L$$PWD/../../../zlib-1.2.3/contrib/vstudio/vc8/x64/ZlibDllReleaseWithoutAsm/ -lzlibwapi
+else:unix: LIBS += -L$$PWD/../../../zlib-1.2.3/contrib/vstudio/vc8/x64/ZlibDllReleaseWithoutAsm/ -lz
 
 INCLUDEPATH += $$PWD/../../../zlib-1.2.3/contrib/vstudio/vc8/x64/ZlibDllReleaseWithoutAsm
 DEPENDPATH += $$PWD/../../../zlib-1.2.3/contrib/vstudio/vc8/x64/ZlibDllReleaseWithoutAsm
 
+unix: QMAKE_CXXFLAGS += -std=gnu++0x -O3 -Wall -Werror -Wextra -Wnon-virtual-dtor
 OTHER_FILES +=

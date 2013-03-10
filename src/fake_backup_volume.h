@@ -151,10 +151,10 @@ class FakeBackupVolume : public BackupVolumeInterface {
   }
 
   virtual uint64_t EstimatedSize() const { return estimated_size_; }
-  virtual const uint64_t volume_number() const {
+  virtual uint64_t volume_number() const {
     return 0;
   }
-  virtual const uint64_t last_backup_offset() const {
+  virtual uint64_t last_backup_offset() const {
     return 0;
   }
 

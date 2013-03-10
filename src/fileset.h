@@ -43,19 +43,19 @@ class FileSet {
   void set_description(std::string description) { description_ = description; }
 
   // Get/set the backup type.
-  const BackupType backup_type() const { return backup_type_; }
+  BackupType backup_type() const { return backup_type_; }
   void set_backup_type(BackupType backup_type) { backup_type_ = backup_type; }
 
   // Get/set the previous backup volume and offset.  These are stored in the
   // next backup to allow linking backwards.
-  const uint64_t previous_backup_volume() const {
+  uint64_t previous_backup_volume() const {
     return previous_backup_volume_;
   }
   void set_previous_backup_volume(uint64_t volume) {
     previous_backup_volume_ = volume;
   }
 
-  const uint64_t previous_backup_offset() const {
+  uint64_t previous_backup_offset() const {
     return previous_backup_offset_;
   }
   void set_previous_backup_offset(uint64_t offset) {
@@ -85,8 +85,8 @@ class FileEntry {
  public:
   // FileEntry takes ownership of the metadata.
   explicit FileEntry(const std::string& filename, BackupFile* metadata)
-      : filename_(filename),
-        metadata_(metadata) {
+      : metadata_(metadata),
+        filename_(filename) {
     metadata->filename_size = filename.size();
   }
 

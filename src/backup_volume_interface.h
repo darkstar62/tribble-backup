@@ -89,11 +89,11 @@ class BackupVolumeInterface {
   virtual uint64_t EstimatedSize() const = 0;
 
   // Return the volume number this backup volume represents.
-  virtual const uint64_t volume_number() const = 0;
+  virtual uint64_t volume_number() const = 0;
 
   // Return the offset into the most recent backup.  This is used by
   // BackupLibrary to propagate metadata for chaining sets.
-  virtual const uint64_t last_backup_offset() const = 0;
+  virtual uint64_t last_backup_offset() const = 0;
 };
 
 // Interface for any backup volume factory.

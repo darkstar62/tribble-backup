@@ -30,7 +30,7 @@ class Md5GeneratorInterface;
       name ## _ = name; \
       return *this; \
     } \
-    const type name() const { return name ## _; } \
+    type name() const { return name ## _; } \
   private: \
     type name ## _
 

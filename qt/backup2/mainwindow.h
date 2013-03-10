@@ -1,25 +1,28 @@
-#ifndef MAINWINDOW_H
-#define MAINWINDOW_H
+// Copyright (C) 2013 Cory Maccarrone
+// Author: Cory Maccarrone <darkstar6262@gmail.com>
+#ifndef BACKUP2_QT_BACKUP2_MAINWINDOW_H_
+#define BACKUP2_QT_BACKUP2_MAINWINDOW_H_
+
+#include <QMainWindow>
 
 #include <memory>
 #include <string>
-#include <QMainWindow>
 
 namespace Ui {
 class MainWindow;
-}
+}  // namespace Ui
 
 class FileSelectorModel;
 
 class MainWindow : public QMainWindow {
- Q_OBJECT
+  Q_OBJECT
  public:
   explicit MainWindow(QWidget *parent = 0);
   virtual ~MainWindow();
 
   std::string GetBackupVolume(std::string orig_filename);
 
- public slots:
+ public slots:  // NOLINT
   void UpdateBackupComboDescription(int index);
   void SwitchToBackupPage1();
   void SwitchToBackupPage2();
@@ -33,4 +36,4 @@ class MainWindow : public QMainWindow {
   std::unique_ptr<FileSelectorModel> model_;
 };
 
-#endif  // MAINWINDOW_H
+#endif  // BACKUP2_QT_BACKUP2_MAINWINDOW_H_

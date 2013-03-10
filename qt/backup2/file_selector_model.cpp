@@ -1,6 +1,8 @@
+// Copyright (C) 2013 Cory Maccarrone
+// Author: Cory Maccarrone <darkstar6262@gmail.com>
 #include <QDebug>
 
-#include "file_selector_model.h"
+#include "qt/backup2/file_selector_model.h"
 
 Qt::ItemFlags FileSelectorModel::flags(const QModelIndex& index) const {
   Qt::ItemFlags f = QFileSystemModel::flags(index);
@@ -49,7 +51,8 @@ bool FileSelectorModel::setData(const QModelIndex& index, const QVariant& value,
       bool all_checked = true;
       bool all_clear = true;
 
-      for (int child_num = 0; child_num < rowCount(parent(index)); ++child_num) {
+      for (int child_num = 0; child_num < rowCount(parent(index));
+           ++child_num) {
         QModelIndex child_index = sibling(child_num, index.column(), index);
         int checked_state = child_index.data(Qt::CheckStateRole).toInt();
         if (checked_state == Qt::Checked) {

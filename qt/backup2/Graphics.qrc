@@ -1,6 +1,5 @@
 <RCC>
     <qresource prefix="/icons">
-        <file alias="Slider">graphics/Slider.png</file>
         <file alias="Backup Button">graphics/backup_button.svg</file>
         <file alias="Home Button">graphics/home_button.svg</file>
         <file alias="Home Button Inactive">graphics/home_inactive_button.svg</file>

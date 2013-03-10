@@ -27,7 +27,7 @@ enum ErrorCode {
 // above.
 static struct Errordescriptions {
   ErrorCode code;
-  char* description;
+  const char* description;
 } error_mappings[] = {
   { kStatusOk, "OK" },
   { kStatusNotImplemented, "Not implemented" },

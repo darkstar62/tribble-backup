@@ -1,17 +1,19 @@
-#include <string>
-
+// Copyright (C) 2013 Cory Maccarrone
+// Author: Cory Maccarrone <darkstar6262@gmail.com>
 #include <QFileDialog>
+
+#include <string>
 
 #include "glog/logging.h"
 #include "qt/backup2/mainwindow.h"
 #include "qt/backup2/file_selector_model.h"
+#include "qt/backup2/ui_mainwindow.h"
 #include "src/backup_library.h"
 #include "src/backup_volume.h"
 #include "src/callback.h"
 #include "src/file.h"
 #include "src/md5_generator.h"
 #include "src/gzip_encoder.h"
-#include "ui_mainwindow.h"
 
 using backup2::BackupLibrary;
 using backup2::BackupOptions;
@@ -41,8 +43,10 @@ MainWindow::MainWindow(QWidget *parent)
 
   // Connect up a change event to the backup type combo box to change the
   // description underneath.
-  QObject::connect(ui_->backup_type_combo, SIGNAL(currentIndexChanged(int)), this,
-                   SLOT(UpdateBackupComboDescription(int)));
+  QObject::connect(
+      ui_->backup_type_combo,
+      SIGNAL(currentIndexChanged(int)),  // NOLINT
+      this, SLOT(UpdateBackupComboDescription(int)));  // NOLINT
   QObject::connect(ui_->backup_next_button_1, SIGNAL(clicked()), this,
                    SLOT(SwitchToBackupPage2()));
   QObject::connect(ui_->backup_next_button_2, SIGNAL(clicked()), this,
@@ -55,13 +59,14 @@ MainWindow::MainWindow(QWidget *parent)
                    SLOT(BackupLocationBrowse()));
   QObject::connect(ui_->run_backup_button, SIGNAL(clicked()), this,
                    SLOT(RunBackup()));
-  QObject::connect(ui_->backup_tabset, SIGNAL(currentChanged(int)), this,
-                   SLOT(BackupTabChanged(int)));
+  QObject::connect(
+      ui_->backup_tabset, SIGNAL(currentChanged(int)), this,  // NOLINT
+      SLOT(BackupTabChanged(int)));  // NOLINT
 }
 
 MainWindow::~MainWindow() {}
 
-string MainWindow::GetBackupVolume(string orig_filename) {
+string MainWindow::GetBackupVolume(string /* orig_filename */) {
   QFileDialog dialog(this);
   dialog.setNameFilter(tr("Backup volumes (*.bkp)"));
   dialog.setAcceptMode(QFileDialog::AcceptOpen);
@@ -101,8 +106,13 @@ void MainWindow::UpdateBackupComboDescription(int index) {
   ui_->summary_backup_type->setText(summary_backup_type);
 }
 
-void MainWindow::SwitchToBackupPage1() { ui_->backup_tabset->setCurrentIndex(0); }
-void MainWindow::SwitchToBackupPage2() { ui_->backup_tabset->setCurrentIndex(1); }
+void MainWindow::SwitchToBackupPage1() {
+  ui_->backup_tabset->setCurrentIndex(0);
+}
+
+void MainWindow::SwitchToBackupPage2() {
+  ui_->backup_tabset->setCurrentIndex(1);
+}
 void MainWindow::SwitchToBackupPage3() {
   // This one, unlike the others, will actually calculate the summary details
   // for the view.

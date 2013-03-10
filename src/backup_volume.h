@@ -51,10 +51,10 @@ class BackupVolume : public BackupVolumeInterface {
   virtual Status Close();
   virtual Status CloseWithFileSet(const FileSet& fileset);
   virtual uint64_t EstimatedSize() const;
-  virtual const uint64_t volume_number() const {
+  virtual uint64_t volume_number() const {
     return descriptor_header_.volume_number;
   }
-  virtual const uint64_t last_backup_offset() const {
+  virtual uint64_t last_backup_offset() const {
     return descriptor2_offset_;
   }
 
