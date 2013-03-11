@@ -41,6 +41,7 @@ MainWindow::MainWindow(QWidget *parent)
   ui_->treeView->hideColumn(2);
   ui_->treeView->hideColumn(3);
   ui_->treeView->header()->hide();
+  ui_->tabWidget->setCurrentIndex(0);
   ui_->backup_tabset->setCurrentIndex(0);
   ui_->main_tabset->setCurrentIndex(0);
 

@@ -9,5 +9,6 @@
         <file>graphics/1362909890_back.png</file>
         <file>graphics/1362909890_forward.png</file>
         <file>graphics/backup_button.svg</file>
+        <file>graphics/gradient_line.svg</file>
     </qresource>
 </RCC>

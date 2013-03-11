@@ -9,7 +9,7 @@
 #include "src/status.h"
 
 namespace backup2 {
-class BackupFile;
+struct BackupFile;
 
 class FileInterface {
  public:
