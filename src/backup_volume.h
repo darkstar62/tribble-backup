@@ -43,13 +43,17 @@ class BackupVolume : public BackupVolumeInterface {
   virtual bool GetChunk(Uint128 md5sum, BackupDescriptor1Chunk* chunk) {
     return chunks_.GetChunk(md5sum, chunk);
   }
+  virtual std::unordered_map<uint64_t, std::string>
+      GetLabels() {
+    return labels_;
+  }
   virtual Status WriteChunk(
       Uint128 md5sum, const std::string& data, uint64_t raw_size,
       EncodingType type, uint64_t* chunk_offset_out);
   virtual Status ReadChunk(const FileChunk& chunk, std::string* data_out,
                            EncodingType* encoding_type_out);
   virtual Status Close();
-  virtual Status CloseWithFileSet(const FileSet& fileset);
+  virtual Status CloseWithFileSet(FileSet* fileset);
   virtual uint64_t EstimatedSize() const;
   virtual uint64_t volume_number() const {
     return descriptor_header_.volume_number;
@@ -67,7 +71,11 @@ class BackupVolume : public BackupVolumeInterface {
 
   // Write the various backup descriptors to the file.  These are run in order
   // at the end of the file.
-  Status WriteBackupDescriptor1();
+  //
+  // For descriptor 1, if the fileset is NULL, the labels we know about are
+  // re-written back.  Otherwise, data from the fileset is used to add or update
+  // a label.
+  Status WriteBackupDescriptor1(FileSet* fileset);
   Status WriteBackupDescriptor2(const FileSet& fileset);
   Status WriteBackupDescriptorHeader();
 
@@ -104,6 +112,8 @@ class BackupVolume : public BackupVolumeInterface {
   // initially from backup descriptor 1, and stored there at the end of the
   // backup.
   ChunkMap chunks_;
+
+  std::unordered_map<uint64_t, std::string> labels_;
 
   bool modified_;
 

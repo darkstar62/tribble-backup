@@ -15,7 +15,7 @@ namespace backup2 {
 
 class MockFile : public FileInterface {
  public:
-  MOCK_METHOD1(Open, Status(FileInterface::Mode mode));
+  MOCK_METHOD1(Open, Status(const FileInterface::Mode mode));
   MOCK_METHOD0(Close, Status());
   MOCK_METHOD0(Unlink, Status());
   MOCK_METHOD0(Tell, int64_t());

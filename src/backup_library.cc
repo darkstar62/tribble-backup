@@ -282,7 +282,7 @@ Status BackupLibrary::ReadChunk(const FileChunk& chunk, string* data_out) {
 }
 
 Status BackupLibrary::CloseBackup() {
-  Status retval = current_backup_volume_->CloseWithFileSet(*file_set_.get());
+  Status retval = current_backup_volume_->CloseWithFileSet(file_set_.get());
   LOG_RETURN_IF_ERROR(retval, "Could not close backup volume");
 
   // Merge the backup volume's chunk data with ours.  This way we have all the

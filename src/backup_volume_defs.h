@@ -36,6 +36,7 @@ enum HeaderType {
   kHeaderTypeChunkHeader,
   kHeaderTypeDescriptor1,
   kHeaderTypeDescriptor1Chunk,
+  kHeaderTypeDescriptor1Label,
   kHeaderTypeDescriptor2,
   kHeaderTypeDescriptorHeader,
   kHeaderTypeBackupFile,
@@ -83,6 +84,10 @@ struct BackupDescriptor1 {
   // BackupDescriptor1Chunk increments immediately following this descriptor in
   // the file.
   uint64_t total_chunks;
+
+  // Total number of label entries in the file.  Label entries immediately
+  // follow the chunks.
+  uint64_t total_labels;
 };
 
 // A BackupDescriptor1Chunk is a structure that represents a single chunk in the
@@ -111,6 +116,22 @@ struct BackupDescriptor1Chunk {
   // allow us to quickly know which chunks are where without scanning the entire
   // backup series.
   uint64_t volume_number;
+};
+
+struct BackupDescriptor1Label {
+  BackupDescriptor1Label() {
+    memset(this, 0, sizeof(BackupDescriptor1Label));
+    header_type = kHeaderTypeDescriptor1Label;
+  }
+
+  // Type of header.
+  HeaderType header_type;
+
+  // Unique identifier for the label.  This is an incrementing number.
+  uint64_t id;
+
+  // Size of the string name of the label immediately following this header.
+  uint64_t name_size;
 };
 
 // BackupDescriptor2 is stored only in the last backup volume in the set, and
@@ -168,6 +189,11 @@ struct BackupDescriptor2 {
 
   // Number of files in this backup set.
   uint64_t num_files;
+
+  // ID of the label corresponding to this backup.  Values from 1 to MAX_INT are
+  // valid -- 0 is reserved to indicate that the system should allocate a new
+  // one.
+  uint64_t label_id;
 
   // Size of the backup description given by the user.
   uint64_t description_size;

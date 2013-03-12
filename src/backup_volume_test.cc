@@ -3,10 +3,12 @@
 
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "src/backup_volume.h"
 #include "src/callback.h"
+#include "src/common.h"
 #include "src/fileset.h"
 #include "src/fake_file.h"
 #include "src/mock_encoder.h"
@@ -18,6 +20,7 @@
 
 using std::string;
 using std::unique_ptr;
+using std::unordered_map;
 using std::vector;
 using testing::_;
 using testing::DoAll;
@@ -102,6 +105,7 @@ TEST_F(BackupVolumeTest, SuccessfulInit) {
 
   BackupDescriptor1 descriptor1;
   descriptor1.total_chunks = 1;
+  descriptor1.total_labels = 1;
   file->Write(&descriptor1, sizeof(descriptor1));
   retval = volume.Init();
   EXPECT_FALSE(retval.ok());
@@ -116,12 +120,21 @@ TEST_F(BackupVolumeTest, SuccessfulInit) {
   EXPECT_FALSE(retval.ok());
   EXPECT_EQ(kStatusCorruptBackup, retval.code());
 
+  // Create a descriptor 1 label.
+  string label_name = "foo bar yo";
+  BackupDescriptor1Label descriptor1_label;
+  descriptor1_label.id = 0x123;
+  descriptor1_label.name_size = label_name.size();
+  file->Write(&descriptor1_label, sizeof(descriptor1_label));
+  file->Write(&label_name.at(0), label_name.size());
+
   // Create a descriptor 2.
   BackupDescriptor2 descriptor2;
   descriptor2.unencoded_size = 16;
   descriptor2.encoded_size = 16;
   descriptor2.num_files = 1;
   descriptor2.description_size = 6;
+  descriptor2.label_id = 0x123;
   file->Write(&descriptor2, sizeof(descriptor2));
   file->Write("backup", 6);
   retval = volume.Init();
@@ -176,6 +189,7 @@ TEST_F(BackupVolumeTest, CreateAndClose) {
   uint64_t desc1_offset = file->size();
   BackupDescriptor1 descriptor1;
   descriptor1.total_chunks = 0;
+  descriptor1.total_labels = 0;
   file->Write(&descriptor1, sizeof(descriptor1));
 
   // Create the backup header.
@@ -226,6 +240,7 @@ TEST_F(BackupVolumeTest, CreateAddChunkAndClose) {
   uint64_t desc1_offset = file->size();
   BackupDescriptor1 descriptor1;
   descriptor1.total_chunks = 1;
+  descriptor1.total_labels = 0;
   file->Write(&descriptor1, sizeof(descriptor1));
 
   // Create the descriptor 1 chunk.
@@ -292,6 +307,7 @@ TEST_F(BackupVolumeTest, CreateAddChunkAndCloseWithFileSet) {
   uint64_t desc1_offset = file->size();
   BackupDescriptor1 descriptor1;
   descriptor1.total_chunks = 1;
+  descriptor1.total_labels = 1;
   file->Write(&descriptor1, sizeof(descriptor1));
 
   // Create the descriptor 1 chunk.
@@ -299,6 +315,16 @@ TEST_F(BackupVolumeTest, CreateAddChunkAndCloseWithFileSet) {
   descriptor1_chunk.md5sum = chunk_header.md5sum;
   descriptor1_chunk.offset = 8;
   file->Write(&descriptor1_chunk, sizeof(descriptor1_chunk));
+
+  // Create a descriptor 1 label.  We're going to specify 0 as the label ID, and
+  // the system should assign it.  Seeing that there are no other labels in the
+  // system, it should assign it 1.
+  string label_name = "foo bar yo";
+  BackupDescriptor1Label descriptor1_label;
+  descriptor1_label.id = 0x1;
+  descriptor1_label.name_size = label_name.size();
+  file->Write(&descriptor1_label, sizeof(descriptor1_label));
+  file->Write(&label_name.at(0), label_name.size());
 
   // Create the descriptor 2.
   string description = "backup";
@@ -308,6 +334,7 @@ TEST_F(BackupVolumeTest, CreateAddChunkAndCloseWithFileSet) {
   descriptor2.backup_type = kBackupTypeFull;
   descriptor2.num_files = 1;
   descriptor2.description_size = 6;
+  descriptor2.label_id = descriptor1_label.id;
   file->Write(&descriptor2, sizeof(descriptor2));
   file->Write(&description.at(0), description.size());
 
@@ -359,6 +386,8 @@ TEST_F(BackupVolumeTest, CreateAddChunkAndCloseWithFileSet) {
   file_set.set_backup_type(kBackupTypeFull);
   file_set.set_previous_backup_volume(0);
   file_set.set_previous_backup_offset(0);
+  file_set.set_label_id(0);
+  file_set.set_label_name(label_name);
 
   LOG(INFO) << entry_metadata->filename_size;
   uint64_t volume_offset = 0;
@@ -367,7 +396,7 @@ TEST_F(BackupVolumeTest, CreateAddChunkAndCloseWithFileSet) {
                                 chunk_header.encoding_type,
                                 &volume_offset).ok());
   EXPECT_EQ(descriptor1_chunk.offset, volume_offset);
-  EXPECT_TRUE(volume.CloseWithFileSet(file_set).ok());
+  EXPECT_TRUE(volume.CloseWithFileSet(&file_set).ok());
 
   // Validate the contents.
   EXPECT_TRUE(file->CompareExpected());
@@ -412,6 +441,7 @@ TEST_F(BackupVolumeTest, ReadChunks) {
   uint64_t desc1_offset = file->size();
   BackupDescriptor1 descriptor1;
   descriptor1.total_chunks = 2;
+  descriptor1.total_labels = 1;
   file->Write(&descriptor1, sizeof(descriptor1));
 
   // Create the descriptor 1 chunks.
@@ -424,6 +454,14 @@ TEST_F(BackupVolumeTest, ReadChunks) {
   descriptor1_chunk2.md5sum = chunk_header2.md5sum;
   descriptor1_chunk2.offset = chunk2_offset;
   file->Write(&descriptor1_chunk2, sizeof(descriptor1_chunk2));
+
+  // Create a descriptor 1 label.
+  string label_name = "foo bar yo";
+  BackupDescriptor1Label descriptor1_label;
+  descriptor1_label.id = 0x123;
+  descriptor1_label.name_size = label_name.size();
+  file->Write(&descriptor1_label, sizeof(descriptor1_label));
+  file->Write(&label_name.at(0), label_name.size());
 
   // Create the backup header.
   BackupDescriptorHeader header;
@@ -465,6 +503,14 @@ TEST_F(BackupVolumeTest, ReadChunks) {
                                &encoding_type2).ok());
   EXPECT_EQ(encoded_data2, read_chunk2);
   EXPECT_EQ(chunk_header2.encoding_type, encoding_type2);
+
+  // Validate the labels too.
+  unordered_map<uint64_t, string> labels = volume.GetLabels();
+  EXPECT_EQ(1, labels.size());
+  auto label_iter = labels.find(descriptor1_label.id);
+  EXPECT_NE(labels.end(), label_iter);
+  EXPECT_EQ(descriptor1_label.id, label_iter->first);
+  EXPECT_EQ(label_name, label_iter->second);
 }
 
 TEST_F(BackupVolumeTest, ReadBackupSets) {
@@ -472,6 +518,10 @@ TEST_F(BackupVolumeTest, ReadBackupSets) {
   FakeFile* file = new FakeFile;
 
   // Build up our fake file.
+  string label1_name = "foo bar blah";
+  string label2_name = "another label";
+  uint64_t label1_id = 0x123;
+  uint64_t label2_id = 0x456;
 
   // Version string.
   file->Write(kGoodVersion, 8);
@@ -495,6 +545,7 @@ TEST_F(BackupVolumeTest, ReadBackupSets) {
     uint64_t desc1_offset = file->size();
     BackupDescriptor1 descriptor1;
     descriptor1.total_chunks = 1;
+    descriptor1.total_labels = 1;
     file->Write(&descriptor1, sizeof(descriptor1));
 
     // Create the descriptor 1 chunks.
@@ -502,6 +553,13 @@ TEST_F(BackupVolumeTest, ReadBackupSets) {
     descriptor1_chunk.md5sum = chunk_header.md5sum;
     descriptor1_chunk.offset = chunk1_offset;
     file->Write(&descriptor1_chunk, sizeof(descriptor1_chunk));
+
+    // Create a descriptor 1 label.
+    BackupDescriptor1Label descriptor1_label;
+    descriptor1_label.id = label1_id;
+    descriptor1_label.name_size = label1_name.size();
+    file->Write(&descriptor1_label, sizeof(descriptor1_label));
+    file->Write(&label1_name.at(0), label1_name.size());
 
     // Create the descriptor 2.
     backup1_offset = file->size();
@@ -511,6 +569,7 @@ TEST_F(BackupVolumeTest, ReadBackupSets) {
     descriptor2.previous_backup_volume_number = 0;
     descriptor2.backup_type = kBackupTypeFull;
     descriptor2.num_files = 1;
+    descriptor2.label_id = label1_id;
     descriptor2.description_size = description.size();
     file->Write(&descriptor2, sizeof(descriptor2));
     file->Write(&description.at(0), description.size());
@@ -557,6 +616,7 @@ TEST_F(BackupVolumeTest, ReadBackupSets) {
     uint64_t desc1_offset = file->size();
     BackupDescriptor1 descriptor1;
     descriptor1.total_chunks = 1;
+    descriptor1.total_labels = 2;
     file->Write(&descriptor1, sizeof(descriptor1));
 
     // Create the descriptor 1 chunks.
@@ -565,6 +625,20 @@ TEST_F(BackupVolumeTest, ReadBackupSets) {
     descriptor1_chunk.offset = chunk1_offset;
     file->Write(&descriptor1_chunk, sizeof(descriptor1_chunk));
 
+    // Create a descriptor 1 label.
+    BackupDescriptor1Label descriptor1_label;
+    descriptor1_label.id = label1_id;
+    descriptor1_label.name_size = label1_name.size();
+    file->Write(&descriptor1_label, sizeof(descriptor1_label));
+    file->Write(&label1_name.at(0), label1_name.size());
+
+    // ... and another one.
+    BackupDescriptor1Label descriptor1_label2;
+    descriptor1_label2.id = label2_id;
+    descriptor1_label2.name_size = label2_name.size();
+    file->Write(&descriptor1_label2, sizeof(descriptor1_label));
+    file->Write(&label2_name.at(0), label2_name.size());
+
     // Create the descriptor 2.
     string description = "backup 2";
     BackupDescriptor2 descriptor2;
@@ -572,6 +646,7 @@ TEST_F(BackupVolumeTest, ReadBackupSets) {
     descriptor2.previous_backup_volume_number = 0;
     descriptor2.backup_type = kBackupTypeFull;
     descriptor2.num_files = 1;
+    descriptor2.label_id = label2_id;
     descriptor2.description_size = description.size();
     file->Write(&descriptor2, sizeof(descriptor2));
     file->Write(&description.at(0), description.size());
@@ -619,12 +694,16 @@ TEST_F(BackupVolumeTest, ReadBackupSets) {
   EXPECT_EQ("backup 2", file_set1->description());
   EXPECT_EQ(1, file_set1->num_files());
   EXPECT_EQ("/foo/bleh", file_set1->GetFiles()[0]->filename());
+  EXPECT_EQ(label2_id, file_set1->label_id());
+  EXPECT_EQ(label2_name, file_set1->label_name());
 
   // Check the second backup.
   FileSet* file_set2 = file_sets.value()[1];
   EXPECT_EQ("backup", file_set2->description());
   EXPECT_EQ(1, file_set2->num_files());
   EXPECT_EQ("/foo/bar", file_set2->GetFiles()[0]->filename());
+  EXPECT_EQ(label1_id, file_set2->label_id());
+  EXPECT_EQ(label1_name, file_set2->label_name());
 
   // Clean up.
   for (FileSet* file_set : file_sets.value()) {
@@ -659,6 +738,7 @@ TEST_F(BackupVolumeTest, ReadBackupSetsMultiFile) {
     uint64_t desc1_offset = vol0->size();
     BackupDescriptor1 descriptor1;
     descriptor1.total_chunks = 1;
+    descriptor1.total_labels = 1;
     vol0->Write(&descriptor1, sizeof(descriptor1));
 
     // Create the descriptor 1 chunks.
@@ -666,6 +746,14 @@ TEST_F(BackupVolumeTest, ReadBackupSetsMultiFile) {
     descriptor1_chunk.md5sum = chunk_header.md5sum;
     descriptor1_chunk.offset = chunk1_offset;
     vol0->Write(&descriptor1_chunk, sizeof(descriptor1_chunk));
+
+    // Create a descriptor 1 label.
+    string label_name = "foo bar yo";
+    BackupDescriptor1Label descriptor1_label;
+    descriptor1_label.id = 0x123;
+    descriptor1_label.name_size = label_name.size();
+    vol0->Write(&descriptor1_label, sizeof(descriptor1_label));
+    vol0->Write(&label_name.at(0), label_name.size());
 
     // Create the descriptor 2.
     string description = "backup";

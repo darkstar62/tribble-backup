@@ -4,6 +4,7 @@
 #define BACKUP2_SRC_FAKE_BACKUP_VOLUME_H_
 
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "src/common.h"
@@ -105,6 +106,10 @@ class FakeBackupVolume : public BackupVolumeInterface {
     return chunks_.GetChunk(md5sum, chunk);
   }
 
+  virtual std::unordered_map<uint64_t, std::string> GetLabels() {
+    return std::unordered_map<uint64_t, std::string>();
+  }
+
   virtual Status WriteChunk(
       Uint128 md5sum, const std::string& data, uint64_t raw_size,
       EncodingType type, uint64_t* chunk_offset_out) {
@@ -146,7 +151,7 @@ class FakeBackupVolume : public BackupVolumeInterface {
   virtual Status Close() { return Status::OK; }
 
   // Note, the fileset here won't be available when queried.
-  virtual Status CloseWithFileSet(const FileSet& fileset) {
+  virtual Status CloseWithFileSet(FileSet* fileset) {
     return Status::OK;
   }
 

@@ -4,6 +4,7 @@
 #define BACKUP2_SRC_BACKUP_VOLUME_INTERFACE_H_
 
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "src/backup_volume_defs.h"
@@ -67,6 +68,10 @@ class BackupVolumeInterface {
   // the chunk.  Returns false if the chunk couldn't be found.
   virtual bool GetChunk(Uint128 md5sum, BackupDescriptor1Chunk* chunk) = 0;
 
+  // Return an unordered map of label UUID to description of all labels known.
+  // This will be of all labels encountered up to this backup volume.
+  virtual std::unordered_map<uint64_t, std::string> GetLabels() = 0;
+
   // Write a chunk to the volume.  The offset in the backup volume for this
   // chunk is returned on success in chunk_offset_out.
   virtual Status WriteChunk(
@@ -81,8 +86,11 @@ class BackupVolumeInterface {
   // Close out the backup volume.  If this is the last volume in the backup a
   // fileset is provided and we write descriptor 2 to the file.  Otherwise, we
   // only leave descriptor 1 and the backup header.
+  //
+  // In the second form, the fileset may be modified to include the new label
+  // number if one was requested.  Ownership does not transfer.
   virtual Status Close() = 0;
-  virtual Status CloseWithFileSet(const FileSet& fileset) = 0;
+  virtual Status CloseWithFileSet(FileSet* fileset) = 0;
 
   // Returns the estimated disk size of the volume, including metadata (but not
   // descriptor 2, as that can't be known until after the backup).

@@ -132,6 +132,7 @@ Status BackupVolume::Create(const ConfigOptions& options) {
   // Create (but don't yet write!) the backup descriptor 1.  We'll write this
   // once the backup finishes.
   descriptor1_.total_chunks = 0;
+  descriptor1_.total_labels = 0;
 
   // Create (but don't yet write!) the backup descriptor header.  We'll maintain
   // this throughout the process of building the backup.  We start with
@@ -206,7 +207,7 @@ Status BackupVolume::ReadChunk(const FileChunk& chunk, string* data_out,
 
 Status BackupVolume::Close() {
   if (modified_) {
-    WriteBackupDescriptor1();
+    WriteBackupDescriptor1(NULL);
     // No FileSet, so skip descriptor 2.
     WriteBackupDescriptorHeader();
   }
@@ -218,10 +219,10 @@ Status BackupVolume::Close() {
   return Status::OK;
 }
 
-Status BackupVolume::CloseWithFileSet(const FileSet& fileset) {
+Status BackupVolume::CloseWithFileSet(FileSet* fileset) {
   // Closing with a FileSet necessitates a write of the backup descriptors.
-  WriteBackupDescriptor1();
-  WriteBackupDescriptor2(fileset);
+  WriteBackupDescriptor1(fileset);
+  WriteBackupDescriptor2(*fileset);
   WriteBackupDescriptorHeader();
 
   Status retval = file_->Close();
@@ -272,7 +273,7 @@ Status BackupVolume::WriteChunk(
   return Status::OK;
 }
 
-Status BackupVolume::WriteBackupDescriptor1() {
+Status BackupVolume::WriteBackupDescriptor1(FileSet* fileset) {
   // The current offset is where descriptor 1 is -- grab this and store it in
   // the descriptor header.
   LOG(INFO) << "Writing descriptor 1";
@@ -280,8 +281,30 @@ Status BackupVolume::WriteBackupDescriptor1() {
   LOG_RETURN_IF_ERROR(retval, "Error seeking to EOF");
   descriptor_header_.backup_descriptor_1_offset = file_->Tell();
 
-  // Grab the number of chunks we have, and write the descriptor.
+  // Stash away the label we were given in the set.
+  if (fileset) {
+    if (fileset->label_id() == 0) {
+      // We're to assign it one.  Give it a new incremental one.
+      fileset->set_label_id(labels_.size() + 1);
+    }
+
+    VLOG(3) << "Looking for label: " << fileset->label_name() << ", "
+            << fileset->label_id();
+    auto label_iter = labels_.find(fileset->label_id());
+    if (label_iter != labels_.end()) {
+      // We already have this UUID, but update its string.
+      VLOG(3) << "Found, update name";
+      label_iter->second = fileset->label_name();
+    } else {
+      VLOG(3) << "Added new label: " << fileset->label_name() << ", "
+              << hex << fileset->label_id();
+      labels_.insert(make_pair(fileset->label_id(), fileset->label_name()));
+    }
+  }
+
+  // Grab the number of chunks and labels we have, and write the descriptor.
   descriptor1_.total_chunks = chunks_.size();
+  descriptor1_.total_labels = labels_.size();
   retval = file_->Write(&descriptor1_, sizeof(BackupDescriptor1));
   LOG_RETURN_IF_ERROR(retval, "Couldn't write descriptor 1 header");
 
@@ -290,6 +313,25 @@ Status BackupVolume::WriteBackupDescriptor1() {
     retval = file_->Write(&chunk.second, sizeof(BackupDescriptor1Chunk));
     LOG_RETURN_IF_ERROR(retval, "Couldn't write descriptor 1 chunk");
   }
+
+  // After this is the list of labels.
+  for (auto label_iter : labels_) {
+    BackupDescriptor1Label label;
+    label.id = label_iter.first;
+    label.name_size = label_iter.second.size();
+
+    VLOG(3) << "Writing label: " << label_iter.second << ", "
+            << hex << label_iter.first;
+
+    // Write the descriptor.
+    retval = file_->Write(&label, sizeof(BackupDescriptor1Label));
+    LOG_RETURN_IF_ERROR(retval, "Couldn't write descriptor 1 label");
+
+    // Write the name.
+    retval = file_->Write(&label_iter.second.at(0), label_iter.second.size());
+    LOG_RETURN_IF_ERROR(retval, "Couldn't write label string");
+  }
+
   modified_ = true;
   return Status::OK;
 }
@@ -306,6 +348,7 @@ Status BackupVolume::WriteBackupDescriptor2(const FileSet& fileset) {
   descriptor2_.previous_backup_offset = fileset.previous_backup_offset();
   descriptor2_.previous_backup_volume_number = fileset.previous_backup_volume();
   descriptor2_.backup_type = fileset.backup_type();
+  descriptor2_.label_id = fileset.label_id();
   retval = file_->Write(&descriptor2_, sizeof(BackupDescriptor2));
   LOG_RETURN_IF_ERROR(retval, "Couldn't write descriptor 2 header");
 
@@ -397,6 +440,23 @@ Status BackupVolume::ReadBackupDescriptor1() {
     chunks_.Add(chunk.md5sum, chunk);
   }
 
+  // Read the labels out of the file.
+  for (uint64_t label_num = 0; label_num < descriptor1.total_labels;
+       ++label_num) {
+    // Read the label metadata.
+    BackupDescriptor1Label label;
+    retval = file_->Read(&label, sizeof(BackupDescriptor1Label), NULL);
+    LOG_RETURN_IF_ERROR(retval, "Couldn't read descriptor 1 label");
+
+    // Read the label name.
+    string label_name;
+    label_name.resize(label.name_size);
+    retval = file_->Read(&label_name.at(0), label_name.size(), NULL);
+    LOG_RETURN_IF_ERROR(retval, "Couldn't read label string");
+
+    labels_.insert(make_pair(label.id, label_name));
+  }
+
   descriptor1_ = descriptor1;
   return Status::OK;
 }
@@ -454,6 +514,8 @@ StatusOr<vector<FileSet*> > BackupVolume::LoadFileSets(
 
     FileSet* fileset = new FileSet;
     fileset->set_description(description);
+    fileset->set_label_id(descriptor2.label_id);
+    fileset->set_label_name(labels_[descriptor2.label_id]);
 
     // Read in all the files, and the file chunks.
     for (uint64_t file_num = 0; file_num < descriptor2.num_files; ++file_num) {

@@ -62,6 +62,15 @@ class FileSet {
     previous_backup_offset_ = offset;
   }
 
+  // Set the label ID.  A value of 0 indicates that the label is new and should
+  // be system-assigned.
+  void set_label_id(uint64_t id) { label_id_ = id; }
+  uint64_t label_id() const { return label_id_; }
+
+  // Set the label name.
+  void set_label_name(std::string name) { label_name_ = name; }
+  std::string label_name() const { return label_name_; }
+
  private:
   // Vector of files in the file set.
   std::vector<FileEntry*> files_;
@@ -75,6 +84,14 @@ class FileSet {
   // Previous backup information.
   uint64_t previous_backup_volume_;
   uint64_t previous_backup_offset_;
+
+  // The ID for the label we want to use.  If this label doesn't exist, it
+  // will be created.
+  uint64_t label_id_;
+
+  // The name of the label.  If this changes, but the UUID remains the same,
+  // it's taken to be the same label, but with a new name.
+  std::string label_name_;
 
   DISALLOW_COPY_AND_ASSIGN(FileSet);
 };
