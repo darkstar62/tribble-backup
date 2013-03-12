@@ -523,7 +523,7 @@ QTabWidget#main_tabset::pane {
          <widget class="QWidget" name="tab_backup">
           <property name="styleSheet">
            <string notr="true">#tab_backup {
-  background-color: rgb(100, 100, 100);
+  background-color: white;
 }</string>
           </property>
           <attribute name="icon">
@@ -542,31 +542,14 @@ QTabWidget#main_tabset::pane {
             <number>0</number>
            </property>
            <item>
-            <widget class="QTabWidget" name="backup_tabset">
-             <property name="sizePolicy">
-              <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
-               <horstretch>0</horstretch>
-               <verstretch>0</verstretch>
-              </sizepolicy>
-             </property>
-             <property name="font">
-              <font>
-               <family>Arial</family>
-               <pointsize>9</pointsize>
-               <weight>75</weight>
-               <bold>true</bold>
-              </font>
-             </property>
-             <property name="autoFillBackground">
-              <bool>false</bool>
-             </property>
+            <widget class="QTabWidget" name="tabWidget_2">
              <property name="styleSheet">
-              <string notr="true">QTabBar {  
+              <string notr="true">#tabWidget_2 &gt; QTabBar {  
 	background-color: qlineargradient(spread:pad, x1:1, y1:0.233, x2:1, y2:1, stop:0 rgba(135, 0, 140, 255), stop:0.517045 rgba(155, 0, 170, 255), stop:1 rgba(80, 0, 100, 255));
   border: 0px;
 }
 
-QTabBar::tab {
+#tabWidget_2 &gt; QTabBar::tab {
   background-color: rgba(0, 0, 0, 20);
   color: white;
   border: 1px solid rgba(0, 0, 0, 50);
@@ -580,807 +563,1306 @@ QTabBar::tab {
   height: 40px;
 }
 
-QTabBar::tab:hover {
+#tabWidget_2 &gt; QTabBar::tab:hover {
   background-color: rgba(200, 0, 255, 40);
 }
 
-QTabBar::tab:selected {
+#tabWidget_2 &gt; QTabBar::tab:selected {
   background-color: qlineargradient(spread:pad, x1:1, y1:0.233, x2:1, y2:1, stop:0 rgba(205, 205, 205, 255), stop:0.517045 rgba(255, 255, 255, 255), stop:1 rgba(155, 155, 155, 255));
   color: black;
   border: 0px;
 }
 </string>
              </property>
-             <property name="tabShape">
-              <enum>QTabWidget::Rounded</enum>
-             </property>
              <property name="currentIndex">
-              <number>1</number>
-             </property>
-             <property name="elideMode">
-              <enum>Qt::ElideNone</enum>
+              <number>0</number>
              </property>
              <property name="documentMode">
               <bool>true</bool>
              </property>
-             <widget class="QWidget" name="tab_what_to_backup">
-              <property name="styleSheet">
-               <string notr="true">#tab_what_to_backup {
-  background-color: rgb(255, 255, 255);
-}</string>
-              </property>
+             <widget class="QWidget" name="tab_7">
               <attribute name="title">
-               <string>What To Backup</string>
+               <string>Backup</string>
               </attribute>
-              <layout class="QGridLayout" name="gridLayout_3">
-               <item row="0" column="0">
-                <widget class="QFrame" name="frame_2">
-                 <property name="styleSheet">
-                  <string notr="true">QFrame#frame_2 {
-  border: 1px solid rgb(200, 200, 200, 255);
-  border-radius: 10px;
-  background-color: rgb(240, 240, 240, 255);
-}</string>
-                 </property>
-                 <property name="frameShape">
-                  <enum>QFrame::StyledPanel</enum>
-                 </property>
-                 <property name="frameShadow">
-                  <enum>QFrame::Raised</enum>
-                 </property>
-                 <layout class="QVBoxLayout" name="verticalLayout_4">
-                  <item>
-                   <widget class="QLabel" name="label_3">
-                    <property name="styleSheet">
-                     <string notr="true">background: none;</string>
-                    </property>
-                    <property name="text">
-                     <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:9pt; font-weight:600; color:#55007f;&quot;&gt;New Backup&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-                    </property>
-                    <property name="textFormat">
-                     <enum>Qt::RichText</enum>
-                    </property>
-                   </widget>
-                  </item>
-                  <item>
-                   <widget class="QFrame" name="frame_3">
-                    <property name="minimumSize">
-                     <size>
-                      <width>0</width>
-                      <height>0</height>
-                     </size>
-                    </property>
-                    <property name="styleSheet">
-                     <string notr="true">QFrame#frame_3 {
-  border: 1px solid rgb(200, 200, 200, 255);
-  border-radius: 10px;
-  background-color: white;
-}</string>
-                    </property>
-                    <property name="frameShape">
-                     <enum>QFrame::StyledPanel</enum>
-                    </property>
-                    <property name="frameShadow">
-                     <enum>QFrame::Raised</enum>
-                    </property>
-                    <layout class="QVBoxLayout" name="verticalLayout_5">
-                     <item>
-                      <widget class="QLabel" name="label_4">
-                       <property name="sizePolicy">
-                        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-                         <horstretch>0</horstretch>
-                         <verstretch>0</verstretch>
-                        </sizepolicy>
-                       </property>
-                       <property name="minimumSize">
-                        <size>
-                         <width>0</width>
-                         <height>0</height>
-                        </size>
-                       </property>
-                       <property name="maximumSize">
-                        <size>
-                         <width>16777215</width>
-                         <height>16777215</height>
-                        </size>
-                       </property>
-                       <property name="text">
-                        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:10pt; color:#3a3a3a;&quot;&gt;Backup Type:&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-                       </property>
-                      </widget>
-                     </item>
-                     <item>
-                      <widget class="QFrame" name="frame_4">
-                       <property name="sizePolicy">
-                        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-                         <horstretch>0</horstretch>
-                         <verstretch>0</verstretch>
-                        </sizepolicy>
-                       </property>
-                       <property name="minimumSize">
-                        <size>
-                         <width>0</width>
-                         <height>0</height>
-                        </size>
-                       </property>
-                       <property name="maximumSize">
-                        <size>
-                         <width>16777215</width>
-                         <height>16777215</height>
-                        </size>
-                       </property>
-                       <property name="styleSheet">
-                        <string notr="true">QFrame#frame_4 {
-  border: 1px solid rgb(200, 200, 200, 255);
-  border-radius: 10px;
-  background-color: white;
-}</string>
-                       </property>
-                       <property name="frameShape">
-                        <enum>QFrame::StyledPanel</enum>
-                       </property>
-                       <property name="frameShadow">
-                        <enum>QFrame::Raised</enum>
-                       </property>
-                       <layout class="QVBoxLayout" name="verticalLayout_6">
-                        <item>
-                         <widget class="QComboBox" name="backup_type_combo">
-                          <property name="minimumSize">
-                           <size>
-                            <width>0</width>
-                            <height>0</height>
-                           </size>
-                          </property>
-                          <property name="maximumSize">
-                           <size>
-                            <width>150</width>
-                            <height>16777215</height>
-                           </size>
-                          </property>
-                          <item>
-                           <property name="text">
-                            <string>&lt;Select One&gt;</string>
-                           </property>
-                          </item>
-                          <item>
-                           <property name="text">
-                            <string>Full Backup</string>
-                           </property>
-                          </item>
-                          <item>
-                           <property name="text">
-                            <string>Incremental Backup</string>
-                           </property>
-                          </item>
-                          <item>
-                           <property name="text">
-                            <string>Differential Backup</string>
-                           </property>
-                          </item>
-                         </widget>
-                        </item>
-                        <item>
-                         <widget class="QLabel" name="backup_type_label">
-                          <property name="sizePolicy">
-                           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-                            <horstretch>0</horstretch>
-                            <verstretch>0</verstretch>
-                           </sizepolicy>
-                          </property>
-                          <property name="text">
-                           <string/>
-                          </property>
-                          <property name="wordWrap">
-                           <bool>true</bool>
-                          </property>
-                         </widget>
-                        </item>
-                       </layout>
-                      </widget>
-                     </item>
-                     <item>
-                      <widget class="QLabel" name="label_5">
-                       <property name="sizePolicy">
-                        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-                         <horstretch>0</horstretch>
-                         <verstretch>0</verstretch>
-                        </sizepolicy>
-                       </property>
-                       <property name="text">
-                        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:10pt;&quot;&gt;Source Items:&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-                       </property>
-                      </widget>
-                     </item>
-                     <item>
-                      <widget class="QFrame" name="frame_5">
-                       <property name="styleSheet">
-                        <string notr="true">QFrame#frame_5 {
-  border: 1px solid rgb(200, 200, 200, 255);
-  border-radius: 10px;
-  background-color: white;
-}</string>
-                       </property>
-                       <property name="frameShape">
-                        <enum>QFrame::StyledPanel</enum>
-                       </property>
-                       <property name="frameShadow">
-                        <enum>QFrame::Raised</enum>
-                       </property>
-                       <layout class="QHBoxLayout" name="horizontalLayout_2">
-                        <item>
-                         <widget class="QTreeView" name="treeView"/>
-                        </item>
-                       </layout>
-                      </widget>
-                     </item>
-                    </layout>
-                   </widget>
-                  </item>
-                  <item>
-                   <layout class="QHBoxLayout" name="horizontalLayout_5">
-                    <item>
-                     <spacer name="horizontalSpacer">
-                      <property name="orientation">
-                       <enum>Qt::Horizontal</enum>
-                      </property>
-                      <property name="sizeHint" stdset="0">
-                       <size>
-                        <width>40</width>
-                        <height>20</height>
-                       </size>
-                      </property>
-                     </spacer>
-                    </item>
-                    <item>
-                     <widget class="QPushButton" name="backup_next_button_1">
-                      <property name="sizePolicy">
-                       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-                        <horstretch>0</horstretch>
-                        <verstretch>0</verstretch>
-                       </sizepolicy>
-                      </property>
-                      <property name="text">
-                       <string>Next</string>
-                      </property>
-                      <property name="icon">
-                       <iconset resource="Graphics.qrc">
-                        <normaloff>:/icons/graphics/1362909890_forward.png</normaloff>:/icons/graphics/1362909890_forward.png</iconset>
-                      </property>
-                     </widget>
-                    </item>
-                   </layout>
-                  </item>
-                 </layout>
-                </widget>
-               </item>
-              </layout>
-             </widget>
-             <widget class="QWidget" name="tab_2">
-              <property name="styleSheet">
-               <string notr="true">#tab_2 {
-  background-color: rgb(255, 255, 255);
-}</string>
-              </property>
-              <attribute name="title">
-               <string>Backup Destination</string>
-              </attribute>
-              <layout class="QHBoxLayout" name="horizontalLayout">
+              <layout class="QVBoxLayout" name="verticalLayout_32">
+               <property name="spacing">
+                <number>0</number>
+               </property>
+               <property name="margin">
+                <number>0</number>
+               </property>
                <item>
-                <widget class="QFrame" name="frame_6">
+                <widget class="QTabWidget" name="backup_tabset">
+                 <property name="sizePolicy">
+                  <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+                   <horstretch>0</horstretch>
+                   <verstretch>0</verstretch>
+                  </sizepolicy>
+                 </property>
+                 <property name="font">
+                  <font>
+                   <family>Arial</family>
+                   <pointsize>9</pointsize>
+                   <weight>75</weight>
+                   <bold>true</bold>
+                  </font>
+                 </property>
+                 <property name="autoFillBackground">
+                  <bool>false</bool>
+                 </property>
                  <property name="styleSheet">
-                  <string notr="true">QFrame#frame_6 {
+                  <string notr="true">QTabWidget#backup_tabset &gt; QTabBar::tab {
+  height: 0px;
+}
+
+QTabWidget::pane {
+  background-color: white;
+}</string>
+                 </property>
+                 <property name="tabShape">
+                  <enum>QTabWidget::Rounded</enum>
+                 </property>
+                 <property name="currentIndex">
+                  <number>0</number>
+                 </property>
+                 <property name="elideMode">
+                  <enum>Qt::ElideNone</enum>
+                 </property>
+                 <property name="documentMode">
+                  <bool>true</bool>
+                 </property>
+                 <widget class="QWidget" name="tab_what_to_backup_3">
+                  <property name="styleSheet">
+                   <string notr="true">#tab_what_to_backup {
+  background-color: rgb(255, 255, 255);
+}</string>
+                  </property>
+                  <attribute name="title">
+                   <string>What To Backup</string>
+                  </attribute>
+                  <layout class="QGridLayout" name="gridLayout_5">
+                   <item row="0" column="0">
+                    <widget class="QFrame" name="frame_13">
+                     <property name="styleSheet">
+                      <string notr="true">QFrame#frame_13 {
   border: 1px solid rgb(200, 200, 200, 255);
   border-radius: 10px;
   background-color: rgb(240, 240, 240, 255);
 }</string>
-                 </property>
-                 <property name="frameShape">
-                  <enum>QFrame::StyledPanel</enum>
-                 </property>
-                 <property name="frameShadow">
-                  <enum>QFrame::Raised</enum>
-                 </property>
-                 <layout class="QVBoxLayout" name="verticalLayout_7">
-                  <item>
-                   <widget class="QLabel" name="label_6">
-                    <property name="sizePolicy">
-                     <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-                      <horstretch>0</horstretch>
-                      <verstretch>0</verstretch>
-                     </sizepolicy>
-                    </property>
-                    <property name="styleSheet">
-                     <string notr="true">background: none;</string>
-                    </property>
-                    <property name="text">
-                     <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:9pt; font-weight:600; color:#55007f;&quot;&gt;New Backup&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-                    </property>
-                    <property name="textFormat">
-                     <enum>Qt::RichText</enum>
-                    </property>
-                   </widget>
-                  </item>
-                  <item>
-                   <widget class="QFrame" name="frame_7">
-                    <property name="minimumSize">
-                     <size>
-                      <width>0</width>
-                      <height>0</height>
-                     </size>
-                    </property>
-                    <property name="styleSheet">
-                     <string notr="true">QFrame#frame_7 {
-  border: 1px solid rgb(200, 200, 200, 255);
-  border-radius: 10px;
-  background-color: white;
-}</string>
-                    </property>
-                    <property name="frameShape">
-                     <enum>QFrame::StyledPanel</enum>
-                    </property>
-                    <property name="frameShadow">
-                     <enum>QFrame::Raised</enum>
-                    </property>
-                    <layout class="QVBoxLayout" name="verticalLayout_8">
-                     <item>
-                      <widget class="QLabel" name="label_2">
-                       <property name="sizePolicy">
-                        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-                         <horstretch>0</horstretch>
-                         <verstretch>0</verstretch>
-                        </sizepolicy>
-                       </property>
-                       <property name="text">
-                        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:10pt;&quot;&gt;Backup Destination:&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-                       </property>
-                      </widget>
-                     </item>
-                     <item>
-                      <layout class="QHBoxLayout" name="horizontalLayout_3">
-                       <property name="sizeConstraint">
-                        <enum>QLayout::SetDefaultConstraint</enum>
-                       </property>
-                       <item>
-                        <widget class="QLineEdit" name="backup_dest"/>
-                       </item>
-                       <item>
-                        <widget class="QPushButton" name="backup_browse_button">
-                         <property name="text">
-                          <string>Browse...</string>
-                         </property>
-                        </widget>
-                       </item>
-                      </layout>
-                     </item>
-                     <item>
-                      <widget class="QLabel" name="label_7">
-                       <property name="sizePolicy">
-                        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-                         <horstretch>0</horstretch>
-                         <verstretch>0</verstretch>
-                        </sizepolicy>
-                       </property>
-                       <property name="text">
-                        <string>Backup Options:</string>
-                       </property>
-                      </widget>
-                     </item>
-                     <item>
-                      <widget class="QFrame" name="frame_8">
-                       <property name="sizePolicy">
-                        <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-                         <horstretch>0</horstretch>
-                         <verstretch>0</verstretch>
-                        </sizepolicy>
-                       </property>
-                       <property name="styleSheet">
-                        <string notr="true">QFrame#frame_8 {
-  border: 1px solid rgb(200, 200, 200, 255);
-  border-radius: 10px;
-  background-color: white;
-}</string>
-                       </property>
-                       <property name="frameShape">
-                        <enum>QFrame::StyledPanel</enum>
-                       </property>
-                       <property name="frameShadow">
-                        <enum>QFrame::Raised</enum>
-                       </property>
-                       <layout class="QVBoxLayout" name="verticalLayout">
-                        <property name="spacing">
-                         <number>18</number>
+                     </property>
+                     <property name="frameShape">
+                      <enum>QFrame::StyledPanel</enum>
+                     </property>
+                     <property name="frameShadow">
+                      <enum>QFrame::Raised</enum>
+                     </property>
+                     <layout class="QVBoxLayout" name="verticalLayout_23">
+                      <item>
+                       <widget class="QLabel" name="label_32">
+                        <property name="styleSheet">
+                         <string notr="true">background: none;</string>
                         </property>
-                        <item>
-                         <layout class="QHBoxLayout" name="horizontalLayout_8">
-                          <property name="spacing">
-                           <number>20</number>
-                          </property>
-                          <property name="bottomMargin">
-                           <number>0</number>
-                          </property>
-                          <item>
-                           <widget class="QLabel" name="label_8">
-                            <property name="text">
-                             <string>Description:</string>
-                            </property>
-                           </widget>
-                          </item>
-                          <item>
-                           <widget class="QLineEdit" name="backup_description"/>
-                          </item>
-                         </layout>
-                        </item>
-                        <item>
-                         <widget class="QCheckBox" name="enable_compression_checkbox">
-                          <property name="sizePolicy">
-                           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-                            <horstretch>0</horstretch>
-                            <verstretch>0</verstretch>
-                           </sizepolicy>
-                          </property>
-                          <property name="toolTip">
-                           <string>Enable compression.  This can save disk space, but will make backups slower.</string>
-                          </property>
-                          <property name="text">
-                           <string>Enable Compression</string>
-                          </property>
-                         </widget>
-                        </item>
-                        <item>
-                         <layout class="QHBoxLayout" name="horizontalLayout_7">
-                          <item>
-                           <widget class="QCheckBox" name="split_fixed_check">
-                            <property name="toolTip">
-                             <string>Enable this if you'd like to split backup files into separate files, e.g. for storage on CDs or DVDs.</string>
-                            </property>
-                            <property name="text">
-                             <string>Split into fixed-size volumes</string>
-                            </property>
-                           </widget>
-                          </item>
-                          <item>
-                           <widget class="QComboBox" name="fixed_size_combo">
-                            <property name="enabled">
-                             <bool>false</bool>
-                            </property>
+                        <property name="text">
+                         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:9pt; font-weight:600; color:#55007f;&quot;&gt;New Backup&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                        </property>
+                        <property name="textFormat">
+                         <enum>Qt::RichText</enum>
+                        </property>
+                       </widget>
+                      </item>
+                      <item>
+                       <widget class="QLabel" name="label_2">
+                        <property name="text">
+                         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:10pt;&quot;&gt;Step 1: What To Backup&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                        </property>
+                       </widget>
+                      </item>
+                      <item>
+                       <widget class="QFrame" name="frame_4">
+                        <property name="frameShape">
+                         <enum>QFrame::StyledPanel</enum>
+                        </property>
+                        <property name="frameShadow">
+                         <enum>QFrame::Raised</enum>
+                        </property>
+                        <layout class="QHBoxLayout" name="horizontalLayout">
+                         <property name="spacing">
+                          <number>0</number>
+                         </property>
+                         <property name="margin">
+                          <number>0</number>
+                         </property>
+                         <item>
+                          <widget class="QLabel" name="label_3">
+                           <property name="sizePolicy">
+                            <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                             <horstretch>0</horstretch>
+                             <verstretch>0</verstretch>
+                            </sizepolicy>
+                           </property>
+                           <property name="minimumSize">
+                            <size>
+                             <width>100</width>
+                             <height>0</height>
+                            </size>
+                           </property>
+                           <property name="maximumSize">
+                            <size>
+                             <width>100</width>
+                             <height>16777215</height>
+                            </size>
+                           </property>
+                           <property name="styleSheet">
+                            <string notr="true">#label_3 {
+  border: 1px solid rgb(150, 150, 150);
+  border-top-left-radius: 5px;
+  border-bottom-left-radius: 5px;
+  background-color: qlineargradient(spread:pad, x1:1, y1:0, x2:1, y2:1, stop:0 rgba(70, 102, 70, 255), stop:0.528409 rgba(70, 255, 70, 255), stop:0.590909 rgba(70, 126, 70, 255), stop:1 rgba(70, 93, 70, 255));
+  color: white;
+}</string>
+                           </property>
+                           <property name="frameShape">
+                            <enum>QFrame::NoFrame</enum>
+                           </property>
+                           <property name="text">
+                            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:9pt; font-weight:600;&quot;&gt;1&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                           </property>
+                           <property name="alignment">
+                            <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                           </property>
+                          </widget>
+                         </item>
+                         <item>
+                          <widget class="QLabel" name="label_4">
+                           <property name="sizePolicy">
+                            <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                             <horstretch>0</horstretch>
+                             <verstretch>0</verstretch>
+                            </sizepolicy>
+                           </property>
+                           <property name="minimumSize">
+                            <size>
+                             <width>100</width>
+                             <height>0</height>
+                            </size>
+                           </property>
+                           <property name="maximumSize">
+                            <size>
+                             <width>100</width>
+                             <height>16777215</height>
+                            </size>
+                           </property>
+                           <property name="styleSheet">
+                            <string notr="true">#label_4 {
+  border: 1px solid rgb(150, 150, 150);
+  background-color: qlineargradient(spread:pad, x1:1, y1:0, x2:1, y2:1, stop:0 rgba(202, 202, 202, 255), stop:0.528409 rgba(255, 255, 255, 255), stop:0.590909 rgba(226, 226, 226, 255), stop:1 rgba(193, 193, 193, 255));
+  color: black;
+}</string>
+                           </property>
+                           <property name="text">
+                            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:9pt;&quot;&gt;2&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                           </property>
+                           <property name="alignment">
+                            <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                           </property>
+                          </widget>
+                         </item>
+                         <item>
+                          <widget class="QLabel" name="label_5">
+                           <property name="sizePolicy">
+                            <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                             <horstretch>0</horstretch>
+                             <verstretch>0</verstretch>
+                            </sizepolicy>
+                           </property>
+                           <property name="minimumSize">
+                            <size>
+                             <width>100</width>
+                             <height>0</height>
+                            </size>
+                           </property>
+                           <property name="maximumSize">
+                            <size>
+                             <width>100</width>
+                             <height>16777215</height>
+                            </size>
+                           </property>
+                           <property name="styleSheet">
+                            <string notr="true">#label_5 {
+  border: 1px solid rgb(150, 150, 150);
+  border-top-right-radius: 5px;
+  border-bottom-right-radius: 5px;
+  background-color: qlineargradient(spread:pad, x1:1, y1:0, x2:1, y2:1, stop:0 rgba(202, 202, 202, 255), stop:0.528409 rgba(255, 255, 255, 255), stop:0.590909 rgba(226, 226, 226, 255), stop:1 rgba(193, 193, 193, 255));
+  color: black;
+}</string>
+                           </property>
+                           <property name="text">
+                            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:9pt;&quot;&gt;3&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                           </property>
+                           <property name="alignment">
+                            <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                           </property>
+                          </widget>
+                         </item>
+                         <item>
+                          <spacer name="horizontalSpacer">
+                           <property name="orientation">
+                            <enum>Qt::Horizontal</enum>
+                           </property>
+                           <property name="sizeHint" stdset="0">
+                            <size>
+                             <width>227</width>
+                             <height>20</height>
+                            </size>
+                           </property>
+                          </spacer>
+                         </item>
+                        </layout>
+                       </widget>
+                      </item>
+                      <item>
+                       <widget class="QFrame" name="frame_23">
+                        <property name="minimumSize">
+                         <size>
+                          <width>0</width>
+                          <height>0</height>
+                         </size>
+                        </property>
+                        <property name="styleSheet">
+                         <string notr="true">QFrame#frame_23 {
+  border: 1px solid rgb(200, 200, 200, 255);
+  border-radius: 10px;
+  background-color: white;
+}</string>
+                        </property>
+                        <property name="frameShape">
+                         <enum>QFrame::StyledPanel</enum>
+                        </property>
+                        <property name="frameShadow">
+                         <enum>QFrame::Raised</enum>
+                        </property>
+                        <layout class="QVBoxLayout" name="verticalLayout_24">
+                         <item>
+                          <widget class="QLabel" name="label_33">
+                           <property name="sizePolicy">
+                            <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                             <horstretch>0</horstretch>
+                             <verstretch>0</verstretch>
+                            </sizepolicy>
+                           </property>
+                           <property name="minimumSize">
+                            <size>
+                             <width>0</width>
+                             <height>0</height>
+                            </size>
+                           </property>
+                           <property name="maximumSize">
+                            <size>
+                             <width>16777215</width>
+                             <height>16777215</height>
+                            </size>
+                           </property>
+                           <property name="text">
+                            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:10pt; color:#3a3a3a;&quot;&gt;Backup Type:&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                           </property>
+                          </widget>
+                         </item>
+                         <item>
+                          <widget class="QFrame" name="frame_24">
+                           <property name="sizePolicy">
+                            <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                             <horstretch>0</horstretch>
+                             <verstretch>0</verstretch>
+                            </sizepolicy>
+                           </property>
+                           <property name="minimumSize">
+                            <size>
+                             <width>0</width>
+                             <height>0</height>
+                            </size>
+                           </property>
+                           <property name="maximumSize">
+                            <size>
+                             <width>16777215</width>
+                             <height>16777215</height>
+                            </size>
+                           </property>
+                           <property name="styleSheet">
+                            <string notr="true">QFrame#frame_24 {
+  border: 1px solid rgb(200, 200, 200, 255);
+  border-radius: 10px;
+  background-color: white;
+}</string>
+                           </property>
+                           <property name="frameShape">
+                            <enum>QFrame::StyledPanel</enum>
+                           </property>
+                           <property name="frameShadow">
+                            <enum>QFrame::Raised</enum>
+                           </property>
+                           <layout class="QVBoxLayout" name="verticalLayout_25">
                             <item>
-                             <property name="text">
-                              <string>Zip Disk (100mb)</string>
-                             </property>
+                             <widget class="QComboBox" name="backup_type_combo">
+                              <property name="minimumSize">
+                               <size>
+                                <width>0</width>
+                                <height>0</height>
+                               </size>
+                              </property>
+                              <property name="maximumSize">
+                               <size>
+                                <width>150</width>
+                                <height>16777215</height>
+                               </size>
+                              </property>
+                              <item>
+                               <property name="text">
+                                <string>&lt;Select One&gt;</string>
+                               </property>
+                              </item>
+                              <item>
+                               <property name="text">
+                                <string>Full Backup</string>
+                               </property>
+                              </item>
+                              <item>
+                               <property name="text">
+                                <string>Incremental Backup</string>
+                               </property>
+                              </item>
+                              <item>
+                               <property name="text">
+                                <string>Differential Backup</string>
+                               </property>
+                              </item>
+                             </widget>
                             </item>
                             <item>
-                             <property name="text">
-                              <string>80-minute CD (700mb)</string>
-                             </property>
+                             <widget class="QLabel" name="backup_type_label">
+                              <property name="sizePolicy">
+                               <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                                <horstretch>0</horstretch>
+                                <verstretch>0</verstretch>
+                               </sizepolicy>
+                              </property>
+                              <property name="text">
+                               <string/>
+                              </property>
+                              <property name="wordWrap">
+                               <bool>true</bool>
+                              </property>
+                             </widget>
                             </item>
+                           </layout>
+                          </widget>
+                         </item>
+                         <item>
+                          <widget class="QLabel" name="label_34">
+                           <property name="sizePolicy">
+                            <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                             <horstretch>0</horstretch>
+                             <verstretch>0</verstretch>
+                            </sizepolicy>
+                           </property>
+                           <property name="text">
+                            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:10pt;&quot;&gt;Source Items:&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                           </property>
+                          </widget>
+                         </item>
+                         <item>
+                          <widget class="QFrame" name="frame_25">
+                           <property name="styleSheet">
+                            <string notr="true">QFrame#frame_25 {
+  border: 1px solid rgb(200, 200, 200, 255);
+  border-radius: 10px;
+  background-color: white;
+}</string>
+                           </property>
+                           <property name="frameShape">
+                            <enum>QFrame::StyledPanel</enum>
+                           </property>
+                           <property name="frameShadow">
+                            <enum>QFrame::Raised</enum>
+                           </property>
+                           <layout class="QHBoxLayout" name="horizontalLayout_19">
                             <item>
-                             <property name="text">
-                              <string>DVD (4.7gb)</string>
-                             </property>
+                             <widget class="QTreeView" name="treeView"/>
                             </item>
-                            <item>
-                             <property name="text">
-                              <string>Blu-Ray (15gb)</string>
-                             </property>
-                            </item>
-                           </widget>
-                          </item>
-                          <item>
-                           <spacer name="horizontalSpacer_3">
-                            <property name="orientation">
-                             <enum>Qt::Horizontal</enum>
-                            </property>
-                            <property name="sizeHint" stdset="0">
-                             <size>
-                              <width>40</width>
-                              <height>20</height>
-                             </size>
-                            </property>
-                           </spacer>
-                          </item>
-                         </layout>
-                        </item>
+                           </layout>
+                          </widget>
+                         </item>
+                        </layout>
+                       </widget>
+                      </item>
+                      <item>
+                       <layout class="QHBoxLayout" name="horizontalLayout_20">
                         <item>
-                         <spacer name="verticalSpacer">
+                         <spacer name="horizontalSpacer_9">
                           <property name="orientation">
-                           <enum>Qt::Vertical</enum>
+                           <enum>Qt::Horizontal</enum>
                           </property>
                           <property name="sizeHint" stdset="0">
                            <size>
-                            <width>20</width>
-                            <height>40</height>
+                            <width>40</width>
+                            <height>20</height>
                            </size>
                           </property>
                          </spacer>
                         </item>
+                        <item>
+                         <widget class="QPushButton" name="backup_next_button_1">
+                          <property name="sizePolicy">
+                           <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                            <horstretch>0</horstretch>
+                            <verstretch>0</verstretch>
+                           </sizepolicy>
+                          </property>
+                          <property name="text">
+                           <string>Next</string>
+                          </property>
+                          <property name="icon">
+                           <iconset resource="Graphics.qrc">
+                            <normaloff>:/icons/graphics/1362909890_forward.png</normaloff>:/icons/graphics/1362909890_forward.png</iconset>
+                          </property>
+                         </widget>
+                        </item>
                        </layout>
-                      </widget>
-                     </item>
-                    </layout>
-                   </widget>
-                  </item>
-                  <item>
-                   <layout class="QHBoxLayout" name="horizontalLayout_6">
-                    <property name="sizeConstraint">
-                     <enum>QLayout::SetDefaultConstraint</enum>
-                    </property>
-                    <item>
-                     <widget class="QPushButton" name="backup_back_button_2">
-                      <property name="text">
-                       <string>Back</string>
-                      </property>
-                      <property name="icon">
-                       <iconset resource="Graphics.qrc">
-                        <normaloff>:/icons/graphics/1362909890_back.png</normaloff>:/icons/graphics/1362909890_back.png</iconset>
-                      </property>
-                     </widget>
-                    </item>
-                    <item>
-                     <spacer name="horizontalSpacer_2">
-                      <property name="orientation">
-                       <enum>Qt::Horizontal</enum>
-                      </property>
-                      <property name="sizeType">
-                       <enum>QSizePolicy::Expanding</enum>
-                      </property>
-                      <property name="sizeHint" stdset="0">
-                       <size>
-                        <width>40</width>
-                        <height>20</height>
-                       </size>
-                      </property>
-                     </spacer>
-                    </item>
-                    <item>
-                     <widget class="QPushButton" name="backup_next_button_2">
-                      <property name="text">
-                       <string>Next</string>
-                      </property>
-                      <property name="icon">
-                       <iconset resource="Graphics.qrc">
-                        <normaloff>:/icons/graphics/1362909890_forward.png</normaloff>:/icons/graphics/1362909890_forward.png</iconset>
-                      </property>
-                     </widget>
-                    </item>
-                   </layout>
-                  </item>
-                 </layout>
-                </widget>
-               </item>
-              </layout>
-             </widget>
-             <widget class="QWidget" name="backup_summary_tab">
-              <property name="styleSheet">
-               <string notr="true">#backup_summary_tab {
+                      </item>
+                     </layout>
+                    </widget>
+                   </item>
+                  </layout>
+                 </widget>
+                 <widget class="QWidget" name="tab_9">
+                  <property name="styleSheet">
+                   <string notr="true">#tab_2 {
   background-color: rgb(255, 255, 255);
 }</string>
-              </property>
-              <attribute name="title">
-               <string>Summary</string>
-              </attribute>
-              <layout class="QVBoxLayout" name="verticalLayout_12">
-               <item>
-                <widget class="QFrame" name="frame_9">
-                 <property name="styleSheet">
-                  <string notr="true">QFrame#frame_9 {
+                  </property>
+                  <attribute name="title">
+                   <string>Backup Destination</string>
+                  </attribute>
+                  <layout class="QHBoxLayout" name="horizontalLayout_21">
+                   <item>
+                    <widget class="QFrame" name="frame_26">
+                     <property name="styleSheet">
+                      <string notr="true">QFrame#frame_26 {
   border: 1px solid rgb(200, 200, 200, 255);
   border-radius: 10px;
   background-color: rgb(240, 240, 240, 255);
 }</string>
-                 </property>
-                 <property name="frameShape">
-                  <enum>QFrame::StyledPanel</enum>
-                 </property>
-                 <property name="frameShadow">
-                  <enum>QFrame::Raised</enum>
-                 </property>
-                 <layout class="QVBoxLayout" name="verticalLayout_9">
-                  <item>
-                   <widget class="QLabel" name="label_9">
-                    <property name="sizePolicy">
-                     <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-                      <horstretch>0</horstretch>
-                      <verstretch>0</verstretch>
-                     </sizepolicy>
-                    </property>
-                    <property name="styleSheet">
-                     <string notr="true">background: none;</string>
-                    </property>
-                    <property name="text">
-                     <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:9pt; font-weight:600; color:#55007f;&quot;&gt;New Backup&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-                    </property>
-                    <property name="textFormat">
-                     <enum>Qt::RichText</enum>
-                    </property>
-                   </widget>
-                  </item>
-                  <item>
-                   <widget class="QFrame" name="frame_10">
-                    <property name="minimumSize">
-                     <size>
-                      <width>0</width>
-                      <height>0</height>
-                     </size>
-                    </property>
-                    <property name="styleSheet">
-                     <string notr="true">QFrame#frame_10 {
+                     </property>
+                     <property name="frameShape">
+                      <enum>QFrame::StyledPanel</enum>
+                     </property>
+                     <property name="frameShadow">
+                      <enum>QFrame::Raised</enum>
+                     </property>
+                     <layout class="QVBoxLayout" name="verticalLayout_26">
+                      <item>
+                       <widget class="QLabel" name="label_35">
+                        <property name="sizePolicy">
+                         <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                          <horstretch>0</horstretch>
+                          <verstretch>0</verstretch>
+                         </sizepolicy>
+                        </property>
+                        <property name="styleSheet">
+                         <string notr="true">background: none;</string>
+                        </property>
+                        <property name="text">
+                         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:9pt; font-weight:600; color:#55007f;&quot;&gt;New Backup&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                        </property>
+                        <property name="textFormat">
+                         <enum>Qt::RichText</enum>
+                        </property>
+                       </widget>
+                      </item>
+                      <item>
+                       <widget class="QLabel" name="label_6">
+                        <property name="text">
+                         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:10pt;&quot;&gt;Step 2: Where and How to Store It&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                        </property>
+                       </widget>
+                      </item>
+                      <item>
+                       <widget class="QFrame" name="frame_2">
+                        <property name="frameShape">
+                         <enum>QFrame::StyledPanel</enum>
+                        </property>
+                        <property name="frameShadow">
+                         <enum>QFrame::Raised</enum>
+                        </property>
+                        <layout class="QHBoxLayout" name="horizontalLayout_2">
+                         <property name="spacing">
+                          <number>0</number>
+                         </property>
+                         <property name="margin">
+                          <number>0</number>
+                         </property>
+                         <item>
+                          <widget class="QLabel" name="label_8">
+                           <property name="sizePolicy">
+                            <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                             <horstretch>0</horstretch>
+                             <verstretch>0</verstretch>
+                            </sizepolicy>
+                           </property>
+                           <property name="minimumSize">
+                            <size>
+                             <width>100</width>
+                             <height>0</height>
+                            </size>
+                           </property>
+                           <property name="maximumSize">
+                            <size>
+                             <width>100</width>
+                             <height>16777215</height>
+                            </size>
+                           </property>
+                           <property name="styleSheet">
+                            <string notr="true">#label_8 {
+  border: 1px solid rgb(150, 150, 150);
+  border-top-left-radius: 5px;
+  border-bottom-left-radius: 5px;
+  background-color: qlineargradient(spread:pad, x1:1, y1:0, x2:1, y2:1, stop:0 rgba(70, 102, 70, 255), stop:0.528409 rgba(70, 255, 70, 255), stop:0.590909 rgba(70, 126, 70, 255), stop:1 rgba(70, 93, 70, 255));
+  color: white;
+}</string>
+                           </property>
+                           <property name="frameShape">
+                            <enum>QFrame::NoFrame</enum>
+                           </property>
+                           <property name="text">
+                            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:9pt; font-weight:600;&quot;&gt;1&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                           </property>
+                           <property name="alignment">
+                            <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                           </property>
+                          </widget>
+                         </item>
+                         <item>
+                          <widget class="QLabel" name="label_7">
+                           <property name="sizePolicy">
+                            <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                             <horstretch>0</horstretch>
+                             <verstretch>0</verstretch>
+                            </sizepolicy>
+                           </property>
+                           <property name="minimumSize">
+                            <size>
+                             <width>100</width>
+                             <height>0</height>
+                            </size>
+                           </property>
+                           <property name="maximumSize">
+                            <size>
+                             <width>100</width>
+                             <height>16777215</height>
+                            </size>
+                           </property>
+                           <property name="styleSheet">
+                            <string notr="true">#label_7 {
+  border: 1px solid rgb(150, 150, 150);
+  background-color: qlineargradient(spread:pad, x1:1, y1:0, x2:1, y2:1, stop:0 rgba(70, 102, 70, 255), stop:0.528409 rgba(70, 255, 70, 255), stop:0.590909 rgba(70, 126, 70, 255), stop:1 rgba(70, 93, 70, 255));
+  color: white;
+}</string>
+                           </property>
+                           <property name="text">
+                            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:9pt; font-weight:600;&quot;&gt;2&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                           </property>
+                           <property name="alignment">
+                            <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                           </property>
+                          </widget>
+                         </item>
+                         <item>
+                          <widget class="QLabel" name="label_9">
+                           <property name="sizePolicy">
+                            <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                             <horstretch>0</horstretch>
+                             <verstretch>0</verstretch>
+                            </sizepolicy>
+                           </property>
+                           <property name="minimumSize">
+                            <size>
+                             <width>100</width>
+                             <height>0</height>
+                            </size>
+                           </property>
+                           <property name="maximumSize">
+                            <size>
+                             <width>100</width>
+                             <height>16777215</height>
+                            </size>
+                           </property>
+                           <property name="styleSheet">
+                            <string notr="true">#label_9 {
+  border: 1px solid rgb(150, 150, 150);
+  border-top-right-radius: 5px;
+  border-bottom-right-radius: 5px;
+  background-color: qlineargradient(spread:pad, x1:1, y1:0, x2:1, y2:1, stop:0 rgba(202, 202, 202, 255), stop:0.528409 rgba(255, 255, 255, 255), stop:0.590909 rgba(226, 226, 226, 255), stop:1 rgba(193, 193, 193, 255));
+  color: black;
+}</string>
+                           </property>
+                           <property name="text">
+                            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:9pt;&quot;&gt;3&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                           </property>
+                           <property name="alignment">
+                            <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                           </property>
+                          </widget>
+                         </item>
+                         <item>
+                          <spacer name="horizontalSpacer_2">
+                           <property name="orientation">
+                            <enum>Qt::Horizontal</enum>
+                           </property>
+                           <property name="sizeHint" stdset="0">
+                            <size>
+                             <width>40</width>
+                             <height>20</height>
+                            </size>
+                           </property>
+                          </spacer>
+                         </item>
+                        </layout>
+                       </widget>
+                      </item>
+                      <item>
+                       <widget class="QFrame" name="frame_27">
+                        <property name="minimumSize">
+                         <size>
+                          <width>0</width>
+                          <height>0</height>
+                         </size>
+                        </property>
+                        <property name="styleSheet">
+                         <string notr="true">QFrame#frame_27 {
   border: 1px solid rgb(200, 200, 200, 255);
   border-radius: 10px;
   background-color: white;
 }</string>
-                    </property>
-                    <property name="frameShape">
-                     <enum>QFrame::StyledPanel</enum>
-                    </property>
-                    <property name="frameShadow">
-                     <enum>QFrame::Raised</enum>
-                    </property>
-                    <layout class="QVBoxLayout" name="verticalLayout_10">
-                     <property name="spacing">
-                      <number>20</number>
+                        </property>
+                        <property name="frameShape">
+                         <enum>QFrame::StyledPanel</enum>
+                        </property>
+                        <property name="frameShadow">
+                         <enum>QFrame::Raised</enum>
+                        </property>
+                        <layout class="QVBoxLayout" name="verticalLayout_27">
+                         <item>
+                          <widget class="QLabel" name="label_36">
+                           <property name="sizePolicy">
+                            <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                             <horstretch>0</horstretch>
+                             <verstretch>0</verstretch>
+                            </sizepolicy>
+                           </property>
+                           <property name="text">
+                            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:10pt;&quot;&gt;Backup Destination:&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                           </property>
+                          </widget>
+                         </item>
+                         <item>
+                          <layout class="QHBoxLayout" name="horizontalLayout_22">
+                           <property name="sizeConstraint">
+                            <enum>QLayout::SetDefaultConstraint</enum>
+                           </property>
+                           <item>
+                            <widget class="QLineEdit" name="backup_dest"/>
+                           </item>
+                           <item>
+                            <widget class="QPushButton" name="backup_browse_button">
+                             <property name="text">
+                              <string>Browse...</string>
+                             </property>
+                            </widget>
+                           </item>
+                          </layout>
+                         </item>
+                         <item>
+                          <widget class="QLabel" name="label_37">
+                           <property name="sizePolicy">
+                            <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                             <horstretch>0</horstretch>
+                             <verstretch>0</verstretch>
+                            </sizepolicy>
+                           </property>
+                           <property name="text">
+                            <string>Backup Options:</string>
+                           </property>
+                          </widget>
+                         </item>
+                         <item>
+                          <widget class="QFrame" name="frame_28">
+                           <property name="sizePolicy">
+                            <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                             <horstretch>0</horstretch>
+                             <verstretch>0</verstretch>
+                            </sizepolicy>
+                           </property>
+                           <property name="styleSheet">
+                            <string notr="true">QFrame#frame_28 {
+  border: 1px solid rgb(200, 200, 200, 255);
+  border-radius: 10px;
+  background-color: white;
+}</string>
+                           </property>
+                           <property name="frameShape">
+                            <enum>QFrame::StyledPanel</enum>
+                           </property>
+                           <property name="frameShadow">
+                            <enum>QFrame::Raised</enum>
+                           </property>
+                           <layout class="QVBoxLayout" name="verticalLayout_28">
+                            <property name="spacing">
+                             <number>18</number>
+                            </property>
+                            <item>
+                             <layout class="QHBoxLayout" name="horizontalLayout_23">
+                              <property name="spacing">
+                               <number>20</number>
+                              </property>
+                              <property name="bottomMargin">
+                               <number>0</number>
+                              </property>
+                              <item>
+                               <widget class="QLabel" name="label_38">
+                                <property name="text">
+                                 <string>Description:</string>
+                                </property>
+                               </widget>
+                              </item>
+                              <item>
+                               <widget class="QLineEdit" name="backup_description"/>
+                              </item>
+                             </layout>
+                            </item>
+                            <item>
+                             <widget class="QCheckBox" name="enable_compression_checkbox">
+                              <property name="sizePolicy">
+                               <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                                <horstretch>0</horstretch>
+                                <verstretch>0</verstretch>
+                               </sizepolicy>
+                              </property>
+                              <property name="toolTip">
+                               <string>Enable compression.  This can save disk space, but will make backups slower.</string>
+                              </property>
+                              <property name="text">
+                               <string>Enable Compression</string>
+                              </property>
+                             </widget>
+                            </item>
+                            <item>
+                             <layout class="QHBoxLayout" name="horizontalLayout_24">
+                              <item>
+                               <widget class="QCheckBox" name="split_fixed_check">
+                                <property name="toolTip">
+                                 <string>Enable this if you'd like to split backup files into separate files, e.g. for storage on CDs or DVDs.</string>
+                                </property>
+                                <property name="text">
+                                 <string>Split into fixed-size volumes</string>
+                                </property>
+                               </widget>
+                              </item>
+                              <item>
+                               <widget class="QComboBox" name="fixed_size_combo">
+                                <property name="enabled">
+                                 <bool>false</bool>
+                                </property>
+                                <item>
+                                 <property name="text">
+                                  <string>Zip Disk (100mb)</string>
+                                 </property>
+                                </item>
+                                <item>
+                                 <property name="text">
+                                  <string>80-minute CD (700mb)</string>
+                                 </property>
+                                </item>
+                                <item>
+                                 <property name="text">
+                                  <string>DVD (4.7gb)</string>
+                                 </property>
+                                </item>
+                                <item>
+                                 <property name="text">
+                                  <string>Blu-Ray (15gb)</string>
+                                 </property>
+                                </item>
+                               </widget>
+                              </item>
+                              <item>
+                               <spacer name="horizontalSpacer_10">
+                                <property name="orientation">
+                                 <enum>Qt::Horizontal</enum>
+                                </property>
+                                <property name="sizeHint" stdset="0">
+                                 <size>
+                                  <width>40</width>
+                                  <height>20</height>
+                                 </size>
+                                </property>
+                               </spacer>
+                              </item>
+                             </layout>
+                            </item>
+                            <item>
+                             <spacer name="verticalSpacer_6">
+                              <property name="orientation">
+                               <enum>Qt::Vertical</enum>
+                              </property>
+                              <property name="sizeHint" stdset="0">
+                               <size>
+                                <width>20</width>
+                                <height>40</height>
+                               </size>
+                              </property>
+                             </spacer>
+                            </item>
+                           </layout>
+                          </widget>
+                         </item>
+                        </layout>
+                       </widget>
+                      </item>
+                      <item>
+                       <layout class="QHBoxLayout" name="horizontalLayout_25">
+                        <property name="sizeConstraint">
+                         <enum>QLayout::SetDefaultConstraint</enum>
+                        </property>
+                        <item>
+                         <widget class="QPushButton" name="backup_back_button_2">
+                          <property name="text">
+                           <string>Back</string>
+                          </property>
+                          <property name="icon">
+                           <iconset resource="Graphics.qrc">
+                            <normaloff>:/icons/graphics/1362909890_back.png</normaloff>:/icons/graphics/1362909890_back.png</iconset>
+                          </property>
+                         </widget>
+                        </item>
+                        <item>
+                         <spacer name="horizontalSpacer_11">
+                          <property name="orientation">
+                           <enum>Qt::Horizontal</enum>
+                          </property>
+                          <property name="sizeType">
+                           <enum>QSizePolicy::Expanding</enum>
+                          </property>
+                          <property name="sizeHint" stdset="0">
+                           <size>
+                            <width>40</width>
+                            <height>20</height>
+                           </size>
+                          </property>
+                         </spacer>
+                        </item>
+                        <item>
+                         <widget class="QPushButton" name="backup_next_button_2">
+                          <property name="text">
+                           <string>Next</string>
+                          </property>
+                          <property name="icon">
+                           <iconset resource="Graphics.qrc">
+                            <normaloff>:/icons/graphics/1362909890_forward.png</normaloff>:/icons/graphics/1362909890_forward.png</iconset>
+                          </property>
+                         </widget>
+                        </item>
+                       </layout>
+                      </item>
+                     </layout>
+                    </widget>
+                   </item>
+                  </layout>
+                 </widget>
+                 <widget class="QWidget" name="backup_summary_tab_3">
+                  <property name="styleSheet">
+                   <string notr="true">#backup_summary_tab {
+  background-color: rgb(255, 255, 255);
+}</string>
+                  </property>
+                  <attribute name="title">
+                   <string>Summary</string>
+                  </attribute>
+                  <layout class="QVBoxLayout" name="verticalLayout_29">
+                   <item>
+                    <widget class="QFrame" name="frame_29">
+                     <property name="styleSheet">
+                      <string notr="true">QFrame#frame_29 {
+  border: 1px solid rgb(200, 200, 200, 255);
+  border-radius: 10px;
+  background-color: rgb(240, 240, 240, 255);
+}</string>
                      </property>
-                     <item>
-                      <widget class="QLabel" name="label_10">
-                       <property name="sizePolicy">
-                        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-                         <horstretch>0</horstretch>
-                         <verstretch>0</verstretch>
-                        </sizepolicy>
-                       </property>
-                       <property name="text">
-                        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:10pt;&quot;&gt;Summary:&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-                       </property>
-                      </widget>
-                     </item>
-                     <item>
-                      <layout class="QGridLayout" name="gridLayout">
-                       <property name="verticalSpacing">
-                        <number>20</number>
-                       </property>
-                       <item row="0" column="1">
-                        <widget class="QLabel" name="backup_description_label">
-                         <property name="sizePolicy">
-                          <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-                           <horstretch>0</horstretch>
-                           <verstretch>0</verstretch>
-                          </sizepolicy>
+                     <property name="frameShape">
+                      <enum>QFrame::StyledPanel</enum>
+                     </property>
+                     <property name="frameShadow">
+                      <enum>QFrame::Raised</enum>
+                     </property>
+                     <layout class="QVBoxLayout" name="verticalLayout_30">
+                      <item>
+                       <widget class="QLabel" name="label_39">
+                        <property name="sizePolicy">
+                         <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                          <horstretch>0</horstretch>
+                          <verstretch>0</verstretch>
+                         </sizepolicy>
+                        </property>
+                        <property name="styleSheet">
+                         <string notr="true">background: none;</string>
+                        </property>
+                        <property name="text">
+                         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:9pt; font-weight:600; color:#55007f;&quot;&gt;New Backup&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                        </property>
+                        <property name="textFormat">
+                         <enum>Qt::RichText</enum>
+                        </property>
+                       </widget>
+                      </item>
+                      <item>
+                       <widget class="QLabel" name="label_10">
+                        <property name="text">
+                         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:10pt;&quot;&gt;Step 3: Review your Settings and Save&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                        </property>
+                       </widget>
+                      </item>
+                      <item>
+                       <widget class="QFrame" name="frame_3">
+                        <property name="frameShape">
+                         <enum>QFrame::StyledPanel</enum>
+                        </property>
+                        <property name="frameShadow">
+                         <enum>QFrame::Raised</enum>
+                        </property>
+                        <layout class="QHBoxLayout" name="horizontalLayout_3">
+                         <property name="spacing">
+                          <number>0</number>
                          </property>
-                         <property name="text">
-                          <string/>
+                         <property name="margin">
+                          <number>0</number>
                          </property>
-                        </widget>
-                       </item>
-                       <item row="0" column="0">
-                        <widget class="QLabel" name="label_11">
-                         <property name="sizePolicy">
-                          <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-                           <horstretch>0</horstretch>
-                           <verstretch>0</verstretch>
-                          </sizepolicy>
+                         <item>
+                          <widget class="QLabel" name="label_12">
+                           <property name="sizePolicy">
+                            <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                             <horstretch>0</horstretch>
+                             <verstretch>0</verstretch>
+                            </sizepolicy>
+                           </property>
+                           <property name="minimumSize">
+                            <size>
+                             <width>100</width>
+                             <height>0</height>
+                            </size>
+                           </property>
+                           <property name="maximumSize">
+                            <size>
+                             <width>100</width>
+                             <height>16777215</height>
+                            </size>
+                           </property>
+                           <property name="styleSheet">
+                            <string notr="true">#label_12 {
+  border: 1px solid rgb(150, 150, 150);
+  border-top-left-radius: 5px;
+  border-bottom-left-radius: 5px;
+  background-color: qlineargradient(spread:pad, x1:1, y1:0, x2:1, y2:1, stop:0 rgba(70, 102, 70, 255), stop:0.528409 rgba(70, 255, 70, 255), stop:0.590909 rgba(70, 126, 70, 255), stop:1 rgba(70, 93, 70, 255));
+  color: white;
+}</string>
+                           </property>
+                           <property name="frameShape">
+                            <enum>QFrame::NoFrame</enum>
+                           </property>
+                           <property name="text">
+                            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:9pt; font-weight:600;&quot;&gt;1&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                           </property>
+                           <property name="alignment">
+                            <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                           </property>
+                          </widget>
+                         </item>
+                         <item>
+                          <widget class="QLabel" name="label_11">
+                           <property name="sizePolicy">
+                            <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                             <horstretch>0</horstretch>
+                             <verstretch>0</verstretch>
+                            </sizepolicy>
+                           </property>
+                           <property name="minimumSize">
+                            <size>
+                             <width>100</width>
+                             <height>0</height>
+                            </size>
+                           </property>
+                           <property name="maximumSize">
+                            <size>
+                             <width>100</width>
+                             <height>16777215</height>
+                            </size>
+                           </property>
+                           <property name="styleSheet">
+                            <string notr="true">#label_11 {
+  border: 1px solid rgb(150, 150, 150);
+  background-color: qlineargradient(spread:pad, x1:1, y1:0, x2:1, y2:1, stop:0 rgba(70, 102, 70, 255), stop:0.528409 rgba(70, 255, 70, 255), stop:0.590909 rgba(70, 126, 70, 255), stop:1 rgba(70, 93, 70, 255));
+  color: white;
+}</string>
+                           </property>
+                           <property name="text">
+                            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:9pt; font-weight:600;&quot;&gt;2&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                           </property>
+                           <property name="alignment">
+                            <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                           </property>
+                          </widget>
+                         </item>
+                         <item>
+                          <widget class="QLabel" name="label_13">
+                           <property name="sizePolicy">
+                            <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                             <horstretch>0</horstretch>
+                             <verstretch>0</verstretch>
+                            </sizepolicy>
+                           </property>
+                           <property name="minimumSize">
+                            <size>
+                             <width>100</width>
+                             <height>0</height>
+                            </size>
+                           </property>
+                           <property name="maximumSize">
+                            <size>
+                             <width>100</width>
+                             <height>16777215</height>
+                            </size>
+                           </property>
+                           <property name="styleSheet">
+                            <string notr="true">#label_13 {
+  border: 1px solid rgb(150, 150, 150);
+  border-top-right-radius: 5px;
+  border-bottom-right-radius: 5px;
+  background-color: qlineargradient(spread:pad, x1:1, y1:0, x2:1, y2:1, stop:0 rgba(70, 102, 70, 255), stop:0.528409 rgba(70, 255, 70, 255), stop:0.590909 rgba(70, 126, 70, 255), stop:1 rgba(70, 93, 70, 255));
+  color: white;
+}</string>
+                           </property>
+                           <property name="text">
+                            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:9pt; font-weight:600;&quot;&gt;3&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                           </property>
+                           <property name="alignment">
+                            <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                           </property>
+                          </widget>
+                         </item>
+                         <item>
+                          <spacer name="horizontalSpacer_3">
+                           <property name="orientation">
+                            <enum>Qt::Horizontal</enum>
+                           </property>
+                           <property name="sizeHint" stdset="0">
+                            <size>
+                             <width>40</width>
+                             <height>20</height>
+                            </size>
+                           </property>
+                          </spacer>
+                         </item>
+                        </layout>
+                       </widget>
+                      </item>
+                      <item>
+                       <widget class="QFrame" name="frame_30">
+                        <property name="minimumSize">
+                         <size>
+                          <width>0</width>
+                          <height>0</height>
+                         </size>
+                        </property>
+                        <property name="styleSheet">
+                         <string notr="true">QFrame#frame_30 {
+  border: 1px solid rgb(200, 200, 200, 255);
+  border-radius: 10px;
+  background-color: white;
+}</string>
+                        </property>
+                        <property name="frameShape">
+                         <enum>QFrame::StyledPanel</enum>
+                        </property>
+                        <property name="frameShadow">
+                         <enum>QFrame::Raised</enum>
+                        </property>
+                        <layout class="QVBoxLayout" name="verticalLayout_31">
+                         <property name="spacing">
+                          <number>20</number>
                          </property>
-                         <property name="text">
-                          <string>Description:</string>
-                         </property>
-                        </widget>
-                       </item>
-                       <item row="2" column="1">
-                        <widget class="QLabel" name="backup_destination_label">
-                         <property name="text">
-                          <string/>
-                         </property>
-                        </widget>
-                       </item>
-                       <item row="3" column="0">
-                        <widget class="QLabel" name="label_13">
-                         <property name="text">
-                          <string>Use Compression:</string>
-                         </property>
-                        </widget>
-                       </item>
-                       <item row="3" column="1">
-                        <widget class="QLabel" name="summary_use_compression">
-                         <property name="text">
-                          <string/>
-                         </property>
-                        </widget>
-                       </item>
-                       <item row="2" column="0">
-                        <widget class="QLabel" name="label_12">
-                         <property name="sizePolicy">
-                          <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-                           <horstretch>0</horstretch>
-                           <verstretch>0</verstretch>
-                          </sizepolicy>
-                         </property>
-                         <property name="text">
-                          <string>Destination:</string>
-                         </property>
-                        </widget>
-                       </item>
-                       <item row="1" column="0">
-                        <widget class="QLabel" name="label_14">
-                         <property name="text">
-                          <string>Type:</string>
-                         </property>
-                        </widget>
-                       </item>
-                       <item row="1" column="1">
-                        <widget class="QLabel" name="summary_backup_type">
-                         <property name="text">
-                          <string/>
-                         </property>
-                        </widget>
-                       </item>
-                      </layout>
-                     </item>
-                     <item>
-                      <spacer name="verticalSpacer_2">
-                       <property name="orientation">
-                        <enum>Qt::Vertical</enum>
-                       </property>
-                       <property name="sizeHint" stdset="0">
-                        <size>
-                         <width>20</width>
-                         <height>40</height>
-                        </size>
-                       </property>
-                      </spacer>
-                     </item>
-                    </layout>
-                   </widget>
-                  </item>
-                  <item>
-                   <layout class="QHBoxLayout" name="horizontalLayout_12">
-                    <property name="sizeConstraint">
-                     <enum>QLayout::SetDefaultConstraint</enum>
-                    </property>
-                    <item>
-                     <widget class="QPushButton" name="backup_back_button_3">
-                      <property name="text">
-                       <string>Back</string>
-                      </property>
-                      <property name="icon">
-                       <iconset resource="Graphics.qrc">
-                        <normaloff>:/icons/graphics/1362909890_back.png</normaloff>:/icons/graphics/1362909890_back.png</iconset>
-                      </property>
-                     </widget>
-                    </item>
-                    <item>
-                     <spacer name="horizontalSpacer_5">
-                      <property name="orientation">
-                       <enum>Qt::Horizontal</enum>
-                      </property>
-                      <property name="sizeType">
-                       <enum>QSizePolicy::Expanding</enum>
-                      </property>
-                      <property name="sizeHint" stdset="0">
-                       <size>
-                        <width>40</width>
-                        <height>20</height>
-                       </size>
-                      </property>
-                     </spacer>
-                    </item>
-                    <item>
-                     <widget class="QPushButton" name="run_backup_button">
-                      <property name="font">
-                       <font>
-                        <weight>75</weight>
-                        <bold>true</bold>
-                       </font>
-                      </property>
-                      <property name="text">
-                       <string>Start</string>
-                      </property>
-                      <property name="icon">
-                       <iconset resource="Graphics.qrc">
-                        <normaloff>:/icons/graphics/backup_icon.png</normaloff>:/icons/graphics/backup_icon.png</iconset>
-                      </property>
-                     </widget>
-                    </item>
-                   </layout>
-                  </item>
-                 </layout>
+                         <item>
+                          <widget class="QLabel" name="label_40">
+                           <property name="sizePolicy">
+                            <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                             <horstretch>0</horstretch>
+                             <verstretch>0</verstretch>
+                            </sizepolicy>
+                           </property>
+                           <property name="text">
+                            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:10pt;&quot;&gt;Summary:&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                           </property>
+                          </widget>
+                         </item>
+                         <item>
+                          <layout class="QGridLayout" name="gridLayout_6">
+                           <property name="verticalSpacing">
+                            <number>20</number>
+                           </property>
+                           <item row="0" column="1">
+                            <widget class="QLabel" name="backup_description_label">
+                             <property name="sizePolicy">
+                              <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                               <horstretch>0</horstretch>
+                               <verstretch>0</verstretch>
+                              </sizepolicy>
+                             </property>
+                             <property name="text">
+                              <string/>
+                             </property>
+                            </widget>
+                           </item>
+                           <item row="0" column="0">
+                            <widget class="QLabel" name="label_41">
+                             <property name="sizePolicy">
+                              <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                               <horstretch>0</horstretch>
+                               <verstretch>0</verstretch>
+                              </sizepolicy>
+                             </property>
+                             <property name="text">
+                              <string>Description:</string>
+                             </property>
+                            </widget>
+                           </item>
+                           <item row="2" column="1">
+                            <widget class="QLabel" name="backup_destination_label">
+                             <property name="text">
+                              <string/>
+                             </property>
+                            </widget>
+                           </item>
+                           <item row="3" column="0">
+                            <widget class="QLabel" name="label_42">
+                             <property name="text">
+                              <string>Use Compression:</string>
+                             </property>
+                            </widget>
+                           </item>
+                           <item row="3" column="1">
+                            <widget class="QLabel" name="summary_use_compression">
+                             <property name="text">
+                              <string/>
+                             </property>
+                            </widget>
+                           </item>
+                           <item row="2" column="0">
+                            <widget class="QLabel" name="label_43">
+                             <property name="sizePolicy">
+                              <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                               <horstretch>0</horstretch>
+                               <verstretch>0</verstretch>
+                              </sizepolicy>
+                             </property>
+                             <property name="text">
+                              <string>Destination:</string>
+                             </property>
+                            </widget>
+                           </item>
+                           <item row="1" column="0">
+                            <widget class="QLabel" name="label_44">
+                             <property name="text">
+                              <string>Type:</string>
+                             </property>
+                            </widget>
+                           </item>
+                           <item row="1" column="1">
+                            <widget class="QLabel" name="summary_backup_type">
+                             <property name="text">
+                              <string/>
+                             </property>
+                            </widget>
+                           </item>
+                          </layout>
+                         </item>
+                         <item>
+                          <spacer name="verticalSpacer_7">
+                           <property name="orientation">
+                            <enum>Qt::Vertical</enum>
+                           </property>
+                           <property name="sizeHint" stdset="0">
+                            <size>
+                             <width>20</width>
+                             <height>40</height>
+                            </size>
+                           </property>
+                          </spacer>
+                         </item>
+                        </layout>
+                       </widget>
+                      </item>
+                      <item>
+                       <layout class="QHBoxLayout" name="horizontalLayout_26">
+                        <property name="sizeConstraint">
+                         <enum>QLayout::SetDefaultConstraint</enum>
+                        </property>
+                        <item>
+                         <widget class="QPushButton" name="backup_back_button_3">
+                          <property name="text">
+                           <string>Back</string>
+                          </property>
+                          <property name="icon">
+                           <iconset resource="Graphics.qrc">
+                            <normaloff>:/icons/graphics/1362909890_back.png</normaloff>:/icons/graphics/1362909890_back.png</iconset>
+                          </property>
+                         </widget>
+                        </item>
+                        <item>
+                         <spacer name="horizontalSpacer_12">
+                          <property name="orientation">
+                           <enum>Qt::Horizontal</enum>
+                          </property>
+                          <property name="sizeType">
+                           <enum>QSizePolicy::Expanding</enum>
+                          </property>
+                          <property name="sizeHint" stdset="0">
+                           <size>
+                            <width>40</width>
+                            <height>20</height>
+                           </size>
+                          </property>
+                         </spacer>
+                        </item>
+                        <item>
+                         <widget class="QPushButton" name="run_backup_button">
+                          <property name="font">
+                           <font>
+                            <weight>75</weight>
+                            <bold>true</bold>
+                           </font>
+                          </property>
+                          <property name="text">
+                           <string>Start</string>
+                          </property>
+                          <property name="icon">
+                           <iconset resource="Graphics.qrc">
+                            <normaloff>:/icons/graphics/backup_icon.png</normaloff>:/icons/graphics/backup_icon.png</iconset>
+                          </property>
+                         </widget>
+                        </item>
+                       </layout>
+                      </item>
+                     </layout>
+                    </widget>
+                   </item>
+                  </layout>
+                 </widget>
                 </widget>
                </item>
               </layout>
@@ -1419,18 +1901,34 @@ QTabBar::tab:selected {
    </hints>
   </connection>
   <connection>
+   <sender>split_fixed_check</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>fixed_size_combo</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>358</x>
+     <y>370</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>447</x>
+     <y>367</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
    <sender>backup_dest</sender>
    <signal>textChanged(QString)</signal>
    <receiver>backup_destination_label</receiver>
    <slot>setText(QString)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>483</x>
-     <y>234</y>
+     <x>474</x>
+     <y>232</y>
     </hint>
     <hint type="destinationlabel">
-     <x>569</x>
-     <y>310</y>
+     <x>560</x>
+     <y>308</y>
     </hint>
    </hints>
   </connection>
@@ -1441,28 +1939,12 @@ QTabBar::tab:selected {
    <slot>setText(QString)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>562</x>
-     <y>293</y>
+     <x>553</x>
+     <y>291</y>
     </hint>
     <hint type="destinationlabel">
-     <x>569</x>
-     <y>244</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>split_fixed_check</sender>
-   <signal>toggled(bool)</signal>
-   <receiver>fixed_size_combo</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>357</x>
-     <y>365</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>460</x>
-     <y>368</y>
+     <x>560</x>
+     <y>242</y>
     </hint>
    </hints>
   </connection>
