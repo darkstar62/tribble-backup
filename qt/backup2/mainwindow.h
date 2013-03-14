@@ -29,6 +29,7 @@ class MainWindow : public QMainWindow {
   void SwitchToBackupPage3();
   void BackupTabChanged(int tab);
   void BackupLocationBrowse();
+  void ManageLabels();
   void RunBackup();
 
  private:

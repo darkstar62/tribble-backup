@@ -63,6 +63,8 @@ MainWindow::MainWindow(QWidget *parent)
                    SLOT(BackupLocationBrowse()));
   QObject::connect(ui_->run_backup_button, SIGNAL(clicked()), this,
                    SLOT(RunBackup()));
+  QObject::connect(ui_->manage_labels_link, SIGNAL(clicked()), this,
+                   SLOT(ManageLabels()));
   QObject::connect(
       ui_->backup_tabset, SIGNAL(currentChanged(int)), this,  // NOLINT
       SLOT(BackupTabChanged(int)));  // NOLINT
@@ -143,6 +145,10 @@ void MainWindow::BackupLocationBrowse() {
     filenames = dialog.selectedFiles();
     ui_->backup_dest->setText(filenames[0]);
   }
+}
+
+void MainWindow::ManageLabels() {
+
 }
 
 void MainWindow::RunBackup() {
