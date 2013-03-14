@@ -14,12 +14,15 @@ TEMPLATE = app
 
 SOURCES += main.cpp\
         mainwindow.cpp \
-    file_selector_model.cpp
+    file_selector_model.cpp \
+    manage_labels_dlg.cpp
 
 HEADERS  += mainwindow.h \
-    file_selector_model.h
+    file_selector_model.h \
+    manage_labels_dlg.h
 
-FORMS    += mainwindow.ui
+FORMS    += mainwindow.ui \
+    manage_labels_dlg.ui
 
 INCLUDEPATH += graphics \
                ../../ \

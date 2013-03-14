@@ -1,15 +1,18 @@
 // Copyright (C) 2013 Cory Maccarrone
 // Author: Cory Maccarrone <darkstar6262@gmail.com>
 #include <QFileDialog>
+#include <QMessageBox>
 
 #include <string>
 #include <vector>
 
 #include "glog/logging.h"
 #include "qt/backup2/mainwindow.h"
+#include "qt/backup2/manage_labels_dlg.h"
 #include "qt/backup2/file_selector_model.h"
 #include "src/backup_library.h"
 #include "src/backup_volume.h"
+#include "src/backup_volume_interface.h"
 #include "src/callback.h"
 #include "src/file.h"
 #include "src/md5_generator.h"
@@ -23,16 +26,21 @@ using backup2::BackupType;
 using backup2::BackupVolumeFactory;
 using backup2::GzipEncoder;
 using backup2::File;
+using backup2::Label;
 using backup2::Md5Generator;
 using backup2::NewPermanentCallback;
 using backup2::Status;
+using backup2::StatusOr;
 using std::string;
 using std::vector;
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent),
       ui_(new Ui::MainWindow),
-      model_(new FileSelectorModel) {
+      model_(new FileSelectorModel),
+      current_label_id_(1),
+      current_label_name_("Default"),
+      current_label_set_(false) {
   // Set up the backup model treeview.
   model_->setRootPath("");
   ui_->setupUi(this);
@@ -44,6 +52,12 @@ MainWindow::MainWindow(QWidget *parent)
   ui_->tabWidget->setCurrentIndex(0);
   ui_->backup_tabset->setCurrentIndex(0);
   ui_->main_tabset->setCurrentIndex(0);
+
+  ui_->general_separator->setVisible(false);
+  ui_->general_progress->setVisible(false);
+  ui_->general_progress->setValue(0);
+  ui_->general_info->setText("");
+  ui_->general_info->setVisible(false);
 
   // Connect up a change event to the backup type combo box to change the
   // description underneath.
@@ -63,14 +77,18 @@ MainWindow::MainWindow(QWidget *parent)
                    SLOT(BackupLocationBrowse()));
   QObject::connect(ui_->run_backup_button, SIGNAL(clicked()), this,
                    SLOT(RunBackup()));
-  QObject::connect(ui_->manage_labels_link, SIGNAL(clicked()), this,
+  QObject::connect(ui_->manage_labels_button, SIGNAL(clicked()), this,
                    SLOT(ManageLabels()));
+  QObject::connect(ui_->backup_dest, SIGNAL(textChanged(QString)), this,
+                   SLOT(BackupLocationChanged()));
   QObject::connect(
       ui_->backup_tabset, SIGNAL(currentChanged(int)), this,  // NOLINT
       SLOT(BackupTabChanged(int)));  // NOLINT
 }
 
-MainWindow::~MainWindow() {}
+MainWindow::~MainWindow() {
+  delete ui_;
+}
 
 string MainWindow::GetBackupVolume(string /* orig_filename */) {
   QFileDialog dialog(this);
@@ -122,9 +140,14 @@ void MainWindow::SwitchToBackupPage2() {
 void MainWindow::SwitchToBackupPage3() {
   // This one, unlike the others, will actually calculate the summary details
   // for the view.
+  if (!current_label_set_) {
+    ui_->summary_label->setText("Default");
+  } else {
+    ui_->summary_label->setText(current_label_name_.c_str());
+  }
+
   ui_->summary_use_compression->setText(
       ui_->enable_compression_checkbox->isChecked() ? "Yes" : "No");
-
   ui_->backup_tabset->setCurrentIndex(2);
 }
 
@@ -147,14 +170,114 @@ void MainWindow::BackupLocationBrowse() {
   }
 }
 
-void MainWindow::ManageLabels() {
+void MainWindow::BackupLocationChanged() {
+  // Clear out the label info -- we need to re-load it.
+  if (current_label_set_) {
+    QMessageBox::warning(
+        this, tr("Labels Changed"),
+        tr("You made modifications to your labels previously -- these "
+           "were reset when you changed your backup file.  Please re-verify "
+           "your settings."));
+  }
+  current_label_set_ = false;
+  current_label_id_ = 0;
+  current_label_name_ = "";
+}
 
+void MainWindow::ManageLabels() {
+  ManageLabelsDlg dlg;
+  vector<const Label*> labels;
+
+  // Try and open the backup file.  If it doesn't exist, empty out the UI.
+  string filename = ui_->backup_dest->text().toStdString();
+  File* file = new File(filename);
+  if (file->Exists()) {
+    // Grab the labels.
+    BackupLibrary library(
+        file, NewPermanentCallback(this, &MainWindow::GetBackupVolume),
+        new Md5Generator(), new GzipEncoder(),
+        new BackupVolumeFactory());
+    Status retval = library.Init();
+    if (!retval.ok()) {
+      // TODO(darkstar62): Handle the error.
+      LOG(FATAL) << "Could not init library: " << retval.ToString();
+    }
+
+    StatusOr<vector<const Label*> > labels_ret = library.LoadLabels();
+    if (!labels_ret.ok()) {
+      // TODO(darkstar62): Handle the error.
+      LOG(FATAL) << "Could not load labels: " << labels_ret.status().ToString();
+    }
+
+    labels = labels_ret.value();
+    for (uint64_t label_num = 0; label_num < labels.size(); ++label_num) {
+      const Label* label = labels.at(label_num);
+      dlg.AddLabel(label->name());
+      if (label->id() == current_label_id_) {
+        dlg.SetSelectedItem(label_num);
+      }
+    }
+  }
+
+  // If we already have a current label, add that at the end if new.
+  if (current_label_id_ == 0 && current_label_name_ != "") {
+    dlg.AddNewLabelAndSelectIt(current_label_name_);
+  }
+  if (dlg.exec()) {
+    LOG(INFO) << "Dialog closed successfully";
+    LOG(INFO) << "Selected label: " << dlg.GetSelectedLabelIndex();
+    LOG(INFO) << "Name: " << dlg.GetSelectedLabelName();
+    LOG_IF(INFO, dlg.GetSelectedLabelIndex() >= labels.size())
+        << "New label created";
+
+    int selection = dlg.GetSelectedLabelIndex();
+    if (selection == -1) {
+      // No selection.  This will usually happen if there was no items in the
+      // list.  Just return, it's like cancel.
+      return;
+    }
+    if (selection >= labels.size()) {
+      // The user added a new label -- assign the label an ID of zero to tell
+      // the backup system to auto-assign a new ID.
+      current_label_id_ = 0;
+    } else {
+      // Pre-existing label, but possibly renamed.  Snarf the ID from the backup,
+      // but the name from our dialog.
+      current_label_id_ = labels.at(selection)->id();
+    }
+    current_label_name_ = dlg.GetSelectedLabelName();
+    if (current_label_name_ == "") {
+      current_label_name_ = "Default";
+    }
+    current_label_set_ = true;
+  } else {
+    LOG(INFO) << "Cancelled";
+  }
 }
 
 void MainWindow::RunBackup() {
+  ui_->backup_current_op_label->setText("Initializing...");
+  ui_->backup_progress->setValue(0);
+  ui_->backup_tabset->setCurrentIndex(3);
+  ui_->backup_estimated_time_label->setText("Estimating time remaining...");
+  ui_->backup_log_area->clear();
+  ui_->general_progress->setVisible(true);
+  ui_->general_progress->setValue(0);
+  ui_->general_info->setText("Performing backup...");
+  ui_->general_info->setVisible(true);
+  ui_->general_separator->setVisible(true);
+
+  // Determine the label to use.  If the user made use of the label management
+  // system, this has probably already been done.  Otherwise,
   BackupOptions options;
   options.set_enable_compression(ui_->enable_compression_checkbox->isChecked());
   options.set_description(ui_->backup_description->text().toStdString());
+  options.set_label_id(current_label_id_);
+  if (current_label_set_) {
+    options.set_label_name(current_label_name_);
+  } else {
+    options.set_label_name("Default");
+  }
 
   switch (ui_->backup_type_combo->currentIndex()) {
     case 1:
@@ -208,4 +331,10 @@ void MainWindow::RunBackup() {
   for (string file : selected_files) {
     LOG(INFO) << file;
   }
+
+  ui_->backup_current_op_label->setText("Done!");
+  ui_->backup_progress->setValue(100);
+  ui_->backup_estimated_time_label->setText("");
+  ui_->general_progress->setValue(100);
+  ui_->general_info->setText("Backup complete!");
 }

@@ -10,5 +10,7 @@
         <file>graphics/1362909890_forward.png</file>
         <file>graphics/backup_button.svg</file>
         <file>graphics/gradient_line.svg</file>
+        <file>graphics/label-icon.png</file>
+        <file>graphics/1363245997_stop.png</file>
     </qresource>
 </RCC>

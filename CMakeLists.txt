@@ -37,19 +37,22 @@ ENDIF(MSVC)
 ADD_SUBDIRECTORY(src)
 ADD_SUBDIRECTORY(qt/backup2)
 
-ADD_CUSTOM_TARGET(
-  gui ALL
-  cd qt/backup2 && qmake && make)
-ADD_DEPENDENCIES(gui
-  backup_volume
-  backup_library
-  status
-  fileset
-  file
-  md5_generator
-  gzip_encoder
-)
+IF(NOT MSVC)
+  ADD_CUSTOM_TARGET(
+    gui ALL
+    cd qt/backup2 && qmake && make)
+  ADD_DEPENDENCIES(gui
+    backup_volume
+    backup_library
+    status
+    fileset
+    file
+    md5_generator
+    gzip_encoder
+  )
 
-ADD_CUSTOM_TARGET(
-  gui_clean
-    cd qt/backup2 && qmake && make clean)
+  ADD_CUSTOM_TARGET(
+    gui_clean
+      cd qt/backup2 && qmake && make clean)
+ENDIF(NOT MSVC)
+

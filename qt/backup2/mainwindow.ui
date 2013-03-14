@@ -170,7 +170,7 @@
          </property>
          <layout class="QVBoxLayout" name="verticalLayout_11">
           <property name="spacing">
-           <number>0</number>
+           <number>10</number>
           </property>
           <property name="leftMargin">
            <number>0</number>
@@ -283,7 +283,7 @@ QTabWidget#tabWidget::pane {
            </widget>
           </item>
           <item>
-           <widget class="QLabel" name="label_15">
+           <widget class="QLabel" name="general_separator">
             <property name="sizePolicy">
              <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
               <horstretch>0</horstretch>
@@ -297,7 +297,7 @@ QTabWidget#tabWidget::pane {
              </size>
             </property>
             <property name="styleSheet">
-             <string notr="true">#label_15 {
+             <string notr="true">#general_separator {
   padding: 15px;
   margin-left: 10px;
   padding-bottom: 10px;
@@ -323,11 +323,10 @@ QTabWidget#tabWidget::pane {
            </widget>
           </item>
           <item>
-           <widget class="QLabel" name="label_17">
+           <widget class="QLabel" name="general_info">
             <property name="styleSheet">
-             <string notr="true">#label_17 {
-  padding-top: 10px;
-  padding-bottom: 10px;
+             <string notr="true">#general_info {
+  color: white;
 }</string>
             </property>
             <property name="text">
@@ -339,7 +338,7 @@ QTabWidget#tabWidget::pane {
            </widget>
           </item>
           <item>
-           <widget class="QProgressBar" name="progressBar">
+           <widget class="QProgressBar" name="general_progress">
             <property name="sizePolicy">
              <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
               <horstretch>0</horstretch>
@@ -349,15 +348,17 @@ QTabWidget#tabWidget::pane {
             <property name="maximumSize">
              <size>
               <width>16777215</width>
-              <height>15</height>
+              <height>30</height>
              </size>
             </property>
             <property name="styleSheet">
              <string notr="true">QProgressBar {
   margin-left: 30px;
   margin-right: 30px;
+  margin-bottom: 15px;
   
   background-color: rgb(255, 255, 255);
+  color: white;
 }
 
 QProgressBar::chunk {
@@ -368,7 +369,7 @@ QProgressBar::chunk {
              <number>24</number>
             </property>
             <property name="alignment">
-             <set>Qt::AlignCenter</set>
+             <set>Qt::AlignBottom|Qt::AlignHCenter</set>
             </property>
             <property name="textVisible">
              <bool>true</bool>
@@ -623,7 +624,7 @@ QTabWidget::pane {
                   <enum>QTabWidget::Rounded</enum>
                  </property>
                  <property name="currentIndex">
-                  <number>1</number>
+                  <number>2</number>
                  </property>
                  <property name="elideMode">
                   <enum>Qt::ElideNone</enum>
@@ -1409,6 +1410,19 @@ QTabWidget::pane {
                              </layout>
                             </item>
                             <item>
+                             <spacer name="verticalSpacer">
+                              <property name="orientation">
+                               <enum>Qt::Vertical</enum>
+                              </property>
+                              <property name="sizeHint" stdset="0">
+                               <size>
+                                <width>20</width>
+                                <height>40</height>
+                               </size>
+                              </property>
+                             </spacer>
+                            </item>
+                            <item>
                              <widget class="QFrame" name="frame_5">
                               <property name="frameShape">
                                <enum>QFrame::NoFrame</enum>
@@ -1437,39 +1451,38 @@ QTabWidget::pane {
                                 </spacer>
                                </item>
                                <item>
-                                <widget class="QLabel" name="manage_labels_link">
+                                <widget class="QPushButton" name="manage_labels_button">
                                  <property name="sizePolicy">
-                                  <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                                  <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
                                    <horstretch>0</horstretch>
                                    <verstretch>0</verstretch>
                                   </sizepolicy>
                                  </property>
+                                 <property name="minimumSize">
+                                  <size>
+                                   <width>0</width>
+                                   <height>20</height>
+                                  </size>
+                                 </property>
                                  <property name="cursor">
                                   <cursorShape>PointingHandCursor</cursorShape>
                                  </property>
-                                 <property name="text">
-                                  <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; text-decoration: underline; color:#0000ff;&quot;&gt;Manage Labels&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                                 <property name="styleSheet">
+                                  <string notr="true">#manage_labels_button {
+  color: blue;
+  text-decoration: underline;
+}</string>
                                  </property>
-                                 <property name="alignment">
-                                  <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                                 <property name="text">
+                                  <string>Manage Labels</string>
+                                 </property>
+                                 <property name="flat">
+                                  <bool>true</bool>
                                  </property>
                                 </widget>
                                </item>
                               </layout>
                              </widget>
-                            </item>
-                            <item>
-                             <spacer name="verticalSpacer_6">
-                              <property name="orientation">
-                               <enum>Qt::Vertical</enum>
-                              </property>
-                              <property name="sizeHint" stdset="0">
-                               <size>
-                                <width>20</width>
-                                <height>40</height>
-                               </size>
-                              </property>
-                             </spacer>
                             </item>
                            </layout>
                           </widget>
@@ -1839,6 +1852,20 @@ QTabWidget::pane {
                              </property>
                             </widget>
                            </item>
+                           <item row="4" column="0">
+                            <widget class="QLabel" name="label_14">
+                             <property name="text">
+                              <string>Label:</string>
+                             </property>
+                            </widget>
+                           </item>
+                           <item row="4" column="1">
+                            <widget class="QLabel" name="summary_label">
+                             <property name="text">
+                              <string/>
+                             </property>
+                            </widget>
+                           </item>
                           </layout>
                          </item>
                          <item>
@@ -1905,6 +1932,262 @@ QTabWidget::pane {
                             <normaloff>:/icons/graphics/backup_icon.png</normaloff>:/icons/graphics/backup_icon.png</iconset>
                           </property>
                          </widget>
+                        </item>
+                       </layout>
+                      </item>
+                     </layout>
+                    </widget>
+                   </item>
+                  </layout>
+                 </widget>
+                 <widget class="QWidget" name="tab_2">
+                  <attribute name="title">
+                   <string>Page</string>
+                  </attribute>
+                  <layout class="QVBoxLayout" name="verticalLayout">
+                   <item>
+                    <widget class="QFrame" name="frame_14">
+                     <property name="styleSheet">
+                      <string notr="true">QFrame#frame_14 {
+  border: 1px solid rgb(200, 200, 200, 255);
+  border-radius: 10px;
+  background-color: rgb(240, 240, 240, 255);
+}</string>
+                     </property>
+                     <property name="frameShape">
+                      <enum>QFrame::StyledPanel</enum>
+                     </property>
+                     <property name="frameShadow">
+                      <enum>QFrame::Raised</enum>
+                     </property>
+                     <layout class="QVBoxLayout" name="verticalLayout_33">
+                      <item>
+                       <widget class="QLabel" name="label_46">
+                        <property name="styleSheet">
+                         <string notr="true">background: none;</string>
+                        </property>
+                        <property name="text">
+                         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:9pt; font-weight:600; color:#55007f;&quot;&gt;Performing Backup&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                        </property>
+                        <property name="textFormat">
+                         <enum>Qt::RichText</enum>
+                        </property>
+                       </widget>
+                      </item>
+                      <item>
+                       <widget class="QLabel" name="label_19">
+                        <property name="text">
+                         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:10pt;&quot;&gt;Your backup is now in progress.&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                        </property>
+                       </widget>
+                      </item>
+                      <item>
+                       <widget class="QFrame" name="frame_31">
+                        <property name="minimumSize">
+                         <size>
+                          <width>0</width>
+                          <height>0</height>
+                         </size>
+                        </property>
+                        <property name="styleSheet">
+                         <string notr="true">QFrame#frame_31 {
+  border: 1px solid rgb(200, 200, 200, 255);
+  border-radius: 10px;
+  background-color: white;
+}</string>
+                        </property>
+                        <property name="frameShape">
+                         <enum>QFrame::StyledPanel</enum>
+                        </property>
+                        <property name="frameShadow">
+                         <enum>QFrame::Raised</enum>
+                        </property>
+                        <layout class="QVBoxLayout" name="verticalLayout_34">
+                         <item>
+                          <widget class="QLabel" name="label_47">
+                           <property name="sizePolicy">
+                            <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                             <horstretch>0</horstretch>
+                             <verstretch>0</verstretch>
+                            </sizepolicy>
+                           </property>
+                           <property name="minimumSize">
+                            <size>
+                             <width>0</width>
+                             <height>0</height>
+                            </size>
+                           </property>
+                           <property name="maximumSize">
+                            <size>
+                             <width>16777215</width>
+                             <height>16777215</height>
+                            </size>
+                           </property>
+                           <property name="text">
+                            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:10pt; color:#3a3a3a;&quot;&gt;Current progress:&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                           </property>
+                          </widget>
+                         </item>
+                         <item>
+                          <widget class="QFrame" name="frame_32">
+                           <property name="sizePolicy">
+                            <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                             <horstretch>0</horstretch>
+                             <verstretch>0</verstretch>
+                            </sizepolicy>
+                           </property>
+                           <property name="minimumSize">
+                            <size>
+                             <width>0</width>
+                             <height>0</height>
+                            </size>
+                           </property>
+                           <property name="maximumSize">
+                            <size>
+                             <width>16777215</width>
+                             <height>16777215</height>
+                            </size>
+                           </property>
+                           <property name="styleSheet">
+                            <string notr="true">QFrame#frame_32 {
+  border: 1px solid rgb(200, 200, 200, 255);
+  border-radius: 10px;
+  background-color: white;
+}</string>
+                           </property>
+                           <property name="frameShape">
+                            <enum>QFrame::StyledPanel</enum>
+                           </property>
+                           <property name="frameShadow">
+                            <enum>QFrame::Raised</enum>
+                           </property>
+                           <layout class="QVBoxLayout" name="verticalLayout_35">
+                            <item>
+                             <widget class="QLabel" name="backup_current_op_label">
+                              <property name="sizePolicy">
+                               <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                                <horstretch>0</horstretch>
+                                <verstretch>0</verstretch>
+                               </sizepolicy>
+                              </property>
+                              <property name="text">
+                               <string>Backing up: /foo/bar/some file here.</string>
+                              </property>
+                              <property name="wordWrap">
+                               <bool>true</bool>
+                              </property>
+                             </widget>
+                            </item>
+                            <item>
+                             <widget class="QProgressBar" name="backup_progress">
+                              <property name="maximumSize">
+                               <size>
+                                <width>16777215</width>
+                                <height>15</height>
+                               </size>
+                              </property>
+                              <property name="styleSheet">
+                               <string notr="true">QProgressBar {
+  margin-right: 30px;
+  
+  background-color: rgb(255, 255, 255);
+}
+
+QProgressBar::chunk {
+	background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:0, y2:1, stop:0 rgba(123, 13, 160, 255), stop: 0.5 rgba(150, 20, 190, 255), stop:1 rgba(123, 13, 160, 255));
+}</string>
+                              </property>
+                              <property name="value">
+                               <number>24</number>
+                              </property>
+                              <property name="alignment">
+                               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                              </property>
+                             </widget>
+                            </item>
+                            <item>
+                             <widget class="QLabel" name="backup_estimated_time_label">
+                              <property name="text">
+                               <string>Estimated time: 15 hours</string>
+                              </property>
+                             </widget>
+                            </item>
+                           </layout>
+                          </widget>
+                         </item>
+                         <item>
+                          <widget class="QLabel" name="label_48">
+                           <property name="sizePolicy">
+                            <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                             <horstretch>0</horstretch>
+                             <verstretch>0</verstretch>
+                            </sizepolicy>
+                           </property>
+                           <property name="text">
+                            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:10pt;&quot;&gt;Messages:&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                           </property>
+                          </widget>
+                         </item>
+                         <item>
+                          <widget class="QFrame" name="frame_33">
+                           <property name="styleSheet">
+                            <string notr="true">QFrame#frame_33 {
+  border: 1px solid rgb(200, 200, 200, 255);
+  border-radius: 10px;
+  background-color: white;
+}</string>
+                           </property>
+                           <property name="frameShape">
+                            <enum>QFrame::StyledPanel</enum>
+                           </property>
+                           <property name="frameShadow">
+                            <enum>QFrame::Raised</enum>
+                           </property>
+                           <layout class="QHBoxLayout" name="horizontalLayout_27">
+                            <item>
+                             <widget class="QPlainTextEdit" name="backup_log_area">
+                              <property name="plainText">
+                               <string>Log messages go here.</string>
+                              </property>
+                             </widget>
+                            </item>
+                           </layout>
+                          </widget>
+                         </item>
+                        </layout>
+                       </widget>
+                      </item>
+                      <item>
+                       <layout class="QHBoxLayout" name="horizontalLayout_28">
+                        <item>
+                         <widget class="QPushButton" name="backup_cancel_button">
+                          <property name="sizePolicy">
+                           <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                            <horstretch>0</horstretch>
+                            <verstretch>0</verstretch>
+                           </sizepolicy>
+                          </property>
+                          <property name="text">
+                           <string>Cancel</string>
+                          </property>
+                          <property name="icon">
+                           <iconset resource="Graphics.qrc">
+                            <normaloff>:/icons/graphics/1363245997_stop.png</normaloff>:/icons/graphics/1363245997_stop.png</iconset>
+                          </property>
+                         </widget>
+                        </item>
+                        <item>
+                         <spacer name="horizontalSpacer_13">
+                          <property name="orientation">
+                           <enum>Qt::Horizontal</enum>
+                          </property>
+                          <property name="sizeHint" stdset="0">
+                           <size>
+                            <width>40</width>
+                            <height>20</height>
+                           </size>
+                          </property>
+                         </spacer>
                         </item>
                        </layout>
                       </item>
