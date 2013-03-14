@@ -18,6 +18,7 @@ class File : public FileInterface {
   ~File();
 
   // FileOperationsInterface methods.
+  virtual bool Exists();
   virtual Status Open(const Mode mode);
   virtual Status Close();
   virtual Status Unlink();

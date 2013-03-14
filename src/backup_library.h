@@ -37,18 +37,24 @@ class Md5GeneratorInterface;
 // Configuration options to construct the backup with.  These options are stored
 // in backup descriptor 2 so subsequent backups to the same volumes will re-use
 // the options.
+//
+// If not specified, the default label is 1, the reserved "default" label.
 class BackupOptions {
  public:
   BackupOptions()
       : description_(""),
         enable_compression_(false),
         max_volume_size_mb_(0),
-        type_(kBackupTypeInvalid) {}
+        type_(kBackupTypeInvalid),
+        label_id_(1),
+        label_name_("Default") {}
 
   PROPERTY(std::string, description);
   PROPERTY(bool, enable_compression);
   PROPERTY(uint64_t, max_volume_size_mb);
   PROPERTY(BackupType, type);
+  PROPERTY(uint64_t, label_id);
+  PROPERTY(std::string, label_name);
 };
 
 // A BackupLibrary manages an entire series of backups across many different
@@ -94,6 +100,10 @@ class BackupLibrary {
   // BackupSet is returned representing the requested volume number, or NULL if
   // the volume is not available.
   StatusOr<std::vector<FileSet*> > LoadFileSets(bool load_all);
+
+  // Load the labels from the backup library.  Returned label objects retain
+  // ownership with the library.  There is no sorting order to the vector.
+  StatusOr<std::vector<const Label*> > LoadLabels();
 
   // Create a new backup.  This instantiates a new FileSet internally, and gets
   // it ready for backing up.  If this is the first time this is called, the

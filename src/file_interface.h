@@ -22,6 +22,9 @@ class FileInterface {
 
   virtual ~FileInterface() {}
 
+  // Test whether the file exists.  Returns true if it does, or false otherwise.
+  virtual bool Exists() = 0;
+
   // Open the given file with the given mode.  Args are the same as fopen().
   // Returns status of the operation.
   virtual Status Open(const FileInterface::Mode mode) = 0;

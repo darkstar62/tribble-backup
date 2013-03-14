@@ -206,9 +206,13 @@ struct BackupDescriptor2 {
   // Number of files in this backup set.
   uint64_t num_files;
 
-  // ID of the label corresponding to this backup.  Values from 1 to MAX_INT are
-  // valid -- 0 is reserved to indicate that the system should allocate a new
-  // one.
+  // ID of the label corresponding to this backup.  Values from 2 to MAX_INT are
+  // valid.  The following numbers are reserved:
+  //
+  //   0: reserved to indicate that the system should allocate a new ID.
+  //   1: reserved for the default label.  This is used if no other label is
+  //      specified.
+  //
   uint64_t label_id;
 
   // Size of the backup description given by the user.

@@ -41,13 +41,17 @@ File::~File() {
   }
 }
 
+bool File::Exists() {
+  return boost::filesystem::exists(boost::filesystem::path(filename_));
+}
+
 Status File::Open(const Mode mode) {
   CHECK(!file_) << "File already open";
 
   // Check if the file exists.  If not, return so -- the user will need to
   // Create() it.
   boost::filesystem::path path(filename_);
-  bool exists = boost::filesystem::exists(path);
+  bool exists = Exists();
   if (mode == kModeRead && !exists) {
     return Status(kStatusNoSuchFile, filename_);
   }

@@ -7,6 +7,7 @@
 #include <memory>
 #include <sstream>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -24,7 +25,9 @@ using std::pair;
 using std::stoull;
 using std::string;
 using std::unique_ptr;
+using std::unordered_map;
 using std::vector;
+
 namespace backup2 {
 
 BackupLibrary::BackupLibrary(
@@ -87,7 +90,7 @@ StatusOr<vector<FileSet*> > BackupLibrary::LoadFileSets(bool load_all) {
     StatusOr<BackupVolumeInterface*> volume_result =
         GetBackupVolume(next_volume, false);
     LOG_RETURN_IF_ERROR(volume_result.status(), "Error getting backup volume");
-    BackupVolumeInterface* volume(volume_result.value());
+    BackupVolumeInterface* volume = volume_result.value();
 
     StatusOr<vector<FileSet*> > fileset_result = volume->LoadFileSets(
         load_all, &next_volume);
@@ -102,10 +105,29 @@ StatusOr<vector<FileSet*> > BackupLibrary::LoadFileSets(bool load_all) {
   return filesets;
 }
 
+StatusOr<vector<const Label*> > BackupLibrary::LoadLabels() {
+  StatusOr<BackupVolumeInterface*> volume_result =
+      GetBackupVolume(last_volume_, false);
+  LOG_RETURN_IF_ERROR(volume_result.status(),
+                      "Error loading last backup volume");
+  BackupVolumeInterface* volume = volume_result.value();
+
+  unordered_map<uint64_t, Label*> labels = volume->GetLabels();
+
+  vector<const Label*> retval;
+  for (auto label_iter : labels) {
+    const Label* label = label_iter.second;
+    retval.push_back(label);
+  }
+  return retval;
+}
+
 Status BackupLibrary::CreateBackup(BackupOptions options) {
   FileSet* file_set = new FileSet;
   file_set->set_description(options.description());
   file_set->set_backup_type(options.type());
+  file_set->set_label_id(options.label_id());
+  file_set->set_label_name(options.label_name());
   file_set_.reset(file_set);
   options_ = options;
 

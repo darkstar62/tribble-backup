@@ -19,6 +19,10 @@ class FakeFile : public FileInterface {
  public:
   FakeFile() : pos_(0), open_(false) {}
 
+  virtual bool Exists() {
+    return true;
+  }
+
   virtual Status Open(FileInterface::Mode mode) {
     open_ = true;
     return Status::OK;
@@ -81,6 +85,12 @@ class FakeFile : public FileInterface {
   virtual Status Write(const void* buffer, size_t length) {
     if (length == 0) {
       return Status::OK;
+    }
+
+    if (expected_data_ != "") {
+      if (memcmp(buffer, &expected_data_.at(data_.size()), length) != 0) {
+        LOG(FATAL) << "Non-matching write";
+      }
     }
     std::string data;
     data.resize(length);
