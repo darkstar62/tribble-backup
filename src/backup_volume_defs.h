@@ -118,6 +118,10 @@ struct BackupDescriptor1Chunk {
   uint64_t volume_number;
 };
 
+// Labels provide a way to track several related backups through time without
+// intermingling other backup histories.  This allows users to get the benefits
+// of deduplication with backup sets taken across several different computers,
+// or in different configurations.
 struct BackupDescriptor1Label {
   BackupDescriptor1Label() {
     memset(this, 0, sizeof(BackupDescriptor1Label));
@@ -129,6 +133,11 @@ struct BackupDescriptor1Label {
 
   // Unique identifier for the label.  This is an incrementing number.
   uint64_t id;
+
+  // Offset and volume number of the backup descriptor 2 header representing the
+  // last backup done with this label.
+  uint64_t last_backup_offset;
+  uint64_t last_backup_volume_number;
 
   // Size of the string name of the label immediately following this header.
   uint64_t name_size;
@@ -167,6 +176,13 @@ struct BackupDescriptor2 {
   // BackupDescriptor2 header are valid here.
   uint64_t previous_backup_offset;
   uint64_t previous_backup_volume_number;
+
+  // Offset and volume number of the BackupDescriptor2 set that was used as the
+  // basis for this backup.  Usually this will be the previous backup with the
+  // same label, although it's possible to branch into a new label from an
+  // existing one.
+  uint64_t parent_backup_offset;
+  uint64_t parent_backup_volume_number;
 
   // Date and time of the backup in seconds since the epoch.
   uint64_t backup_date;

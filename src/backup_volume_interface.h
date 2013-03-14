@@ -31,6 +31,33 @@ struct ConfigOptions {
   bool enable_compression;
 };
 
+// A label contains the unique ID of a backup label, as well as its name and
+// previous backup information.
+class Label {
+ public:
+  Label(uint64_t id, std::string name)
+      : id_(id), name_(name), last_offset_(0), last_volume_(0) {}
+
+  // Accessors for all elements.
+  uint64_t id() const { return id_; }
+  void set_id(uint64_t id) { id_ = id; }
+
+  std::string name() const { return name_; }
+  void set_name(std::string name) { name_ = name; }
+
+  uint64_t last_offset() const { return last_offset_; }
+  void set_last_offset(uint64_t offset) { last_offset_ = offset; }
+
+  uint64_t last_volume() const { return last_volume_; }
+  void set_last_volume(uint64_t volume) { last_volume_ = volume; }
+
+ private:
+  uint64_t id_;
+  std::string name_;
+  uint64_t last_offset_;
+  uint64_t last_volume_;
+};
+
 // Interface for any BackupVolume.  BackupVolumes can be implemented in
 // basically any way, but must conform to this contract to be usable.
 class BackupVolumeInterface {
@@ -70,7 +97,7 @@ class BackupVolumeInterface {
 
   // Return an unordered map of label UUID to description of all labels known.
   // This will be of all labels encountered up to this backup volume.
-  virtual std::unordered_map<uint64_t, std::string> GetLabels() = 0;
+  virtual std::unordered_map<uint64_t, Label*> GetLabels() = 0;
 
   // Write a chunk to the volume.  The offset in the backup volume for this
   // chunk is returned on success in chunk_offset_out.

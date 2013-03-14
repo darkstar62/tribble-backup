@@ -323,6 +323,9 @@ TEST_F(BackupVolumeTest, CreateAddChunkAndCloseWithFileSet) {
   BackupDescriptor1Label descriptor1_label;
   descriptor1_label.id = 0x1;
   descriptor1_label.name_size = label_name.size();
+  descriptor1_label.last_backup_offset =
+      file->size() + sizeof(descriptor1_label) + label_name.size();
+  descriptor1_label.last_backup_volume_number = 0;
   file->Write(&descriptor1_label, sizeof(descriptor1_label));
   file->Write(&label_name.at(0), label_name.size());
 
@@ -331,6 +334,8 @@ TEST_F(BackupVolumeTest, CreateAddChunkAndCloseWithFileSet) {
   BackupDescriptor2 descriptor2;
   descriptor2.previous_backup_offset = 0;
   descriptor2.previous_backup_volume_number = 0;
+  descriptor2.parent_backup_offset = 0;
+  descriptor2.parent_backup_volume_number = 0;
   descriptor2.backup_type = kBackupTypeFull;
   descriptor2.num_files = 1;
   descriptor2.description_size = 6;
@@ -505,12 +510,12 @@ TEST_F(BackupVolumeTest, ReadChunks) {
   EXPECT_EQ(chunk_header2.encoding_type, encoding_type2);
 
   // Validate the labels too.
-  unordered_map<uint64_t, string> labels = volume.GetLabels();
+  unordered_map<uint64_t, Label*> labels = volume.GetLabels();
   EXPECT_EQ(1, labels.size());
   auto label_iter = labels.find(descriptor1_label.id);
   EXPECT_NE(labels.end(), label_iter);
   EXPECT_EQ(descriptor1_label.id, label_iter->first);
-  EXPECT_EQ(label_name, label_iter->second);
+  EXPECT_EQ(label_name, label_iter->second->name());
 }
 
 TEST_F(BackupVolumeTest, ReadBackupSets) {
@@ -760,6 +765,9 @@ TEST_F(BackupVolumeTest, ReadBackupSetsMultiFile) {
     BackupDescriptor2 descriptor2;
     descriptor2.previous_backup_offset = 0x12345;
     descriptor2.previous_backup_volume_number = 1;
+    descriptor2.parent_backup_offset = 0;
+    descriptor2.parent_backup_volume_number = 0;
+    descriptor2.label_id = 0x123;
     descriptor2.backup_type = kBackupTypeFull;
     descriptor2.num_files = 1;
     descriptor2.description_size = description.size();

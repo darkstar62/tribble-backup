@@ -43,10 +43,7 @@ class BackupVolume : public BackupVolumeInterface {
   virtual bool GetChunk(Uint128 md5sum, BackupDescriptor1Chunk* chunk) {
     return chunks_.GetChunk(md5sum, chunk);
   }
-  virtual std::unordered_map<uint64_t, std::string>
-      GetLabels() {
-    return labels_;
-  }
+  virtual std::unordered_map<uint64_t, Label*> GetLabels() { return labels_; }
   virtual Status WriteChunk(
       Uint128 md5sum, const std::string& data, uint64_t raw_size,
       EncodingType type, uint64_t* chunk_offset_out);
@@ -108,12 +105,17 @@ class BackupVolume : public BackupVolumeInterface {
 
   uint64_t descriptor2_offset_;
 
+  // Offset and volume number of the parent backup descriptor 2 to this one.
+  // Zero for both of these indicates no parent.
+  uint64_t parent_offset_;
+  uint64_t parent_volume_;
+
   // Vector of all chunks contained in this backup volume.  This is loaded
   // initially from backup descriptor 1, and stored there at the end of the
   // backup.
   ChunkMap chunks_;
 
-  std::unordered_map<uint64_t, std::string> labels_;
+  std::unordered_map<uint64_t, Label*> labels_;
 
   bool modified_;
 

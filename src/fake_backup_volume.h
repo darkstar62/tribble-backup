@@ -106,8 +106,8 @@ class FakeBackupVolume : public BackupVolumeInterface {
     return chunks_.GetChunk(md5sum, chunk);
   }
 
-  virtual std::unordered_map<uint64_t, std::string> GetLabels() {
-    return std::unordered_map<uint64_t, std::string>();
+  virtual std::unordered_map<uint64_t, Label*> GetLabels() {
+    return std::unordered_map<uint64_t, Label*>();
   }
 
   virtual Status WriteChunk(
