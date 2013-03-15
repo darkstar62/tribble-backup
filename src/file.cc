@@ -45,6 +45,20 @@ bool File::Exists() {
   return boost::filesystem::exists(boost::filesystem::path(filename_));
 }
 
+bool File::IsDirectory() {
+  return boost::filesystem::is_directory(boost::filesystem::path(filename_));
+}
+
+vector<string> File::ListDirectory() {
+  vector<string> files;
+  for (boost::filesystem::directory_iterator iter =
+           boost::filesystem::directory_iterator(filename_);
+       iter != boost::filesystem::directory_iterator(); ++iter) {
+    files.push_back((*iter).path().string());
+  }
+  return files;
+}
+
 Status File::Open(const Mode mode) {
   CHECK(!file_) << "File already open";
 

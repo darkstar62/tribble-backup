@@ -105,7 +105,7 @@ StatusOr<vector<FileSet*> > BackupLibrary::LoadFileSets(bool load_all) {
   return filesets;
 }
 
-StatusOr<vector<const Label*> > BackupLibrary::LoadLabels() {
+StatusOr<vector<const Label> > BackupLibrary::LoadLabels() {
   StatusOr<BackupVolumeInterface*> volume_result =
       GetBackupVolume(last_volume_, false);
   LOG_RETURN_IF_ERROR(volume_result.status(),
@@ -114,10 +114,10 @@ StatusOr<vector<const Label*> > BackupLibrary::LoadLabels() {
 
   unordered_map<uint64_t, Label*> labels = volume->GetLabels();
 
-  vector<const Label*> retval;
+  vector<const Label> retval;
   for (auto label_iter : labels) {
     const Label* label = label_iter.second;
-    retval.push_back(label);
+    retval.push_back(*label);
   }
   return retval;
 }

@@ -23,6 +23,12 @@ class FakeFile : public FileInterface {
     return true;
   }
 
+  virtual bool IsDirectory() { return false; }
+
+  virtual std::vector<std::string> ListDirectory() {
+    return std::vector<std::string>();
+  }
+
   virtual Status Open(FileInterface::Mode mode) {
     open_ = true;
     return Status::OK;

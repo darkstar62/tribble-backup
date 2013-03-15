@@ -19,6 +19,8 @@ class File : public FileInterface {
 
   // FileOperationsInterface methods.
   virtual bool Exists();
+  virtual bool IsDirectory();
+  virtual std::vector<std::string> ListDirectory();
   virtual Status Open(const Mode mode);
   virtual Status Close();
   virtual Status Unlink();

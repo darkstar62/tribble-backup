@@ -25,6 +25,12 @@ class FileInterface {
   // Test whether the file exists.  Returns true if it does, or false otherwise.
   virtual bool Exists() = 0;
 
+  // Test whether the file is a directory.  Returns true if so, false otherwise.
+  virtual bool IsDirectory() = 0;
+
+  // List directory contents.
+  virtual std::vector<std::string> ListDirectory() = 0;
+
   // Open the given file with the given mode.  Args are the same as fopen().
   // Returns status of the operation.
   virtual Status Open(const FileInterface::Mode mode) = 0;
