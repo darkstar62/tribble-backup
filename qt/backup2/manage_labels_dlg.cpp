@@ -40,9 +40,12 @@ void ManageLabelsDlg::AddNewLabelAndSelectIt(const string &name) {
   ui_->selected_label_name->setFocus();
 }
 
-void ManageLabelsDlg::SetSelectedItem(const int index) {
-  if (index > 0 && index < ui_->label_list->count()) {
+void ManageLabelsDlg::SetSelectedItem(const int index, const string name) {
+  if (index >= 0 && index < ui_->label_list->count()) {
     ui_->label_list->setCurrentRow(index);
+    ui_->selected_label_name->setText(tr(name.c_str()));
+    ui_->selected_label_name->selectAll();
+    ui_->selected_label_name->setFocus();
   }
 }
 

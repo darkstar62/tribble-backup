@@ -2,23 +2,55 @@
 // Author: Cory Maccarrone <darkstar6262@gmail.com>
 #include "qt/backup2/file_selector_model.h"
 
+#include <QMutex>
 #include <QString>
 #include <QSet>
+#include <QVector>
+#include <QThread>
 
+#include <set>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "glog/logging.h"
+#include "src/file.h"
 
+using backup2::File;
+using std::make_pair;
+using std::pair;
+using std::set;
 using std::string;
 using std::vector;
 
-vector<string> FileSelectorModel::GetSelectedPaths() {
-  vector<string> retval;
-  for (QString path : user_selected_) {
-    retval.push_back(path.toStdString());
+void FileSelectorModel::BeginScanningSelectedItems() {
+  QMutexLocker ml(&scanner_mutex_);
+  if (scanner_thread_) {
+    return;
   }
-  return retval;
+
+  scanner_ = new FilesystemScanner(user_log_);
+  scanner_thread_ = new QThread(this);
+  connect(scanner_thread_, SIGNAL(started()), scanner_, SLOT(ScanFilesystem()));
+  connect(scanner_thread_, SIGNAL(finished()), scanner_, SLOT(deleteLater()));
+  connect(scanner_, SIGNAL(ScanFinished(PathList)),
+          this, SLOT(OnScanningFinished(PathList)));
+  scanner_->moveToThread(scanner_thread_);
+  scanner_thread_->start();
+}
+
+void FileSelectorModel::CancelScanning() {
+  QMutexLocker ml(&scanner_mutex_);
+  if (!scanner_thread_) {
+    return;
+  }
+  scanner_->Cancel();
+  scanner_thread_->blockSignals(true);
+  scanner_thread_->wait();
+
+  delete scanner_;
+  scanner_ = NULL;
+  scanner_thread_ = NULL;
 }
 
 Qt::ItemFlags FileSelectorModel::flags(const QModelIndex& index) const {
@@ -47,12 +79,8 @@ bool FileSelectorModel::setData(const QModelIndex& index, const QVariant& value,
                                 int role) {
   if (index.isValid() && index.column() == 0 && role == Qt::CheckStateRole) {
     // Store checked paths, remove unchecked paths.
-    if (value.toInt() == Qt::Checked) {
-      user_selected_.insert(filePath(index));
-      LOG(INFO) << "Added " << filePath(index).toStdString();
-    } else if (value.toInt() == Qt::Unchecked) {
-      user_selected_.remove(filePath(index));
-      LOG(INFO) << "Removed " << filePath(index).toStdString();
+    if (value.toInt() != Qt::PartiallyChecked) {
+      user_log_.push_back(make_pair(filePath(index), value.toInt()));
     } else {
       LOG(FATAL) << "BUG: We shouldn't be getting partially checked here!";
     }
@@ -137,3 +165,85 @@ void FileSelectorModel::OnDirectoryLoaded(const QString& path) {
     }
   }
 }
+
+void FileSelectorModel::OnScanningFinished(PathList files) {
+  emit SelectedFilesLoaded(files);
+}
+
+void FilesystemScanner::ScanFilesystem() {
+  // Collect all the positive selections and the negative selections into
+  // separate buckets.  The negative selections are hashed and compared
+  // against all entries we find.
+  LOG(INFO) << "Scanning filesystem";
+  operation_running_ = true;
+
+  vector<string> positive_selections;
+  set<string> negative_selections;
+
+  for (pair<QString, int> entry : user_log_) {
+    if (entry.second == Qt::Checked) {
+      // Positive selection.
+      positive_selections.push_back(entry.first.toStdString());
+    } else {
+      // Negative selection.
+      negative_selections.insert(entry.first.toStdString());
+    }
+  }
+
+  // Start a recursive algorithm that will read the entires in each selected
+  // directory and process them against the negative selections.
+  vector<string> final_entries = ProcessPathsRecursive(
+      positive_selections, negative_selections);
+
+  PathList output;
+  for (string entry : final_entries) {
+    output.append(tr(entry.c_str()));
+  }
+  emit ScanFinished(output);
+}
+
+vector<string> FilesystemScanner::ProcessPathsRecursive(
+    const vector<string>& positive_selections,
+    const set<string>& negative_selections) {
+  vector<string> result;
+  vector<string> dirs_to_scan;
+
+  for (string scannable : positive_selections) {
+    // Check if this scannable is a file or directory.
+    LOG(INFO) << scannable;
+    File file(scannable);
+    if (!file.IsDirectory()) {
+      // Regular file.  If it's not in the negative selections, add it in.
+      if (negative_selections.find(scannable) == negative_selections.end()) {
+        result.push_back(scannable);
+      }
+    } else {
+      // Directory -- Add it to a list of directories to scan recursively and
+      // keep going, but only if it's not in the negative selections.  Add the
+      // directory to the results too, since it could be the directory is empty
+      // and we want to restore the directory tree too.
+      if (negative_selections.find(scannable) == negative_selections.end()) {
+        dirs_to_scan.push_back(scannable);
+        result.push_back(scannable);
+      }
+    }
+
+    if (!operation_running_) {
+      break;
+    }
+  }
+
+  // For each directory yet-to-scan, list the contents of the directory and
+  // pass it to a recursive call of this function.
+  for (string directory : dirs_to_scan) {
+    vector<string> contents = File(directory).ListDirectory();
+    vector<string> results = ProcessPathsRecursive(contents, negative_selections);
+    result.insert(result.end(), results.begin(), results.end());
+    if (!operation_running_) {
+      break;
+    }
+  }
+
+  return result;
+}
+

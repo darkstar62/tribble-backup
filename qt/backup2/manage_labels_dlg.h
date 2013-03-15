@@ -30,7 +30,7 @@ class ManageLabelsDlg : public QDialog {
   void AddNewLabelAndSelectIt(const std::string& name);
 
   // Set the label selection.
-  void SetSelectedItem(const int index);
+  void SetSelectedItem(const int index, const std::string name);
 
   // Return the index of the selected label.  The index is the same as the order
   // the labels were added.  If an index comes back greater than the number of

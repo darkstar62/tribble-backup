@@ -15,11 +15,13 @@ TEMPLATE = app
 SOURCES += main.cpp\
         mainwindow.cpp \
     file_selector_model.cpp \
-    manage_labels_dlg.cpp
+    manage_labels_dlg.cpp \
+    backup_driver.cpp
 
 HEADERS  += mainwindow.h \
     file_selector_model.h \
-    manage_labels_dlg.h
+    manage_labels_dlg.h \
+    backup_driver.h
 
 FORMS    += mainwindow.ui \
     manage_labels_dlg.ui
