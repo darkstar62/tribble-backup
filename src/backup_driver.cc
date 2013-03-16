@@ -5,7 +5,7 @@
 
 #include <memory>
 #include <string>
-#include <unordered_map>  // NOLINT
+#include <unordered_map>
 #include <vector>
 
 #include "glog/logging.h"

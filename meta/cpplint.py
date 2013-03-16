@@ -1754,7 +1754,8 @@ def CheckSpacing(filename, clean_lines, linenum, error):
         error(filename, linenum, 'whitespace/blank_line', 3,
               'Blank line at the end of a code block.  Is this needed?')
 
-    matched = Match(r'\s*(public|protected|private):', prev_line)
+    matched = Match(r'\s*(public|protected|private|signals)(:|\s\+slots:)',
+                    prev_line)
     if matched:
       error(filename, linenum, 'whitespace/blank_line', 3,
             'Do not leave a blank line after "%s:"' % matched.group(1))
@@ -1942,7 +1943,8 @@ def CheckSectionSpacing(filename, clean_lines, class_info, linenum, error):
       linenum <= class_info.linenum):
     return
 
-  matched = Match(r'\s*(public|protected|private):', clean_lines.lines[linenum])
+  matched = Match(r'\s*(public|protected|private)(\s\+slots:|:)',
+                  clean_lines.lines[linenum])
   if matched:
     # Issue warning if the line before public/protected/private was
     # not a blank line, but don't do this if the previous line contains
@@ -2198,7 +2200,8 @@ def CheckStyle(filename, clean_lines, linenum, file_extension, class_state,
           'Line ends in whitespace.  Consider deleting these extra spaces.')
   # There are certain situations we allow one space, notably for labels
   elif ((initial_spaces == 1 or initial_spaces == 3) and
-        not Match(r'\s*\w+\s*:\s*$', cleansed_line)):
+        not Match(r'\s*\w+\s*:\s*$', cleansed_line) and
+        not Match(r'\s*\w+\s*slots:\s*$', cleansed_line)):
     error(filename, linenum, 'whitespace/indent', 3,
           'Weird number of spaces at line-start.  '
           'Are you using a 2-space indent?')
@@ -2840,10 +2843,12 @@ def CheckCStyleCast(filename, linenum, line, raw_line, cast_type, pattern,
   # arguments with some unnamed.
   function_match = Match(r'\s*(\)|=|(const)?\s*(;|\{|throw\(\)|>))', remainder)
   if function_match:
-    if (not function_match.group(3) or
+    if (('SLOT' not in raw_line and
+         'SIGNAL' not in raw_line) and (
+        not function_match.group(3) or
         function_match.group(3) == ';' or
         ('MockCallback<' not in raw_line and
-         '/*' not in raw_line)):
+         '/*' not in raw_line))):
       error(filename, linenum, 'readability/function', 3,
             'All parameters should be named in a function')
     return True

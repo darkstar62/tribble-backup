@@ -7,9 +7,13 @@ INCLUDE(LintRules)
 
 LINT_SOURCES(
   QT_SOURCES
+    backup_driver.cpp
+    backup_driver.h
     file_selector_model.cpp
     file_selector_model.h
     main.cpp
     mainwindow.cpp
     mainwindow.h
+    manage_labels_dlg.cpp
+    manage_labels_dlg.h
   )

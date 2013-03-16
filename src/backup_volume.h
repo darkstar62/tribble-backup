@@ -3,6 +3,7 @@
 #ifndef BACKUP2_SRC_BACKUP_VOLUME_H_
 #define BACKUP2_SRC_BACKUP_VOLUME_H_
 
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -43,7 +44,7 @@ class BackupVolume : public BackupVolumeInterface {
   virtual bool GetChunk(Uint128 md5sum, BackupDescriptor1Chunk* chunk) {
     return chunks_.GetChunk(md5sum, chunk);
   }
-  virtual std::unordered_map<uint64_t, Label*> GetLabels() { return labels_; }
+  virtual std::map<uint64_t, Label*> GetLabels() { return labels_; }
   virtual Status WriteChunk(
       Uint128 md5sum, const std::string& data, uint64_t raw_size,
       EncodingType type, uint64_t* chunk_offset_out);
@@ -115,7 +116,7 @@ class BackupVolume : public BackupVolumeInterface {
   // backup.
   ChunkMap chunks_;
 
-  std::unordered_map<uint64_t, Label*> labels_;
+  std::map<uint64_t, Label*> labels_;
 
   bool modified_;
 

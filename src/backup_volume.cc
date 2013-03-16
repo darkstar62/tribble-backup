@@ -34,6 +34,11 @@ BackupVolume::BackupVolume(FileInterface* file)
       parent_offset_(0),
       parent_volume_(0),
       modified_(false) {
+  // Add the default label, we always need that one.
+  Label* default_label = new Label(1, "Default");
+  default_label->set_last_offset(0);
+  default_label->set_last_volume(0);
+  labels_.insert(make_pair(default_label->id(), default_label));
 }
 
 BackupVolume::~BackupVolume() {
@@ -51,12 +56,6 @@ Status BackupVolume::Init() {
   // Open the file and check the file header.
   Status retval = file_->Open(File::Mode::kModeRead);
   LOG_RETURN_IF_ERROR(retval, "Error opening file");
-
-  // Start by adding the default label, we always need that one.
-  Label* default_label = new Label(1, "Default");
-  default_label->set_last_offset(0);
-  default_label->set_last_volume(0);
-  labels_.insert(make_pair(default_label->id(), default_label));
 
   // Read the version from the file.
   retval = CheckVersion();
@@ -337,12 +336,14 @@ Status BackupVolume::WriteBackupDescriptor1(FileSet* fileset) {
   }
 
   // Grab the number of chunks and labels we have, and write the descriptor.
+  LOG(INFO) << "Writing descriptor 1 (labels: " << labels_.size() << ")";
   descriptor1_.total_chunks = chunks_.size();
   descriptor1_.total_labels = (fileset ? labels_.size() : 0);
   retval = file_->Write(&descriptor1_, sizeof(BackupDescriptor1));
   LOG_RETURN_IF_ERROR(retval, "Couldn't write descriptor 1 header");
 
   // Following this, we write all the descriptor chunks we have.
+  LOG(INFO) << "Writing descriptor 1 chunks";
   for (auto chunk : chunks_) {
     retval = file_->Write(&chunk.second, sizeof(BackupDescriptor1Chunk));
     LOG_RETURN_IF_ERROR(retval, "Couldn't write descriptor 1 chunk");
@@ -359,6 +360,7 @@ Status BackupVolume::WriteBackupDescriptor1(FileSet* fileset) {
 
   // Update our label (we can't do this if we're not closing with a FileSet).
   if (fileset) {
+    LOG(INFO) << "Writing descriptor 1 labels";
     Status retval = file_->SeekEof();
     LOG_RETURN_IF_ERROR(retval, "Error seeking to EOF");
 
@@ -520,10 +522,6 @@ Status BackupVolume::ReadBackupDescriptor1() {
     label->set_last_volume(label_str.last_backup_volume_number);
 
     labels_.insert(make_pair(label->id(), label));
-  }
-
-  // If label 1 wasn't added, put that in too.
-  if (labels_.find(1) == labels_.end()) {
   }
 
   descriptor1_ = descriptor1;

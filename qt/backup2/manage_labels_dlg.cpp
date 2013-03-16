@@ -1,10 +1,10 @@
 // Copyright (C) 2013 Cory Maccarrone
 // Author: Cory Maccarrone <darkstar6262@gmail.com>
-#include <string>
-#include <vector>
-
 #include <QModelIndexList>
 #include <QWidget>
+
+#include <string>
+#include <vector>
 
 #include "glog/logging.h"
 #include "qt/backup2/manage_labels_dlg.h"

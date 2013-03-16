@@ -46,7 +46,7 @@ BackupDriver::BackupDriver(PathList paths, BackupOptions options)
       options_(options) {
 }
 
-StatusOr<vector<const Label> > BackupDriver::GetLabels(string filename) {
+StatusOr<vector<Label> > BackupDriver::GetLabels(string filename) {
   File* file = new File(filename);
   if (!file->Exists()) {
     delete file;
@@ -71,7 +71,8 @@ void BackupDriver::PerformBackup() {
   backup2::BackupOptions options;
   options.set_enable_compression(options_.enable_compression);
   options.set_description(options_.description);
-  options.set_max_volume_size_mb(options_.split_volumes ? options_.volume_size_mb : 0);
+  options.set_max_volume_size_mb(
+      options_.split_volumes ? options_.volume_size_mb : 0);
 
   switch (options_.backup_type) {
     case kBackupTypeFull:
@@ -176,8 +177,10 @@ void BackupDriver::PerformBackup() {
         size_since_last_update += read;
         if (size_since_last_update > 1048576) {
           size_since_last_update = 0;
-          emit StatusUpdated("Backup in progress...",
-                             static_cast<int>(static_cast<float>(completed_size) / total_size * 100.0));
+          emit StatusUpdated(
+              "Backup in progress...",
+              static_cast<int>(
+                  static_cast<float>(completed_size) / total_size * 100.0));
         }
       } while (status.code() != backup2::kStatusShortRead);
 

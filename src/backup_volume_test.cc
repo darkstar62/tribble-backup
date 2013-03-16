@@ -1,9 +1,9 @@
 // Copyright (C) 2013, All Rights Reserved.
 // Author: Cory Maccarrone <darkstar6262@gmail.com>
 
+#include <map>
 #include <memory>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 #include "src/backup_volume.h"
@@ -18,9 +18,9 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
+using std::map;
 using std::string;
 using std::unique_ptr;
-using std::unordered_map;
 using std::vector;
 using testing::_;
 using testing::DoAll;
@@ -522,7 +522,7 @@ TEST_F(BackupVolumeTest, ReadChunks) {
   EXPECT_EQ(chunk_header2.encoding_type, encoding_type2);
 
   // Validate the labels too.
-  unordered_map<uint64_t, Label*> labels = volume.GetLabels();
+  map<uint64_t, Label*> labels = volume.GetLabels();
   EXPECT_EQ(2, labels.size());
   auto label_iter = labels.find(descriptor1_label.id);
   EXPECT_NE(labels.end(), label_iter);

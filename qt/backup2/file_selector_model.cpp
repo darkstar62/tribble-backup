@@ -237,7 +237,8 @@ vector<string> FilesystemScanner::ProcessPathsRecursive(
   // pass it to a recursive call of this function.
   for (string directory : dirs_to_scan) {
     vector<string> contents = File(directory).ListDirectory();
-    vector<string> results = ProcessPathsRecursive(contents, negative_selections);
+    vector<string> results = ProcessPathsRecursive(
+        contents, negative_selections);
     result.insert(result.end(), results.begin(), results.end());
     if (!operation_running_) {
       break;

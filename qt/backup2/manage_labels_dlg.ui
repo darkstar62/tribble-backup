@@ -10,7 +10,7 @@
     <x>0</x>
     <y>0</y>
     <width>541</width>
-    <height>525</height>
+    <height>638</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -25,6 +25,11 @@
   <property name="windowIcon">
    <iconset resource="Graphics.qrc">
     <normaloff>:/icons/graphics/label-icon.png</normaloff>:/icons/graphics/label-icon.png</iconset>
+  </property>
+  <property name="styleSheet">
+   <string notr="true">#ManageLabelsDlg {
+  background-color: #eeeeee;
+}</string>
   </property>
   <property name="sizeGripEnabled">
    <bool>true</bool>
@@ -124,7 +129,7 @@
       <item>
        <widget class="QFrame" name="frame_4">
         <property name="frameShape">
-         <enum>QFrame::StyledPanel</enum>
+         <enum>QFrame::NoFrame</enum>
         </property>
         <property name="frameShadow">
          <enum>QFrame::Raised</enum>
@@ -136,7 +141,7 @@
          <item>
           <widget class="QFrame" name="frame_3">
            <property name="frameShape">
-            <enum>QFrame::StyledPanel</enum>
+            <enum>QFrame::NoFrame</enum>
            </property>
            <property name="frameShadow">
             <enum>QFrame::Raised</enum>
@@ -152,6 +157,9 @@
              <widget class="QPushButton" name="new_label_button">
               <property name="text">
                <string>New...</string>
+              </property>
+              <property name="flat">
+               <bool>false</bool>
               </property>
              </widget>
             </item>
@@ -201,7 +209,7 @@
       <item>
        <widget class="QFrame" name="frame_5">
         <property name="frameShape">
-         <enum>QFrame::StyledPanel</enum>
+         <enum>QFrame::NoFrame</enum>
         </property>
         <property name="frameShadow">
          <enum>QFrame::Raised</enum>
@@ -225,7 +233,6 @@
      <zorder>label_2</zorder>
      <zorder>label_3</zorder>
      <zorder>frame_2</zorder>
-     <zorder>label_4</zorder>
      <zorder>frame_4</zorder>
      <zorder>frame_5</zorder>
     </widget>

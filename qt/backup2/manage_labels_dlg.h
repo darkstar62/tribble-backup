@@ -3,10 +3,10 @@
 #ifndef BACKUP2_QT_BACKUP2_MANAGE_LABELS_DLG_H_
 #define BACKUP2_QT_BACKUP2_MANAGE_LABELS_DLG_H_
 
+#include <QDialog>
+
 #include <string>
 #include <vector>
-
-#include <QDialog>
 
 namespace Ui {
 class ManageLabelsDlg;
@@ -18,10 +18,11 @@ class Label;
 
 class ManageLabelsDlg : public QDialog {
   Q_OBJECT
+
  public:
   explicit ManageLabelsDlg(QWidget *parent = 0);
   ~ManageLabelsDlg();
-    
+
   // Add a label to the dialog.
   void AddLabel(const std::string& name);
 

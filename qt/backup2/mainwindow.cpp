@@ -53,8 +53,8 @@ MainWindow::MainWindow(QWidget *parent)
   // description underneath.
   QObject::connect(
       ui_->backup_type_combo,
-      SIGNAL(currentIndexChanged(int)),  // NOLINT
-      this, SLOT(UpdateBackupComboDescription(int)));  // NOLINT
+      SIGNAL(currentIndexChanged(int)),
+      this, SLOT(UpdateBackupComboDescription(int)));
   QObject::connect(ui_->backup_next_button_1, SIGNAL(clicked()), this,
                    SLOT(SwitchToBackupPage2()));
   QObject::connect(ui_->backup_next_button_2, SIGNAL(clicked()), this,
@@ -72,11 +72,10 @@ MainWindow::MainWindow(QWidget *parent)
   QObject::connect(ui_->backup_dest, SIGNAL(textChanged(QString)), this,
                    SLOT(BackupLocationChanged()));
   QObject::connect(
-      ui_->backup_tabset, SIGNAL(currentChanged(int)), this,  // NOLINT
-      SLOT(BackupTabChanged(int)));  // NOLINT
-  QObject::connect((FileSelectorModel*)model_.get(),
-          SIGNAL(SelectedFilesLoaded(PathList)),
-          this, SLOT(BackupFilesLoaded(PathList)));
+      ui_->backup_tabset, SIGNAL(currentChanged(int)), this,
+      SLOT(BackupTabChanged(int)));
+  QObject::connect(model_.get(), SIGNAL(SelectedFilesLoaded(PathList)), this,
+                   SLOT(BackupFilesLoaded(PathList)));
 
   qRegisterMetaType<PathList>("PathList");
 }
@@ -168,13 +167,13 @@ void MainWindow::BackupLocationChanged() {
 
 void MainWindow::ManageLabels() {
   ManageLabelsDlg dlg;
-  vector<const backup2::Label> labels;
+  vector<backup2::Label> labels;
 
   // Try and open the backup file.  If it doesn't exist, empty out the UI.
   string filename = ui_->backup_dest->text().toStdString();
 
   // Grab the labels.
-  StatusOr<vector<const backup2::Label> > labels_ret =
+  StatusOr<vector<backup2::Label> > labels_ret =
       BackupDriver::GetLabels(filename);
   if (!labels_ret.ok()) {
     if (labels_ret.status().code() != backup2::kStatusNoSuchFile) {
@@ -186,7 +185,7 @@ void MainWindow::ManageLabels() {
   }
 
   for (uint64_t label_num = 0; label_num < labels.size(); ++label_num) {
-    const backup2::Label label = labels.at(label_num);
+    backup2::Label label = labels.at(label_num);
     dlg.AddLabel(label.name());
     LOG(INFO) << "Adding " << label.name();
     LOG(INFO) << "Label set: " << current_label_set_;
@@ -204,8 +203,8 @@ void MainWindow::ManageLabels() {
     LOG(INFO) << "Dialog closed successfully";
     LOG(INFO) << "Selected label: " << dlg.GetSelectedLabelIndex();
     LOG(INFO) << "Name: " << dlg.GetSelectedLabelName();
-    LOG_IF(INFO, dlg.GetSelectedLabelIndex() >= labels.size())
-        << "New label created";
+    LOG_IF(INFO, static_cast<uint64_t>(dlg.GetSelectedLabelIndex()) >=
+               labels.size()) << "New label created";
 
     int selection = dlg.GetSelectedLabelIndex();
     if (selection == -1) {
@@ -213,13 +212,13 @@ void MainWindow::ManageLabels() {
       // list.  Just return, it's like cancel.
       return;
     }
-    if (selection >= labels.size()) {
+    if (static_cast<uint64_t>(selection) >= labels.size()) {
       // The user added a new label -- assign the label an ID of zero to tell
       // the backup system to auto-assign a new ID.
       current_label_id_ = 0;
     } else {
-      // Pre-existing label, but possibly renamed.  Snarf the ID from the backup,
-      // but the name from our dialog.
+      // Pre-existing label, but possibly renamed.  Snarf the ID from the
+      // backup, but the name from our dialog.
       current_label_id_ = labels.at(selection).id();
     }
     current_label_name_ = dlg.GetSelectedLabelName();

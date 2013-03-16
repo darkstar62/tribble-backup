@@ -624,7 +624,7 @@ QTabWidget::pane {
                   <enum>QTabWidget::Rounded</enum>
                  </property>
                  <property name="currentIndex">
-                  <number>2</number>
+                  <number>0</number>
                  </property>
                  <property name="elideMode">
                   <enum>Qt::ElideNone</enum>
@@ -681,10 +681,13 @@ QTabWidget::pane {
                       <item>
                        <widget class="QFrame" name="frame_4">
                         <property name="frameShape">
-                         <enum>QFrame::StyledPanel</enum>
+                         <enum>QFrame::NoFrame</enum>
                         </property>
                         <property name="frameShadow">
-                         <enum>QFrame::Raised</enum>
+                         <enum>QFrame::Plain</enum>
+                        </property>
+                        <property name="lineWidth">
+                         <number>0</number>
                         </property>
                         <layout class="QHBoxLayout" name="horizontalLayout">
                          <property name="spacing">
@@ -916,6 +919,9 @@ QTabWidget::pane {
                                 <height>16777215</height>
                                </size>
                               </property>
+                              <property name="editable">
+                               <bool>false</bool>
+                              </property>
                               <item>
                                <property name="text">
                                 <string>&lt;Select One&gt;</string>
@@ -1089,7 +1095,7 @@ QTabWidget::pane {
                       <item>
                        <widget class="QFrame" name="frame_2">
                         <property name="frameShape">
-                         <enum>QFrame::StyledPanel</enum>
+                         <enum>QFrame::NoFrame</enum>
                         </property>
                         <property name="frameShadow">
                          <enum>QFrame::Raised</enum>
@@ -1595,7 +1601,7 @@ QTabWidget::pane {
                       <item>
                        <widget class="QFrame" name="frame_3">
                         <property name="frameShape">
-                         <enum>QFrame::StyledPanel</enum>
+                         <enum>QFrame::NoFrame</enum>
                         </property>
                         <property name="frameShadow">
                          <enum>QFrame::Raised</enum>

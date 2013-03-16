@@ -25,11 +25,12 @@ class BackupDriver;
 
 class MainWindow : public QMainWindow {
   Q_OBJECT
+
  public:
   explicit MainWindow(QWidget *parent = 0);
   virtual ~MainWindow();
 
- private slots:  // NOLINT
+ private slots:
   void UpdateBackupComboDescription(int index);
   void SwitchToBackupPage1();
   void SwitchToBackupPage2();

@@ -103,7 +103,7 @@ class BackupLibrary {
 
   // Load the labels from the backup library.  Returned label objects retain
   // ownership with the library.  There is no sorting order to the vector.
-  StatusOr<std::vector<const Label> > LoadLabels();
+  StatusOr<std::vector<Label> > LoadLabels();
 
   // Create a new backup.  This instantiates a new FileSet internally, and gets
   // it ready for backing up.  If this is the first time this is called, the

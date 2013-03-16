@@ -4,10 +4,10 @@
 #include "src/backup_library.h"
 
 #include <algorithm>
+#include <map>
 #include <memory>
 #include <sstream>
 #include <string>
-#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -25,7 +25,7 @@ using std::pair;
 using std::stoull;
 using std::string;
 using std::unique_ptr;
-using std::unordered_map;
+using std::map;
 using std::vector;
 
 namespace backup2 {
@@ -105,18 +105,18 @@ StatusOr<vector<FileSet*> > BackupLibrary::LoadFileSets(bool load_all) {
   return filesets;
 }
 
-StatusOr<vector<const Label> > BackupLibrary::LoadLabels() {
+StatusOr<vector<Label> > BackupLibrary::LoadLabels() {
   StatusOr<BackupVolumeInterface*> volume_result =
       GetBackupVolume(last_volume_, false);
   LOG_RETURN_IF_ERROR(volume_result.status(),
                       "Error loading last backup volume");
   BackupVolumeInterface* volume = volume_result.value();
 
-  unordered_map<uint64_t, Label*> labels = volume->GetLabels();
+  map<uint64_t, Label*> labels = volume->GetLabels();
 
-  vector<const Label> retval;
+  vector<Label> retval;
   for (auto label_iter : labels) {
-    const Label* label = label_iter.second;
+    Label* label = label_iter.second;
     retval.push_back(*label);
   }
   return retval;

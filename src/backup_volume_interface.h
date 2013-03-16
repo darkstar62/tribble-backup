@@ -3,8 +3,8 @@
 #ifndef BACKUP2_SRC_BACKUP_VOLUME_INTERFACE_H_
 #define BACKUP2_SRC_BACKUP_VOLUME_INTERFACE_H_
 
+#include <map>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 #include "src/backup_volume_defs.h"
@@ -97,7 +97,7 @@ class BackupVolumeInterface {
 
   // Return an unordered map of label UUID to description of all labels known.
   // This will be of all labels encountered up to this backup volume.
-  virtual std::unordered_map<uint64_t, Label*> GetLabels() = 0;
+  virtual std::map<uint64_t, Label*> GetLabels() = 0;
 
   // Write a chunk to the volume.  The offset in the backup volume for this
   // chunk is returned on success in chunk_offset_out.

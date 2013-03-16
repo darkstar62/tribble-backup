@@ -35,8 +35,8 @@ class FileSelectorModel : public QFileSystemModel {
 
   // Begin scanning the filesystem and populating the list of files, based on
   // the user's selection.  This can potentially take a while, so we spawn off
-  // another thread to do the work.  When finished, the SelectedFilesLoaded signal
-  // is emitted with the filelist.
+  // another thread to do the work.  When finished, the SelectedFilesLoaded
+  // signal is emitted with the filelist.
   void BeginScanningSelectedItems();  // LOCKS_EXCLUDED(scanner_mutex_)
 
   // Cancel scanning.  Useful if the user decides to back out before scanning
@@ -51,12 +51,12 @@ class FileSelectorModel : public QFileSystemModel {
   virtual bool setData(const QModelIndex& index, const QVariant& value,
                        int role = Qt::EditRole);
 
- signals:  // NOLINT
+ signals:
   // Emitted when a background file scanning operation has completed.  The
   // passed vector contains the files and directories enumerated.
   void SelectedFilesLoaded(PathList files);
 
- private slots:  // NOLINT
+ private slots:
   // Called when the user-expanded directory is loaded.  This will populate (or
   // not) the check boxes next to the new entries.
   void OnDirectoryLoaded(const QString& path);
@@ -88,6 +88,7 @@ class FileSelectorModel : public QFileSystemModel {
 
 class FilesystemScanner : public QObject {
   Q_OBJECT
+
  public:
   explicit FilesystemScanner(std::vector<std::pair<QString, int> > user_log)
       : user_log_(user_log), operation_running_(false) {}

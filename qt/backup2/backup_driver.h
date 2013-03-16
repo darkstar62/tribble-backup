@@ -38,12 +38,13 @@ struct BackupOptions {
 
 class BackupDriver : public QObject {
   Q_OBJECT
+
  public:
   BackupDriver(PathList paths, BackupOptions options);
 
   // Return a list of labels from the backup library at filename.  Returns
   // a status error if something goes wrong.
-  static backup2::StatusOr<std::vector<const backup2::Label> > GetLabels(
+  static backup2::StatusOr<std::vector<backup2::Label> > GetLabels(
       std::string filename);
 
  signals:

@@ -3,8 +3,8 @@
 #ifndef BACKUP2_SRC_FAKE_BACKUP_VOLUME_H_
 #define BACKUP2_SRC_FAKE_BACKUP_VOLUME_H_
 
+#include <map>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 #include "src/common.h"
@@ -106,8 +106,8 @@ class FakeBackupVolume : public BackupVolumeInterface {
     return chunks_.GetChunk(md5sum, chunk);
   }
 
-  virtual std::unordered_map<uint64_t, Label*> GetLabels() {
-    return std::unordered_map<uint64_t, Label*>();
+  virtual std::map<uint64_t, Label*> GetLabels() {
+    return std::map<uint64_t, Label*>();
   }
 
   virtual Status WriteChunk(
