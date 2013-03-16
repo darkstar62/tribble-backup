@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "qt/backup2/backup_driver.h"
+#include "qt/backup2/label_history_dlg.h"
 #include "qt/backup2/file_selector_model.h"
 #include "src/backup_library.h"
 #include "src/backup_volume.h"
@@ -70,6 +71,58 @@ StatusOr<vector<Label> > BackupDriver::GetLabels(string filename) {
     return retval;
   }
   return labels;
+}
+
+StatusOr<QVector<BackupItem> > BackupDriver::GetHistory(
+    string filename, uint64_t label) {
+  File* file = new File(filename);
+  if (!file->Exists()) {
+    delete file;
+    return Status(backup2::kStatusNoSuchFile, "");
+  }
+
+  BackupLibrary library(
+      file, NULL,
+      new Md5Generator(), new GzipEncoder(),
+      new BackupVolumeFactory());
+  Status retval = library.Init();
+  if (!retval.ok()) {
+    LOG(ERROR) << "Could not init library: " << retval.ToString();
+    return retval;
+  }
+
+  StatusOr<vector<FileSet*> > backup_sets = library.LoadFileSetsFromLabel(
+      true, label);
+  if (!retval.ok()) {
+    LOG(ERROR) << "Could not load sets: " << retval.ToString();
+    return retval;
+  }
+
+  QVector<BackupItem> items;
+  for (FileSet* fileset : backup_sets.value()) {
+    BackupItem item;
+    item.description = tr(fileset->description().c_str());
+    item.label = tr(fileset->label_name().c_str());
+    item.size = fileset->unencoded_size();
+    item.date.setMSecsSinceEpoch(fileset->date() * 1000);
+
+    switch (fileset->backup_type()) {
+      case backup2::kBackupTypeFull:
+        item.type = "Full";
+        break;
+      case backup2::kBackupTypeIncremental:
+        item.type = "Incremental";
+        break;
+      case backup2::kBackupTypeDifferential:
+        item.type = "Differential";
+        break;
+      default:
+        item.type = "** Invalid **";
+        break;
+    }
+    items.append(item);
+  }
+  return items;
 }
 
 void BackupDriver::PerformBackup() {
@@ -166,7 +219,7 @@ void BackupDriver::PerformBackup() {
     BackupFile metadata;
     file->FillBackupFile(&metadata);
 
-    FileEntry* entry = library.CreateFile(relative_filename, metadata);
+    FileEntry* entry = library.CreateNewFile(relative_filename, metadata);
 
     // If the file type is a directory, we don't store any chunks or try and
     // read from it.
@@ -215,7 +268,8 @@ uint64_t BackupDriver::LoadIncrementalFilelist(
   // Read the filesets from the library leading up to the last full backup.
   // Filesets are in order of most recent backup to least recent, and the least
   // recent one should be a full backup.
-  StatusOr<vector<FileSet*> > filesets = library->LoadFileSets(false);
+  StatusOr<vector<FileSet*> > filesets = library->LoadFileSetsFromLabel(
+      false, options_.label_id);
   CHECK(filesets.ok()) << filesets.status().ToString();
 
   // Extract out the filenames and directories from each set from most recent to

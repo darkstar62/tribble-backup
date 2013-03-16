@@ -16,15 +16,18 @@ SOURCES += main.cpp\
         mainwindow.cpp \
     file_selector_model.cpp \
     manage_labels_dlg.cpp \
-    backup_driver.cpp
+    backup_driver.cpp \
+    label_history_dlg.cpp
 
 HEADERS  += mainwindow.h \
     file_selector_model.h \
     manage_labels_dlg.h \
-    backup_driver.h
+    backup_driver.h \
+    label_history_dlg.h
 
 FORMS    += mainwindow.ui \
-    manage_labels_dlg.ui
+    manage_labels_dlg.ui \
+    label_history_dlg.ui
 
 INCLUDEPATH += graphics \
                ../../ \

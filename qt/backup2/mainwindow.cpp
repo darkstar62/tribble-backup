@@ -167,70 +167,14 @@ void MainWindow::BackupLocationChanged() {
 }
 
 void MainWindow::ManageLabels() {
-  ManageLabelsDlg dlg;
-  vector<backup2::Label> labels;
-
-  // Try and open the backup file.  If it doesn't exist, empty out the UI.
-  string filename = ui_->backup_dest->text().toStdString();
-
-  // Grab the labels.
-  StatusOr<vector<backup2::Label> > labels_ret =
-      BackupDriver::GetLabels(filename);
-  if (!labels_ret.ok()) {
-    if (labels_ret.status().code() != backup2::kStatusNoSuchFile) {
-      // TODO(darkstar62): Handle the error.
-      LOG(FATAL) << "Could not load labels: " << labels_ret.status().ToString();
-    }
-  } else {
-    labels = labels_ret.value();
+  ManageLabelsDlg dlg(ui_->backup_dest->text(), current_label_set_,
+                      current_label_id_, current_label_name_);
+  if (!dlg.exec()) {
+    return;
   }
 
-  for (uint64_t label_num = 0; label_num < labels.size(); ++label_num) {
-    backup2::Label label = labels.at(label_num);
-    dlg.AddLabel(label.name());
-    LOG(INFO) << "Adding " << label.name();
-    LOG(INFO) << "Label set: " << current_label_set_;
-    if (current_label_set_ && label.id() == current_label_id_) {
-      LOG(INFO) << "Selecting " << label_num << ": " << current_label_name_;
-      dlg.SetSelectedItem(label_num, current_label_name_);
-    }
-  }
-
-  // If we already have a current label, add that at the end if new.
-  if (current_label_id_ == 0 && current_label_name_ != "") {
-    dlg.AddNewLabelAndSelectIt(current_label_name_);
-  }
-  if (dlg.exec()) {
-    LOG(INFO) << "Dialog closed successfully";
-    LOG(INFO) << "Selected label: " << dlg.GetSelectedLabelIndex();
-    LOG(INFO) << "Name: " << dlg.GetSelectedLabelName();
-    LOG_IF(INFO, static_cast<uint64_t>(dlg.GetSelectedLabelIndex()) >=
-               labels.size()) << "New label created";
-
-    int selection = dlg.GetSelectedLabelIndex();
-    if (selection == -1) {
-      // No selection.  This will usually happen if there was no items in the
-      // list.  Just return, it's like cancel.
-      return;
-    }
-    if (static_cast<uint64_t>(selection) >= labels.size()) {
-      // The user added a new label -- assign the label an ID of zero to tell
-      // the backup system to auto-assign a new ID.
-      current_label_id_ = 0;
-    } else {
-      // Pre-existing label, but possibly renamed.  Snarf the ID from the
-      // backup, but the name from our dialog.
-      current_label_id_ = labels.at(selection).id();
-    }
-    current_label_name_ = dlg.GetSelectedLabelName();
-    if (current_label_name_ == "") {
-      current_label_name_ = "Default";
-    }
-    current_label_set_ = true;
-    LOG(INFO) << "Current ID: " << current_label_id_;
-  } else {
-    LOG(INFO) << "Cancelled";
-  }
+  dlg.GetCurrentLabelInfo(&current_label_set_, &current_label_id_,
+                          &current_label_name_);
 }
 
 void MainWindow::InitBackupProgress(QString message) {

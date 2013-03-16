@@ -105,7 +105,7 @@ TEST_F(BackupLibraryTest, CreateBackupWriteFiles) {
 
   // Add a file to the backup.
   BackupFile metadata;
-  FileEntry* entry = library.CreateFile("/foo/bar/bleh", metadata);
+  FileEntry* entry = library.CreateNewFile("/foo/bar/bleh", metadata);
 
   // Add some data to it.
   string data = "abcdefg1234567";
@@ -182,7 +182,7 @@ TEST_F(BackupLibraryTest, CreateBackupWriteFilesDedup) {
 
   // Add a file to the backup.
   BackupFile metadata;
-  FileEntry* entry = library.CreateFile("/foo/bar/bleh", metadata);
+  FileEntry* entry = library.CreateNewFile("/foo/bar/bleh", metadata);
 
   // Add some data to it.  We'll add three duplicate chunks.
   string data = "abcdefg1234567";
@@ -263,7 +263,7 @@ TEST_F(BackupLibraryTest, CreateBackupWriteFilesWithCompression) {
 
   // Add a file to the backup.
   BackupFile metadata;
-  FileEntry* entry = library.CreateFile("/foo/bar/bleh", metadata);
+  FileEntry* entry = library.CreateNewFile("/foo/bar/bleh", metadata);
 
   // Add some data to it.
   string data = "abcdefg1234567";
@@ -404,7 +404,7 @@ TEST_F(BackupLibraryTest, CreateBackupWriteFilesMultiVolume) {
 
   // Add a file to the backup.
   BackupFile metadata;
-  FileEntry* entry = library.CreateFile("/foo/bar/bleh", metadata);
+  FileEntry* entry = library.CreateNewFile("/foo/bar/bleh", metadata);
 
   // Add some data to it.  Do this three times.
   for (int i = 0; i < 3; ++i) {

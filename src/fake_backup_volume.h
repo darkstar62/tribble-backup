@@ -97,6 +97,12 @@ class FakeBackupVolume : public BackupVolumeInterface {
     return filesets_;
   }
 
+  virtual StatusOr<std::vector<FileSet*> > LoadFileSetsFromLabel(
+      bool load_all, uint64_t label_id, int64_t* next_volume) {
+    *next_volume = -1;
+    return filesets_;
+  }
+
   virtual bool HasChunk(Uint128 md5sum) {
     return chunks_.HasChunk(md5sum);
   }

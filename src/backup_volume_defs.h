@@ -180,9 +180,12 @@ struct BackupDescriptor2 {
   // Offset and volume number of the BackupDescriptor2 set that was used as the
   // basis for this backup.  Usually this will be the previous backup with the
   // same label, although it's possible to branch into a new label from an
-  // existing one.
+  // existing one.  In that case, parent_backup_label_id will point to the
+  // branched label.
   uint64_t parent_backup_offset;
   uint64_t parent_backup_volume_number;
+  // TODO(darkstar62): Implement this.
+  // uint64_t parent_backup_label_id;
 
   // Date and time of the backup in seconds since the epoch.
   uint64_t backup_date;

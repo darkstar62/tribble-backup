@@ -4,10 +4,14 @@
 #define BACKUP2_QT_BACKUP2_BACKUP_DRIVER_H_
 
 #include <QObject>
+#include <QVector>
+
 #include <string>
 #include <vector>
 
 #include "qt/backup2/file_selector_model.h"
+#include "qt/backup2/label_history_dlg.h"
+#include "qt/backup2/manage_labels_dlg.h"
 #include "src/backup_volume_interface.h"
 #include "src/status.h"
 
@@ -46,6 +50,10 @@ class BackupDriver : public QObject {
   // a status error if something goes wrong.
   static backup2::StatusOr<std::vector<backup2::Label> > GetLabels(
       std::string filename);
+
+  // Return the history of the given label.
+  static backup2::StatusOr<QVector<BackupItem> > GetHistory(
+      std::string filename, uint64_t label);
 
  signals:
   void StatusUpdated(QString message, int progress);

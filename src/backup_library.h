@@ -109,7 +109,7 @@ class BackupLibrary {
   // work backward through the entire backup library (all volumes) and load the
   // complete backup set history.  Otherwise, only the backup sets going back to
   // the most recent full backup are loaded.  The returned vector is in order of
-  // newest to oldest.
+  // newest to oldest.  Ownership of the filesets remains with the library.
   //
   // During processing, it may become necessary to change the media to another
   // backup volume.  In this case, the supplied VolumeChangeCallback is called
@@ -117,6 +117,11 @@ class BackupLibrary {
   // BackupSet is returned representing the requested volume number, or NULL if
   // the volume is not available.
   StatusOr<std::vector<FileSet*> > LoadFileSets(bool load_all);
+
+  // Like LoadFileSets(), but limit the returned values to the last backup
+  // against the given label ID and its lineage (including branches).
+  StatusOr<std::vector<FileSet*> > LoadFileSetsFromLabel(
+      bool load_all, uint64_t label_id);
 
   // Load the labels from the backup library.  Returned label objects retain
   // ownership with the library.  There is no sorting order to the vector.
@@ -130,10 +135,10 @@ class BackupLibrary {
   // Create a file in the current backup.  The returned FileEntry can be used to
   // add chunks to the backup.  Ownership of the FileEntry remains with the
   // BackupLibrary.
-  FileEntry* CreateFile(const std::string& filename, BackupFile metadata);
+  FileEntry* CreateNewFile(const std::string& filename, BackupFile metadata);
 
   // Add a chunk to the given FileEntry.  The entry must have been created by
-  // CreateFile().  Compression and checksumming are done with this function
+  // CreateNewFile().  Compression and checksumming are done with this function
   // before handing off to the backup volume for storage.
   Status AddChunk(const std::string& data, const uint64_t chunk_offset,
                   FileEntry* file);

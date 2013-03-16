@@ -34,11 +34,6 @@ BackupVolume::BackupVolume(FileInterface* file)
       parent_offset_(0),
       parent_volume_(0),
       modified_(false) {
-  // Add the default label, we always need that one.
-  Label default_label(1, "Default");
-  default_label.set_last_offset(0);
-  default_label.set_last_volume(0);
-  labels_.insert(make_pair(default_label.id(), default_label));
 }
 
 BackupVolume::~BackupVolume() {
@@ -232,6 +227,14 @@ Status BackupVolume::CloseWithFileSetAndLabels(FileSet* fileset,
   // done as part of the fileset writing.
   labels_ = labels;
 
+  if (labels_.find(1) == labels_.end()) {
+    // Add the default label, we always need that one.
+    Label default_label(1, "Default");
+    default_label.set_last_offset(0);
+    default_label.set_last_volume(0);
+    labels_.insert(make_pair(default_label.id(), default_label));
+  }
+
   // Closing with a FileSet necessitates a write of the backup descriptors.
   WriteBackupDescriptor1(fileset);
   WriteBackupDescriptor2(*fileset);
@@ -411,9 +414,12 @@ Status BackupVolume::WriteBackupDescriptor2(const FileSet& fileset) {
   Status retval = file_->SeekEof();
   LOG_RETURN_IF_ERROR(retval, "Error seeking to EOF");
 
+  LOG(INFO) << "Fileset date: " << fileset.date();
   descriptor_header_.backup_descriptor_2_present = 1;
   descriptor2_.num_files = fileset.num_files();
   descriptor2_.description_size = fileset.description().size();
+  descriptor2_.backup_date = fileset.date();
+  descriptor2_.unencoded_size = fileset.unencoded_size();
   descriptor2_.previous_backup_offset = fileset.previous_backup_offset();
   descriptor2_.previous_backup_volume_number = fileset.previous_backup_volume();
   descriptor2_.parent_backup_offset = parent_offset_;
@@ -596,6 +602,7 @@ StatusOr<vector<FileSet*> > BackupVolume::LoadFileSets(
     fileset->set_description(description);
     fileset->set_label_id(descriptor2.label_id);
     fileset->set_label_name(labels_[descriptor2.label_id].name());
+    fileset->set_date(descriptor2.backup_date);
 
     // Read in all the files, and the file chunks.
     for (uint64_t file_num = 0; file_num < descriptor2.num_files; ++file_num) {
@@ -630,6 +637,115 @@ StatusOr<vector<FileSet*> > BackupVolume::LoadFileSets(
     if (descriptor2.previous_backup_volume_number != volume_number()) {
       // We're done here -- return back with the next volume number.
       *next_volume = descriptor2.previous_backup_volume_number;
+      return filesets;
+    }
+  }
+
+  VLOG(3) << "Done";
+  *next_volume = -1;
+  return filesets;
+}
+
+StatusOr<vector<FileSet*> > BackupVolume::LoadFileSetsFromLabel(
+    bool load_all, uint64_t label_id, int64_t* next_volume) {
+  CHECK_NOTNULL(next_volume);
+  vector<FileSet*> filesets;
+
+  // Find the last backup 2 offset done with the given label.
+  auto label_iter = labels_.find(label_id);
+  if (label_iter == labels_.end()) {
+    return Status(kStatusInvalidArgument, "Specified label not in volume");
+  }
+  Label label = label_iter->second;
+
+  // If the label's last volume is different than this one, we can't track it
+  // down, so return empty and tell the user which volume we need.
+  if (label.last_volume() != volume_number()) {
+    *next_volume = label.last_volume();
+    return filesets;
+  }
+
+  // Start with the descriptor 2 specified by the label, and work backward until
+  // we have them all.
+  uint64_t current_offset = label.last_offset();
+
+  // An offset of zero indicates we've reached the end.
+  Status retval = Status::OK;
+  while (current_offset > 0) {
+    VLOG(4) << "Seeking to 0x" << std::hex << current_offset;
+    retval = file_->Seek(current_offset);
+    if (!retval.ok()) {
+      retval = Status(kStatusCorruptBackup,
+                      "Could not seek to descriptor 2 offset");
+      break;
+    }
+
+    // Read descriptor 2, including all the file chunks.
+    BackupDescriptor2 descriptor2;
+
+    // This first read doesn't include the string for the description
+    retval = file_->Read(&descriptor2, sizeof(descriptor2), NULL);
+    if (!retval.ok()) {
+      break;
+    }
+    if (descriptor2.header_type != kHeaderTypeDescriptor2) {
+      retval = Status(kStatusCorruptBackup,
+                      "Invalid header type for descriptor 2");
+      break;
+    }
+
+    // Find out the description size and grab the description.
+    string description = "";
+    if (descriptor2.description_size > 0) {
+      description.resize(descriptor2.description_size);
+      retval = file_->Read(
+          &description.at(0), descriptor2.description_size, NULL);
+      if (!retval.ok()) {
+        break;
+      }
+    }
+    VLOG(3) << "Found backup: " << description;
+
+    FileSet* fileset = new FileSet;
+    fileset->set_description(description);
+    fileset->set_label_id(descriptor2.label_id);
+    fileset->set_label_name(labels_[descriptor2.label_id].name());
+    fileset->set_backup_type(descriptor2.backup_type);
+    fileset->set_date(descriptor2.backup_date);
+
+    // Read in all the files, and the file chunks.
+    for (uint64_t file_num = 0; file_num < descriptor2.num_files; ++file_num) {
+      StatusOr<FileEntry*> entry = ReadFileEntry();
+      if (!entry.ok()) {
+        retval = entry.status();
+        break;
+      }
+      fileset->AddFile(entry.value());
+    }
+    if (!retval.ok()) {
+      break;
+    }
+
+    filesets.push_back(fileset);
+
+    VLOG(3) << "Backup type: " << descriptor2.backup_type;
+    // TODO(darkstar62): Check the backup type is valid
+    if (descriptor2.backup_type == kBackupTypeFull && !load_all) {
+      // We found the most recent full backup -- break out.
+      VLOG(3) << "Found full backup, done.";
+      break;
+    }
+
+    current_offset = descriptor2.parent_backup_offset;
+    VLOG(3) << "Current offset: " << current_offset;
+    if (descriptor2.parent_backup_volume_number == 0 && current_offset == 0) {
+      // 0 / 0 means we're done and there's no more left.
+      break;
+    }
+
+    if (descriptor2.parent_backup_volume_number != volume_number()) {
+      // We're done here -- return back with the next volume number.
+      *next_volume = descriptor2.parent_backup_volume_number;
       return filesets;
     }
   }

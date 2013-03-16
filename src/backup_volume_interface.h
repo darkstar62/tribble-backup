@@ -91,6 +91,12 @@ class BackupVolumeInterface {
   virtual StatusOr<std::vector<FileSet*> > LoadFileSets(
       bool load_all, int64_t* next_volume) = 0;
 
+  // Like LoadFileSets, but restrict the file sets to the provided label's
+  // lineage.  If load_all is specified, then all backups ever done against this
+  // label ID (regardless of renames) are loaded.
+  virtual StatusOr<std::vector<FileSet*> > LoadFileSetsFromLabel(
+      bool load_all, uint64_t label_id, int64_t* next_volume) = 0;
+
   // Look up a chunk.
   virtual bool HasChunk(Uint128 md5sum) = 0;
 

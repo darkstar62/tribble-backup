@@ -17,6 +17,7 @@
 #include "src/file_interface.h"
 #include "src/fileset.h"
 #include "src/md5_generator_interface.h"
+#include "src/msvc/unix_time.h"
 #include "src/status.h"
 
 using std::make_pair;
@@ -111,6 +112,32 @@ StatusOr<vector<FileSet*> > BackupLibrary::LoadFileSets(bool load_all) {
   return filesets;
 }
 
+StatusOr<vector<FileSet*> > BackupLibrary::LoadFileSetsFromLabel(
+    bool load_all, uint64_t label_id) {
+  // Start with the most recent backup volume and work upwards until we find all
+  // of the backup sets.
+  vector<FileSet*> filesets;
+  LOG(INFO) << filesets.size() << " filesets total (beginning)";
+  int64_t next_volume = last_volume_;
+  while (next_volume != -1) {
+    StatusOr<BackupVolumeInterface*> volume_result =
+        GetBackupVolume(next_volume, false);
+    LOG_RETURN_IF_ERROR(volume_result.status(), "Error getting backup volume");
+    BackupVolumeInterface* volume = volume_result.value();
+
+    StatusOr<vector<FileSet*> > fileset_result = volume->LoadFileSetsFromLabel(
+        load_all, label_id, &next_volume);
+    LOG_RETURN_IF_ERROR(fileset_result.status(), "Error getting file sets");
+
+    LOG(INFO) << fileset_result.value().size() << " filesets";
+    for (FileSet* item : fileset_result.value()) {
+      filesets.push_back(item);
+    }
+    LOG(INFO) << filesets.size() << " filesets total";
+  }
+  return filesets;
+}
+
 Status BackupLibrary::GetLabels(vector<Label>* out_labels) {
   for (auto label_iter : labels_) {
     out_labels->push_back(label_iter.second);
@@ -119,12 +146,16 @@ Status BackupLibrary::GetLabels(vector<Label>* out_labels) {
 }
 
 Status BackupLibrary::CreateBackup(BackupOptions options) {
+  timeval tv;
+  gettimeofday(&tv, NULL);
+
   FileSet* file_set = new FileSet;
   file_set->set_description(options.description());
   file_set->set_backup_type(options.type());
   file_set->set_use_default_label(options.use_default_label());
   file_set->set_label_id(options.label_id());
   file_set->set_label_name(options.label_name());
+  file_set->set_date(tv.tv_sec);
   file_set_.reset(file_set);
   options_ = options;
 
@@ -175,7 +206,7 @@ Status BackupLibrary::CreateBackup(BackupOptions options) {
   return Status::OK;
 }
 
-FileEntry* BackupLibrary::CreateFile(
+FileEntry* BackupLibrary::CreateNewFile(
     const string& filename, BackupFile metadata) {
   FileEntry* entry = new FileEntry(filename, new BackupFile(metadata));
   file_set_->AddFile(entry);

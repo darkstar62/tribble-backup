@@ -20,4 +20,12 @@ FileSet::~FileSet() {
   }
 }
 
+uint64_t FileSet::unencoded_size() const {
+  uint64_t size = 0;
+  for (FileEntry* entry : files_) {
+    size += entry->GetBackupFile()->file_size;
+  }
+  return size;
+}
+
 }  // namespace backup2

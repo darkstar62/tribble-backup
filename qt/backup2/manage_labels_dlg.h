@@ -5,6 +5,9 @@
 
 #include <QDialog>
 
+#include "src/backup_volume_interface.h"
+#include "src/common.h"
+
 #include <string>
 #include <vector>
 
@@ -12,16 +15,19 @@ namespace Ui {
 class ManageLabelsDlg;
 }  // namespace Ui
 
-namespace backup2 {
-class Label;
-}  // namespace backup2
-
 class ManageLabelsDlg : public QDialog {
   Q_OBJECT
 
  public:
-  explicit ManageLabelsDlg(QWidget *parent = 0);
+  ManageLabelsDlg(
+      QString filename, bool current_label_set, uint64_t current_label_id,
+      std::string current_label_name, QWidget *parent = 0);
   ~ManageLabelsDlg();
+
+  // Return the current label info after having been through user selection.
+  void GetCurrentLabelInfo(
+      bool* current_label_set, uint64_t* current_label_id,
+      std::string* current_label_name);
 
   // Add a label to the dialog.
   void AddLabel(const std::string& name);
@@ -48,6 +54,16 @@ class ManageLabelsDlg : public QDialog {
 
  private:
   Ui::ManageLabelsDlg *ui_;
+  QString filename_;
+
+  std::vector<backup2::Label> labels_;
+
+  // Label ID and name that we're going to use for the backup.  These are
+  // not valid if current_label_set_ is false.
+  uint64_t current_label_id_;
+  std::string current_label_name_;
+  bool current_label_set_;
+
 };
 
 #endif  // BACKUP2_QT_BACKUP2_MANAGE_LABELS_DLG_H_

@@ -38,6 +38,9 @@ class FileSet {
     return files_.size();
   }
 
+  // Return the unencoded size of the file set.
+  uint64_t unencoded_size() const;
+
   // Get/set the description of the fileset.
   const std::string& description() const { return description_; }
   void set_description(std::string description) { description_ = description; }
@@ -78,6 +81,10 @@ class FileSet {
   void set_label_name(std::string name) { label_name_ = name; }
   std::string label_name() const { return label_name_; }
 
+  // Set the backup date.
+  void set_date(uint64_t date) { date_ = date; }
+  uint64_t date() const { return date_; }
+
  private:
   // Vector of files in the file set.
   std::vector<FileEntry*> files_;
@@ -102,6 +109,9 @@ class FileSet {
   // The name of the label.  If this changes, but the UUID remains the same,
   // it's taken to be the same label, but with a new name.
   std::string label_name_;
+
+  // The date of the backup in seconds since the UNIX epoch.
+  uint64_t date_;
 
   DISALLOW_COPY_AND_ASSIGN(FileSet);
 };

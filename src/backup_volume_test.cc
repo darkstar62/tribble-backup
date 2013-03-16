@@ -354,6 +354,8 @@ TEST_F(BackupVolumeTest, CreateAddChunkAndCloseWithFileSet) {
   descriptor2.num_files = 1;
   descriptor2.description_size = 6;
   descriptor2.label_id = descriptor1_label2.id;
+  descriptor2.backup_date = 1234567;
+  descriptor2.unencoded_size = chunk_data.size();
   file->Write(&descriptor2, sizeof(descriptor2));
   file->Write(&description.at(0), description.size());
 
@@ -408,6 +410,7 @@ TEST_F(BackupVolumeTest, CreateAddChunkAndCloseWithFileSet) {
   file_set.set_use_default_label(false);
   file_set.set_label_id(0);
   file_set.set_label_name(label_name2);
+  file_set.set_date(descriptor2.backup_date);
 
   LOG(INFO) << entry_metadata->filename_size;
   uint64_t volume_offset = 0;
@@ -484,6 +487,8 @@ TEST_F(BackupVolumeTest, CreateAddChunkAndCloseWithFileSetRenameLabel1) {
   descriptor2.num_files = 1;
   descriptor2.description_size = 6;
   descriptor2.label_id = descriptor1_label1.id;
+  descriptor2.backup_date = 1978346;
+  descriptor2.unencoded_size = chunk_data.size();
   file->Write(&descriptor2, sizeof(descriptor2));
   file->Write(&description.at(0), description.size());
 
@@ -538,6 +543,7 @@ TEST_F(BackupVolumeTest, CreateAddChunkAndCloseWithFileSetRenameLabel1) {
   file_set.set_use_default_label(false);
   file_set.set_label_id(1);
   file_set.set_label_name(label_name1);
+  file_set.set_date(descriptor2.backup_date);
 
   LOG(INFO) << entry_metadata->filename_size;
   uint64_t volume_offset = 0;
@@ -628,6 +634,8 @@ TEST_F(BackupVolumeTest, CreateAddChunkAndCloseWithFileSetAndLabels) {
   descriptor2.num_files = 1;
   descriptor2.description_size = 6;
   descriptor2.label_id = descriptor1_label1.id;
+  descriptor2.backup_date = 983247;
+  descriptor2.unencoded_size = chunk_data.size();
   file->Write(&descriptor2, sizeof(descriptor2));
   file->Write(&description.at(0), description.size());
 
@@ -682,6 +690,7 @@ TEST_F(BackupVolumeTest, CreateAddChunkAndCloseWithFileSetAndLabels) {
   file_set.set_use_default_label(true);
   file_set.set_label_id(12334);  // Some values that shouldn't be used.
   file_set.set_label_name("Ishcabibble");
+  file_set.set_date(descriptor2.backup_date);
 
   LOG(INFO) << entry_metadata->filename_size;
   uint64_t volume_offset = 0;
@@ -880,6 +889,8 @@ TEST_F(BackupVolumeTest, ReadBackupSets) {
     descriptor2.num_files = 1;
     descriptor2.label_id = label1_id;
     descriptor2.description_size = description.size();
+    descriptor2.unencoded_size = chunk_data.size();
+    descriptor2.backup_date = 12345;
     file->Write(&descriptor2, sizeof(descriptor2));
     file->Write(&description.at(0), description.size());
 
@@ -957,6 +968,8 @@ TEST_F(BackupVolumeTest, ReadBackupSets) {
     descriptor2.num_files = 1;
     descriptor2.label_id = label2_id;
     descriptor2.description_size = description.size();
+    descriptor2.unencoded_size = chunk_data.size();
+    descriptor2.backup_date = 12345;
     file->Write(&descriptor2, sizeof(descriptor2));
     file->Write(&description.at(0), description.size());
 
@@ -1005,6 +1018,7 @@ TEST_F(BackupVolumeTest, ReadBackupSets) {
   EXPECT_EQ("/foo/bleh", file_set1->GetFiles()[0]->filename());
   EXPECT_EQ(label2_id, file_set1->label_id());
   EXPECT_EQ(label2_name, file_set1->label_name());
+  EXPECT_EQ(12345, file_set1->date());
 
   // Check the second backup.
   FileSet* file_set2 = file_sets.value()[1];
@@ -1013,6 +1027,7 @@ TEST_F(BackupVolumeTest, ReadBackupSets) {
   EXPECT_EQ("/foo/bar", file_set2->GetFiles()[0]->filename());
   EXPECT_EQ(label1_id, file_set2->label_id());
   EXPECT_EQ(label1_name, file_set2->label_name());
+  EXPECT_EQ(12345, file_set2->date());
 
   // Clean up.
   for (FileSet* file_set : file_sets.value()) {
@@ -1075,6 +1090,8 @@ TEST_F(BackupVolumeTest, ReadBackupSetsMultiFile) {
     descriptor2.backup_type = kBackupTypeFull;
     descriptor2.num_files = 1;
     descriptor2.description_size = description.size();
+    descriptor2.unencoded_size = chunk_data.size();
+    descriptor2.backup_date = 12345;
     vol0->Write(&descriptor2, sizeof(descriptor2));
     vol0->Write(&description.at(0), description.size());
 
@@ -1121,6 +1138,7 @@ TEST_F(BackupVolumeTest, ReadBackupSetsMultiFile) {
   EXPECT_EQ("backup", file_set->description());
   EXPECT_EQ(1, file_set->num_files());
   EXPECT_EQ("/foo/bar", file_set->GetFiles()[0]->filename());
+  EXPECT_EQ(12345, file_set->date());
 
   // Clean up.
   for (FileSet* file_set : file_sets.value()) {

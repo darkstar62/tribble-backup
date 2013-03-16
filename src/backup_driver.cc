@@ -100,7 +100,7 @@ int BackupDriver::Run() {
     BackupFile metadata;
     file->FillBackupFile(&metadata);
 
-    FileEntry* entry = library.CreateFile(relative_filename, metadata);
+    FileEntry* entry = library.CreateNewFile(relative_filename, metadata);
 
     // If the file type is a directory, we don't store any chunks or try and
     // read from it.
