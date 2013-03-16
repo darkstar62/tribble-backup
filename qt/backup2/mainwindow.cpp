@@ -78,7 +78,10 @@ MainWindow::MainWindow(QWidget *parent)
       SLOT(BackupTabChanged(int)));
   QObject::connect(model_.get(), SIGNAL(SelectedFilesLoaded(PathList)), this,
                    SLOT(BackupFilesLoaded(PathList)));
-
+  QObject::connect(ui_->backup_cancelled_back_button, SIGNAL(clicked()), this,
+                   SLOT(SwitchToBackupPage3()));
+  QObject::connect(ui_->backup_cancel_button, SIGNAL(clicked()), this,
+                   SLOT(CancelOrCloseBackup()));
   qRegisterMetaType<PathList>("PathList");
 }
 
@@ -174,7 +177,6 @@ void MainWindow::ManageLabels() {
   if (!dlg.exec()) {
     return;
   }
-
   dlg.GetCurrentLabelInfo(&current_label_set_, &current_label_id_,
                           &current_label_name_);
 }
@@ -182,6 +184,7 @@ void MainWindow::ManageLabels() {
 void MainWindow::InitBackupProgress(QString message) {
   ui_->backup_current_op_label->setText(message);
   ui_->backup_progress->setValue(0);
+  ui_->backup_cancelled_back_button->setVisible(false);
   ui_->backup_tabset->setCurrentIndex(3);
   ui_->backup_estimated_time_label->setText("Estimating time remaining...");
   ui_->backup_log_area->clear();
@@ -190,6 +193,10 @@ void MainWindow::InitBackupProgress(QString message) {
   ui_->general_info->setText("Performing backup...");
   ui_->general_info->setVisible(true);
   ui_->general_separator->setVisible(true);
+  ui_->backup_cancelled_back_button->setVisible(false);
+  ui_->backup_cancel_button->setText("Cancel");
+  ui_->backup_cancel_button->setIcon(
+      QIcon(":/icons/graphics/1363245997_stop.png"));
 }
 
 void MainWindow::RunBackup() {
@@ -200,6 +207,52 @@ void MainWindow::RunBackup() {
   UpdateBackupStatus("Scanning files...", 0);
   OnEstimatedTimeUpdated("Estimating time remaining...");
   model_->BeginScanningSelectedItems();
+}
+
+void MainWindow::CancelOrCloseBackup() {
+  if (ui_->backup_progress->value() == 100) {
+    // The backup is done, this is a close button now.  When clicking it,
+    // the interface should reset all values to defaults, and move back to
+    // the home tab.
+    current_label_id_ = 0;
+    current_label_name_ = "";
+    current_label_set_ = false;
+
+    // Move to home tab.
+    ui_->tabWidget->setCurrentIndex(0);
+    ui_->backup_tabset->setCurrentIndex(0);
+
+    // Reset the backup pages.
+    // What to backup.
+    ui_->backup_type_combo->setCurrentIndex(0);
+    ui_->backup_type_label->setText("");
+    model_->Reset();
+
+    // Where and how.
+    ui_->backup_dest->setText("");
+    ui_->backup_description->setText("");
+    ui_->enable_compression_checkbox->setChecked(false);
+    ui_->split_fixed_check->setChecked(false);
+    ui_->fixed_size_combo->setCurrentIndex(0);
+    ui_->fixed_size_combo->setEnabled(false);
+    ui_->backup_description_label->setText("");
+
+    // Summary tab.
+    ui_->summary_backup_type->setText("");
+    ui_->backup_destination_label->setText("");
+    ui_->summary_use_compression->setText("");
+    ui_->summary_label->setText("");
+
+    // Clear the general progress section.
+    ui_->general_progress->setVisible(false);
+    ui_->general_progress->setValue(0);
+    ui_->general_info->setText("");
+    ui_->general_info->setVisible(false);
+    ui_->general_separator->setVisible(false);
+  } else {
+    // Cancel the running backup.
+    // TODO: Implement this.
+  }
 }
 
 void MainWindow::BackupFilesLoaded(PathList paths) {
@@ -271,6 +324,13 @@ void MainWindow::UpdateBackupStatus(QString message, int progress) {
   ui_->general_info->setText(message);
   ui_->general_progress->setValue(progress);
   ui_->backup_progress->setValue(progress);
+
+  if (progress >= 100) {
+    BackupLogEntry("Backup complete!");
+    ui_->backup_estimated_time_label->setText("Done!");
+    ui_->backup_cancel_button->setText("Done");
+    ui_->backup_cancel_button->setIcon(QIcon(":/icons/graphics/pstatus_green.png"));
+  }
 }
 
 void MainWindow::BackupLogEntry(QString message) {

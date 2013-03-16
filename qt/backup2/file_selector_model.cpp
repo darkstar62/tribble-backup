@@ -53,6 +53,25 @@ void FileSelectorModel::CancelScanning() {
   scanner_thread_ = NULL;
 }
 
+void FileSelectorModel::Reset() {
+  // To reset, we roll back the click log.
+  std::vector<std::pair<QString, int> > user_log = user_log_;
+  for (auto log_iter = user_log.rbegin(); log_iter != user_log.rend();
+       ++log_iter) {
+    QString filename = log_iter->first;
+    int selection_state = log_iter->second;
+
+    QModelIndex item_index = index(filename);
+    setData(item_index, selection_state == Qt::Checked ? Qt::Unchecked : Qt::Checked,
+            Qt::CheckStateRole, false);
+  }
+
+  // Clear out all the state.
+  checked_.clear();
+  tristate_.clear();
+  user_log_.clear();
+}
+
 Qt::ItemFlags FileSelectorModel::flags(const QModelIndex& index) const {
   Qt::ItemFlags f = QFileSystemModel::flags(index);
   if (index.column() == 0) {

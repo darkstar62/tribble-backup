@@ -12,5 +12,6 @@
         <file>graphics/gradient_line.svg</file>
         <file>graphics/label-icon.png</file>
         <file>graphics/1363245997_stop.png</file>
+        <file>graphics/pstatus_green.png</file>
     </qresource>
 </RCC>

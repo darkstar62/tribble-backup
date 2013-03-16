@@ -44,6 +44,9 @@ class FileSelectorModel : public QFileSystemModel {
   // this function is a no-op.
   void CancelScanning();  // LOCKS_EXCLUDED(scanner_mutex_)
 
+  // Reset the widget.  This clears all check marks.
+  void Reset();
+
   // QDirModel overrides.
   virtual Qt::ItemFlags flags(const QModelIndex& index) const;
   virtual QVariant data(const QModelIndex& index,

@@ -40,6 +40,7 @@ class MainWindow : public QMainWindow {
   void BackupLocationChanged();
   void ManageLabels();
   void RunBackup();
+  void CancelOrCloseBackup();
   void BackupFilesLoaded(PathList paths);
 
   void UpdateBackupStatus(QString message, int progress);
