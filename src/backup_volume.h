@@ -44,14 +44,15 @@ class BackupVolume : public BackupVolumeInterface {
   virtual bool GetChunk(Uint128 md5sum, BackupDescriptor1Chunk* chunk) {
     return chunks_.GetChunk(md5sum, chunk);
   }
-  virtual std::map<uint64_t, Label*> GetLabels() { return labels_; }
+  virtual void GetLabels(LabelMap* out_labels) { *out_labels = labels_; }
   virtual Status WriteChunk(
       Uint128 md5sum, const std::string& data, uint64_t raw_size,
       EncodingType type, uint64_t* chunk_offset_out);
   virtual Status ReadChunk(const FileChunk& chunk, std::string* data_out,
                            EncodingType* encoding_type_out);
   virtual Status Close();
-  virtual Status CloseWithFileSet(FileSet* fileset);
+  virtual Status CloseWithFileSetAndLabels(
+      FileSet* fileset, const LabelMap& labels);
   virtual uint64_t EstimatedSize() const;
   virtual uint64_t volume_number() const {
     return descriptor_header_.volume_number;
@@ -116,7 +117,7 @@ class BackupVolume : public BackupVolumeInterface {
   // backup.
   ChunkMap chunks_;
 
-  std::map<uint64_t, Label*> labels_;
+  LabelMap labels_;
 
   bool modified_;
 

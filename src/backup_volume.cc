@@ -35,20 +35,16 @@ BackupVolume::BackupVolume(FileInterface* file)
       parent_volume_(0),
       modified_(false) {
   // Add the default label, we always need that one.
-  Label* default_label = new Label(1, "Default");
-  default_label->set_last_offset(0);
-  default_label->set_last_volume(0);
-  labels_.insert(make_pair(default_label->id(), default_label));
+  Label default_label(1, "Default");
+  default_label.set_last_offset(0);
+  default_label.set_last_volume(0);
+  labels_.insert(make_pair(default_label.id(), default_label));
 }
 
 BackupVolume::~BackupVolume() {
   if (modified_) {
     LOG(WARNING) << "Deleting BackupVolume without Closing()!  "
                  << "Expect data loss!";
-  }
-
-  for (auto label_iter : labels_) {
-    delete label_iter.second;
   }
 }
 
@@ -230,7 +226,12 @@ Status BackupVolume::Close() {
   return Status::OK;
 }
 
-Status BackupVolume::CloseWithFileSet(FileSet* fileset) {
+Status BackupVolume::CloseWithFileSetAndLabels(FileSet* fileset,
+                                               const LabelMap& labels) {
+  // Merge our label map with the provided one.  Renames and new additions are
+  // done as part of the fileset writing.
+  labels_ = labels;
+
   // Closing with a FileSet necessitates a write of the backup descriptors.
   WriteBackupDescriptor1(fileset);
   WriteBackupDescriptor2(*fileset);
@@ -305,23 +306,23 @@ Status BackupVolume::WriteBackupDescriptor1(FileSet* fileset) {
     if (label_iter != labels_.end()) {
       // We already have this UUID, but update its string.
       VLOG(3) << "Found, update name";
-      label_iter->second->set_name(fileset->label_name());
+      label_iter->second.set_name(fileset->label_name());
 
       // Grab the previous data from the label so we can propagate that into
       // descriptor 2.
-      parent_offset_ = label_iter->second->last_offset();
-      parent_volume_ = label_iter->second->last_volume();
+      parent_offset_ = label_iter->second.last_offset();
+      parent_volume_ = label_iter->second.last_volume();
 
       // Update the label's volume number to this one.  The offset will be
       // updated later, once we know how many labels we have.
-      label_iter->second->set_last_volume(volume_number());
+      label_iter->second.set_last_volume(volume_number());
     } else {
       VLOG(3) << "Added new label: " << fileset->label_name() << ", "
               << hex << fileset->label_id();
-      Label* label = new Label(fileset->label_id(), fileset->label_name());
+      Label label(fileset->label_id(), fileset->label_name());
 
       // Last offset is filled in later.
-      label->set_last_volume(volume_number());
+      label.set_last_volume(volume_number());
 
       labels_.insert(make_pair(fileset->label_id(), label));
 
@@ -355,7 +356,7 @@ Status BackupVolume::WriteBackupDescriptor1(FileSet* fileset) {
   uint64_t label_block_size = 0;
   for (auto label_iter : labels_) {
     label_block_size += sizeof(BackupDescriptor1Label);
-    label_block_size += label_iter.second->name().size();
+    label_block_size += label_iter.second.name().size();
   }
 
   // Update our label (we can't do this if we're not closing with a FileSet).
@@ -366,16 +367,16 @@ Status BackupVolume::WriteBackupDescriptor1(FileSet* fileset) {
 
     auto my_label_iter = labels_.find(fileset->label_id());
     CHECK(labels_.end() != my_label_iter) << "BUG: Couldn't find label!";
-    my_label_iter->second->set_last_offset(file_->Tell() + label_block_size);
+    my_label_iter->second.set_last_offset(file_->Tell() + label_block_size);
 
     for (auto label_iter : labels_) {
       BackupDescriptor1Label label;
       label.id = label_iter.first;
-      label.name_size = label_iter.second->name().size();
-      label.last_backup_offset = label_iter.second->last_offset();
-      label.last_backup_volume_number = label_iter.second->last_volume();
+      label.name_size = label_iter.second.name().size();
+      label.last_backup_offset = label_iter.second.last_offset();
+      label.last_backup_volume_number = label_iter.second.last_volume();
 
-      LOG(INFO) << "Writing label: " << label_iter.second->name() << ", "
+      LOG(INFO) << "Writing label: " << label_iter.second.name() << ", "
                 << hex << label_iter.first;
 
       // Write the descriptor.
@@ -383,9 +384,9 @@ Status BackupVolume::WriteBackupDescriptor1(FileSet* fileset) {
       LOG_RETURN_IF_ERROR(retval, "Couldn't write descriptor 1 label");
 
       // Write the name.
-      if (label_iter.second->name().size() > 0) {
-        retval = file_->Write(&label_iter.second->name().at(0),
-                              label_iter.second->name().size());
+      if (label_iter.second.name().size() > 0) {
+        retval = file_->Write(&label_iter.second.name().at(0),
+                              label_iter.second.name().size());
         LOG_RETURN_IF_ERROR(retval, "Couldn't write label string");
       }
     }
@@ -501,7 +502,10 @@ Status BackupVolume::ReadBackupDescriptor1() {
     chunks_.Add(chunk.md5sum, chunk);
   }
 
-  // Read the labels out of the file.
+  // Read the labels out of the file.  We must first clear out our labels to
+  // avoid conflicting with them.
+  labels_.clear();
+
   for (uint64_t label_num = 0; label_num < descriptor1.total_labels;
        ++label_num) {
     // Read the label metadata.
@@ -517,11 +521,11 @@ Status BackupVolume::ReadBackupDescriptor1() {
       LOG_RETURN_IF_ERROR(retval, "Couldn't read label string");
     }
 
-    Label* label = new Label(label_str.id, label_name);
-    label->set_last_offset(label_str.last_backup_offset);
-    label->set_last_volume(label_str.last_backup_volume_number);
+    Label label(label_str.id, label_name);
+    label.set_last_offset(label_str.last_backup_offset);
+    label.set_last_volume(label_str.last_backup_volume_number);
 
-    labels_.insert(make_pair(label->id(), label));
+    labels_.insert(make_pair(label.id(), label));
   }
 
   descriptor1_ = descriptor1;
@@ -582,7 +586,7 @@ StatusOr<vector<FileSet*> > BackupVolume::LoadFileSets(
     FileSet* fileset = new FileSet;
     fileset->set_description(description);
     fileset->set_label_id(descriptor2.label_id);
-    fileset->set_label_name(labels_[descriptor2.label_id]->name());
+    fileset->set_label_name(labels_[descriptor2.label_id].name());
 
     // Read in all the files, and the file chunks.
     for (uint64_t file_num = 0; file_num < descriptor2.num_files; ++file_num) {

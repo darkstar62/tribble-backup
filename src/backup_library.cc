@@ -77,7 +77,13 @@ Status BackupLibrary::Init() {
   num_volumes_ = num_vols;
   basename_ = basename;
 
-  return Status::OK;
+  // Try and load the labels.  Only do this if we have some number of volumes to
+  // read from.
+  retval = Status::OK;
+  if (num_vols > 0) {
+    retval = LoadLabels();
+  }
+  return retval;
 }
 
 StatusOr<vector<FileSet*> > BackupLibrary::LoadFileSets(bool load_all) {
@@ -105,21 +111,11 @@ StatusOr<vector<FileSet*> > BackupLibrary::LoadFileSets(bool load_all) {
   return filesets;
 }
 
-StatusOr<vector<Label> > BackupLibrary::LoadLabels() {
-  StatusOr<BackupVolumeInterface*> volume_result =
-      GetBackupVolume(last_volume_, false);
-  LOG_RETURN_IF_ERROR(volume_result.status(),
-                      "Error loading last backup volume");
-  BackupVolumeInterface* volume = volume_result.value();
-
-  map<uint64_t, Label*> labels = volume->GetLabels();
-
-  vector<Label> retval;
-  for (auto label_iter : labels) {
-    Label* label = label_iter.second;
-    retval.push_back(*label);
+Status BackupLibrary::GetLabels(vector<Label>* out_labels) {
+  for (auto label_iter : labels_) {
+    out_labels->push_back(label_iter.second);
   }
-  return retval;
+  return Status::OK;
 }
 
 Status BackupLibrary::CreateBackup(BackupOptions options) {
@@ -128,6 +124,8 @@ Status BackupLibrary::CreateBackup(BackupOptions options) {
   file_set->set_backup_type(options.type());
   file_set->set_label_id(options.label_id());
   file_set->set_label_name(options.label_name());
+  LOG(INFO) << "Got label: " << options.label_id() << ", "
+            << options.label_name();
   file_set_.reset(file_set);
   options_ = options;
 
@@ -304,7 +302,8 @@ Status BackupLibrary::ReadChunk(const FileChunk& chunk, string* data_out) {
 }
 
 Status BackupLibrary::CloseBackup() {
-  Status retval = current_backup_volume_->CloseWithFileSet(file_set_.get());
+  Status retval = current_backup_volume_->CloseWithFileSetAndLabels(
+      file_set_.get(), labels_);
   LOG_RETURN_IF_ERROR(retval, "Could not close backup volume");
 
   // Merge the backup volume's chunk data with ours.  This way we have all the
@@ -383,6 +382,17 @@ std::string BackupLibrary::FilenameFromVolume(uint64_t volume) {
   ostringstream file_str;
   file_str << basename_ << "." << volume << ".bkp";
   return file_str.str();
+}
+
+Status BackupLibrary::LoadLabels() {
+  StatusOr<BackupVolumeInterface*> volume_result =
+      GetBackupVolume(last_volume_, false);
+  LOG_RETURN_IF_ERROR(volume_result.status(),
+                      "Error loading last backup volume");
+  BackupVolumeInterface* volume = volume_result.value();
+
+  volume->GetLabels(&labels_);
+  return Status::OK;
 }
 
 bool BackupLibrary::ChunkComparator::operator()(

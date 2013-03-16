@@ -40,6 +40,8 @@ TEST_F(BackupLibraryTest, Init) {
       static_cast<BackupLibraryTest*>(this),
       &BackupLibraryTest::GetNextFilename);
 
+  MockBackupVolumeFactory* volume_factory = new MockBackupVolumeFactory();
+
   EXPECT_CALL(*file, FindBasenameAndLastVolume(_, _, _))
       .WillOnce(DoAll(
           SetArgPointee<0>("/foo/bar"),
@@ -50,7 +52,7 @@ TEST_F(BackupLibraryTest, Init) {
       file, cb,
       new MockMd5Generator(),
       new MockEncoder(),
-      new FakeBackupVolumeFactory());
+      volume_factory);
 
   EXPECT_TRUE(library.Init().ok());
   delete cb;
@@ -78,7 +80,6 @@ TEST_F(BackupLibraryTest, CreateBackupWriteFiles) {
       md5_generator,
       new MockEncoder(),
       volume_factory);
-  EXPECT_TRUE(library.Init().ok());
 
   // Create the backup now.
   FakeBackupVolume* volume = new FakeBackupVolume(file);
@@ -94,6 +95,7 @@ TEST_F(BackupLibraryTest, CreateBackupWriteFiles) {
   // chunk database (which is empty for these initial conditions) with its own.
   // Seeing that, and seeing that this is the first backup volume, library will
   // only set up metadata and ensure that the volume is marked current.
+  EXPECT_TRUE(library.Init().ok());
   Status retval = library.CreateBackup(
       BackupOptions().set_description("Foo")
                      .set_enable_compression(false)
@@ -317,7 +319,6 @@ TEST_F(BackupLibraryTest, CreateBackupMultiSet) {
       new MockMd5Generator(),
       new MockEncoder(),
       volume_factory);
-  EXPECT_TRUE(library.Init().ok());
 
   // Create the set that's already there.  This volume has backup descriptor 2,
   // and so marks the end of a previous backup.
@@ -328,10 +329,12 @@ TEST_F(BackupLibraryTest, CreateBackupMultiSet) {
   FakeBackupVolume* volume1 = new FakeBackupVolume(file);
   volume1->InitializeForNewVolume();
 
-  // Expectation: The first thing that's done is to read the chunk data from the
-  // backup volumes, so volume 0 will be opened first.
+  // Expectation: The first thing that's done is to read the labels and chunk
+  // data from the backup volumes, so volume 0 will be opened first.
   EXPECT_CALL(*volume_factory, Create("/foo/bar.0.bkp")).WillOnce(
       Return(volume0));
+
+  EXPECT_TRUE(library.Init().ok());
 
   // Init will return KStatusOK, prompting the library to read the chunk data
   // from the volume.  Once this is done, the volume is closed, and a new backup
@@ -464,17 +467,18 @@ TEST_F(BackupLibraryTest, ReadFilesAndChunks) {
       md5_generator,
       new MockEncoder(),
       volume_factory);
-  EXPECT_TRUE(library.Init().ok());
 
   // Create a set that's already there.  This volume has backup descriptor 2,
   // and so marks the end of a previous backup.
   FakeBackupVolume* volume = new FakeBackupVolume(file);
   volume->InitializeForExistingWithDescriptor2();
 
-  // Expectation: The first thing that's done is to read the chunk data from the
-  // backup volumes.
+  // Expectation: The first thing that's done is to read the labels and chunk
+  // data from the backup volumes.
   EXPECT_CALL(*volume_factory, Create("/foo/bar.0.bkp")).WillOnce(
       Return(volume));
+
+  EXPECT_TRUE(library.Init().ok());
 
   StatusOr<vector<FileSet*> > fileset_retval = library.LoadFileSets(true);
   EXPECT_TRUE(fileset_retval.ok()) << fileset_retval.status().ToString();
@@ -529,17 +533,18 @@ TEST_F(BackupLibraryTest, ReadFilesAndChunksWithCompression) {
       md5_generator,
       encoder,
       volume_factory);
-  EXPECT_TRUE(library.Init().ok());
 
   // Create a set that's already there.  This volume has backup descriptor 2,
   // and so marks the end of a previous backup.
   FakeBackupVolume* volume = new FakeBackupVolume(file);
   volume->InitializeForExistingWithDescriptor2(true);
 
-  // Expectation: The first thing that's done is to read the chunk data from the
-  // backup volumes.
+  // Expectation: The first thing that's done is to read the labels chunk data
+  // from the backup volumes.
   EXPECT_CALL(*volume_factory, Create("/foo/bar.0.bkp")).WillOnce(
       Return(volume));
+
+  EXPECT_TRUE(library.Init().ok());
 
   StatusOr<vector<FileSet*> > fileset_retval = library.LoadFileSets(true);
   EXPECT_TRUE(fileset_retval.ok()) << fileset_retval.status().ToString();

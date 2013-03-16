@@ -35,6 +35,9 @@ struct ConfigOptions {
 // previous backup information.
 class Label {
  public:
+  Label()
+      : id_(1), name_("Default"), last_offset_(0), last_volume_(0) {}
+
   Label(uint64_t id, std::string name)
       : id_(id), name_(name), last_offset_(0), last_volume_(0) {}
 
@@ -57,6 +60,9 @@ class Label {
   uint64_t last_offset_;
   uint64_t last_volume_;
 };
+
+// A convenient map to hold the label ID and poitner to the label.
+typedef std::map<uint64_t, Label> LabelMap;
 
 // Interface for any BackupVolume.  BackupVolumes can be implemented in
 // basically any way, but must conform to this contract to be usable.
@@ -97,7 +103,7 @@ class BackupVolumeInterface {
 
   // Return an unordered map of label UUID to description of all labels known.
   // This will be of all labels encountered up to this backup volume.
-  virtual std::map<uint64_t, Label*> GetLabels() = 0;
+  virtual void GetLabels(LabelMap* out_labels) = 0;
 
   // Write a chunk to the volume.  The offset in the backup volume for this
   // chunk is returned on success in chunk_offset_out.
@@ -112,12 +118,15 @@ class BackupVolumeInterface {
 
   // Close out the backup volume.  If this is the last volume in the backup a
   // fileset is provided and we write descriptor 2 to the file.  Otherwise, we
-  // only leave descriptor 1 and the backup header.
+  // only leave descriptor 1 and the backup header.  The provided label map is
+  // used to suppliment the labels in the volume to carry them forward from
+  // backup to backup.
   //
   // In the second form, the fileset may be modified to include the new label
   // number if one was requested.  Ownership does not transfer.
   virtual Status Close() = 0;
-  virtual Status CloseWithFileSet(FileSet* fileset) = 0;
+  virtual Status CloseWithFileSetAndLabels(FileSet* fileset,
+                                           const LabelMap& labels) = 0;
 
   // Returns the estimated disk size of the volume, including metadata (but not
   // descriptor 2, as that can't be known until after the backup).

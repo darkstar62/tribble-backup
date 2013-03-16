@@ -103,7 +103,7 @@ class BackupLibrary {
 
   // Load the labels from the backup library.  Returned label objects retain
   // ownership with the library.  There is no sorting order to the vector.
-  StatusOr<std::vector<Label> > LoadLabels();
+  Status GetLabels(std::vector<Label>* out_labels);
 
   // Create a new backup.  This instantiates a new FileSet internally, and gets
   // it ready for backing up.  If this is the first time this is called, the
@@ -165,6 +165,10 @@ class BackupLibrary {
   StatusOr<BackupVolumeInterface*> GetBackupVolume(
       uint64_t volume, bool create_if_not_exist);
 
+  // Load the labels from the last backup volume.  This needs to be kept in here
+  // to allow us to write it back at the conclusion of a backup.
+  Status LoadLabels();
+
   // Convert the base name and volume number to a path.
   std::string FilenameFromVolume(uint64_t volume);
 
@@ -204,6 +208,10 @@ class BackupLibrary {
   // Vector of all chunks contained in this backup library.  This is loaded
   // from each backup volume before performing a backup.
   ChunkMap chunks_;
+
+  // Map of labels obtained from the last backup volume in the library.  This is
+  // carried through backups so accurate information can be kept.
+  LabelMap labels_;
 
   // Cached MD5 and data for reading chunks.  This greatly speeds up reads of
   // the same chunks, especially when used with an optimized chunk list, as the

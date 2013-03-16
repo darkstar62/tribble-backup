@@ -143,6 +143,7 @@ void MainWindow::BackupLocationBrowse() {
   dialog.setNameFilter(tr("Backup volumes (*.0.bkp)"));
   dialog.setAcceptMode(QFileDialog::AcceptSave);
   dialog.setDefaultSuffix(".0.bkp");
+  dialog.setConfirmOverwrite(false);
 
   QStringList filenames;
   if (dialog.exec()) {

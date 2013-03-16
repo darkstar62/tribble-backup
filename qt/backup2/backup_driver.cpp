@@ -63,7 +63,13 @@ StatusOr<vector<Label> > BackupDriver::GetLabels(string filename) {
     return retval;
   }
 
-  return library.LoadLabels();
+  vector<backup2::Label> labels;
+  retval = library.GetLabels(&labels);
+  if (!retval.ok()) {
+    LOG(ERROR) << "Could not get labels: " << retval.ToString();
+    return retval;
+  }
+  return labels;
 }
 
 void BackupDriver::PerformBackup() {
@@ -73,6 +79,10 @@ void BackupDriver::PerformBackup() {
   options.set_description(options_.description);
   options.set_max_volume_size_mb(
       options_.split_volumes ? options_.volume_size_mb : 0);
+  if (options_.label_set) {
+    options.set_label_id(options_.label_id);
+    options.set_label_name(options_.label_name);
+  }
 
   switch (options_.backup_type) {
     case kBackupTypeFull:

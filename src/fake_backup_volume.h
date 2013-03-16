@@ -106,9 +106,7 @@ class FakeBackupVolume : public BackupVolumeInterface {
     return chunks_.GetChunk(md5sum, chunk);
   }
 
-  virtual std::map<uint64_t, Label*> GetLabels() {
-    return std::map<uint64_t, Label*>();
-  }
+  virtual void GetLabels(LabelMap* out_labels) {}
 
   virtual Status WriteChunk(
       Uint128 md5sum, const std::string& data, uint64_t raw_size,
@@ -151,7 +149,8 @@ class FakeBackupVolume : public BackupVolumeInterface {
   virtual Status Close() { return Status::OK; }
 
   // Note, the fileset here won't be available when queried.
-  virtual Status CloseWithFileSet(FileSet* fileset) {
+  virtual Status CloseWithFileSetAndLabels(FileSet* fileset,
+                                           const LabelMap& labels) {
     return Status::OK;
   }
 
