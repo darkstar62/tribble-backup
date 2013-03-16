@@ -5,11 +5,11 @@
 
 #include <QDialog>
 
-#include "src/backup_volume_interface.h"
-#include "src/common.h"
-
 #include <string>
 #include <vector>
+
+#include "src/backup_volume_interface.h"
+#include "src/common.h"
 
 namespace Ui {
 class ManageLabelsDlg;
@@ -60,10 +60,9 @@ class ManageLabelsDlg : public QDialog {
 
   // Label ID and name that we're going to use for the backup.  These are
   // not valid if current_label_set_ is false.
+  bool current_label_set_;
   uint64_t current_label_id_;
   std::string current_label_name_;
-  bool current_label_set_;
-
 };
 
 #endif  // BACKUP2_QT_BACKUP2_MANAGE_LABELS_DLG_H_

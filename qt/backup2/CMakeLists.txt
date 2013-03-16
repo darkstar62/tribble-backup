@@ -11,6 +11,8 @@ LINT_SOURCES(
     backup_driver.h
     file_selector_model.cpp
     file_selector_model.h
+    label_history_dlg.cpp
+    label_history_dlg.h
     main.cpp
     mainwindow.cpp
     mainwindow.h
