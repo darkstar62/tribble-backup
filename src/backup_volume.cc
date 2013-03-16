@@ -295,7 +295,12 @@ Status BackupVolume::WriteBackupDescriptor1(FileSet* fileset) {
 
   // Stash away the label we were given in the set.
   if (fileset) {
-    if (fileset->label_id() == 0) {
+    if (fileset->use_default_label()) {
+      // Use the default label of 1, and don't rename it.  Used to instruct the
+      // backup system quickly on default use without having to query for the
+      // label ahead of time.
+      fileset->set_label_id(1);
+    } else if (fileset->label_id() == 0) {
       // We're to assign it one.  Give it a new incremental one.
       fileset->set_label_id(labels_.size() + 1);
     }
@@ -306,7 +311,10 @@ Status BackupVolume::WriteBackupDescriptor1(FileSet* fileset) {
     if (label_iter != labels_.end()) {
       // We already have this UUID, but update its string.
       VLOG(3) << "Found, update name";
-      label_iter->second.set_name(fileset->label_name());
+      if (!fileset->use_default_label()) {
+        // Only update if we've not been told to just use the default label.
+        label_iter->second.set_name(fileset->label_name());
+      }
 
       // Grab the previous data from the label so we can propagate that into
       // descriptor 2.
@@ -319,6 +327,7 @@ Status BackupVolume::WriteBackupDescriptor1(FileSet* fileset) {
     } else {
       VLOG(3) << "Added new label: " << fileset->label_name() << ", "
               << hex << fileset->label_id();
+      CHECK_NE(1, fileset->label_id()) << "BUG: Default label not found!";
       Label label(fileset->label_id(), fileset->label_name());
 
       // Last offset is filled in later.

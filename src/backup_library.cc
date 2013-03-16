@@ -122,10 +122,9 @@ Status BackupLibrary::CreateBackup(BackupOptions options) {
   FileSet* file_set = new FileSet;
   file_set->set_description(options.description());
   file_set->set_backup_type(options.type());
+  file_set->set_use_default_label(options.use_default_label());
   file_set->set_label_id(options.label_id());
   file_set->set_label_name(options.label_name());
-  LOG(INFO) << "Got label: " << options.label_id() << ", "
-            << options.label_name();
   file_set_.reset(file_set);
   options_ = options;
 

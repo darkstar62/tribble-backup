@@ -80,8 +80,11 @@ void BackupDriver::PerformBackup() {
   options.set_max_volume_size_mb(
       options_.split_volumes ? options_.volume_size_mb : 0);
   if (options_.label_set) {
+    options.set_use_default_label(false);
     options.set_label_id(options_.label_id);
     options.set_label_name(options_.label_name);
+  } else {
+    options.set_use_default_label(true);
   }
 
   switch (options_.backup_type) {

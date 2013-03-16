@@ -405,6 +405,7 @@ TEST_F(BackupVolumeTest, CreateAddChunkAndCloseWithFileSet) {
   file_set.set_backup_type(kBackupTypeFull);
   file_set.set_previous_backup_volume(0);
   file_set.set_previous_backup_offset(0);
+  file_set.set_use_default_label(false);
   file_set.set_label_id(0);
   file_set.set_label_name(label_name2);
 
@@ -534,6 +535,7 @@ TEST_F(BackupVolumeTest, CreateAddChunkAndCloseWithFileSetRenameLabel1) {
   file_set.set_backup_type(kBackupTypeFull);
   file_set.set_previous_backup_volume(0);
   file_set.set_previous_backup_offset(0);
+  file_set.set_use_default_label(false);
   file_set.set_label_id(1);
   file_set.set_label_name(label_name1);
 
@@ -592,7 +594,7 @@ TEST_F(BackupVolumeTest, CreateAddChunkAndCloseWithFileSetAndLabels) {
   // Create a descriptor 1 label.  We're going to specify 0 as the label ID, and
   // the system should assign it.  Seeing that there are no other labels in the
   // system (and the default label is reserved), it should assign it 2.
-  string label_name1 = "Default";
+  string label_name1 = "Not Default";
   string label_name2 = "foo bar yo";
   BackupDescriptor1Label descriptor1_label1;
   descriptor1_label1.id = 0x1;
@@ -677,8 +679,9 @@ TEST_F(BackupVolumeTest, CreateAddChunkAndCloseWithFileSetAndLabels) {
   file_set.set_backup_type(kBackupTypeFull);
   file_set.set_previous_backup_volume(0);
   file_set.set_previous_backup_offset(0);
-  file_set.set_label_id(1);
-  file_set.set_label_name(label_name1);
+  file_set.set_use_default_label(true);
+  file_set.set_label_id(12334);  // Some values that shouldn't be used.
+  file_set.set_label_name("Ishcabibble");
 
   LOG(INFO) << entry_metadata->filename_size;
   uint64_t volume_offset = 0;
@@ -688,7 +691,12 @@ TEST_F(BackupVolumeTest, CreateAddChunkAndCloseWithFileSetAndLabels) {
                                 &volume_offset).ok());
   EXPECT_EQ(descriptor1_chunk.offset, volume_offset);
 
+  // Carry forward two labels, but change the name of the first.  It should come
+  // out unchanged.
   LabelMap label_map;
+  Label default_label(1, label_name1);
+  label_map.insert(make_pair(default_label.id(), default_label));
+
   Label new_label(descriptor1_label2.id, label_name2);
   new_label.set_last_offset(descriptor1_label2.last_backup_offset);
   new_label.set_last_volume(

@@ -46,14 +46,31 @@ class BackupOptions {
         enable_compression_(false),
         max_volume_size_mb_(0),
         type_(kBackupTypeInvalid),
+        use_default_label_(false),
         label_id_(1),
         label_name_("Default") {}
 
+  // Description of the backup.  Used purely for user friendliness.
   PROPERTY(std::string, description);
+
+  // Whether to enable compression or not.
   PROPERTY(bool, enable_compression);
+
+  // Maximum size of each backup file in MB.
   PROPERTY(uint64_t, max_volume_size_mb);
+
+  // Type of backup (incremental, full, differential, etc.).
   PROPERTY(BackupType, type);
+
+  // Whether to use the default label.  If false, label_id and label_name are
+  // used instead.
+  PROPERTY(bool, use_default_label);
+
+  // Label ID to use.  Can be a reserved label (0 = create new ID, 1 = default).
   PROPERTY(uint64_t, label_id);
+
+  // Label name.  If an existing label ID is specified, this property can be
+  // used to rename the label.
   PROPERTY(std::string, label_name);
 };
 

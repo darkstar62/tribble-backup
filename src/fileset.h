@@ -62,6 +62,13 @@ class FileSet {
     previous_backup_offset_ = offset;
   }
 
+  // Whether to use the default label or not.  If true, label_id and label_name
+  // below are ignored, and label 1 is used without renaming.
+  void set_use_default_label(bool use_default) {
+    use_default_label_ = use_default;
+  }
+  bool use_default_label() const { return use_default_label_; }
+
   // Set the label ID.  A value of 0 indicates that the label is new and should
   // be system-assigned.
   void set_label_id(uint64_t id) { label_id_ = id; }
@@ -84,6 +91,9 @@ class FileSet {
   // Previous backup information.
   uint64_t previous_backup_volume_;
   uint64_t previous_backup_offset_;
+
+  // Whether to use the default (unchanged) label or not.
+  bool use_default_label_;
 
   // The ID for the label we want to use.  If this label doesn't exist, it
   // will be created.
