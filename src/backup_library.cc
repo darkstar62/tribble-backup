@@ -243,7 +243,7 @@ Status BackupLibrary::AddChunk(const string& data, const uint64_t chunk_offset,
 
   // If compression is enabled, compress the data.
   uint64_t volume_offset = 0;
-  if (options_.enable_compression()) {
+  if (options_.enable_compression() && data.size() > 0) {
     string compressed_data;
     Status status = gzip_encoder_->Encode(data, &compressed_data);
     if (!status.ok()) {
