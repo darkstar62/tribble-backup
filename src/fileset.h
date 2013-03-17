@@ -65,6 +65,22 @@ class FileSet {
     previous_backup_offset_ = offset;
   }
 
+  // Get/set the parent backup volume and offset.  These are stored in the
+  // next backup to allow linking backwards through labels.
+  uint64_t parent_backup_volume() const {
+    return parent_backup_volume_;
+  }
+  void set_parent_backup_volume(uint64_t volume) {
+    parent_backup_volume_ = volume;
+  }
+
+  uint64_t parent_backup_offset() const {
+    return parent_backup_offset_;
+  }
+  void set_parent_backup_offset(uint64_t offset) {
+    parent_backup_offset_ = offset;
+  }
+
   // Whether to use the default label or not.  If true, label_id and label_name
   // below are ignored, and label 1 is used without renaming.
   void set_use_default_label(bool use_default) {
@@ -95,9 +111,14 @@ class FileSet {
   // Backup type.
   BackupType backup_type_;
 
-  // Previous backup information.
+  // Previous backup information.  This tracks linear history through a backup
+  // volume, regardless of label.
   uint64_t previous_backup_volume_;
   uint64_t previous_backup_offset_;
+
+  // Parent backup information.  This tracks lineage through a label.
+  uint64_t parent_backup_volume_;
+  uint64_t parent_backup_offset_;
 
   // Whether to use the default (unchanged) label or not.
   bool use_default_label_;

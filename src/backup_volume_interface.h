@@ -78,24 +78,17 @@ class BackupVolumeInterface {
   // specify how the backup volume will be written.
   virtual Status Create(const ConfigOptions& options) = 0;
 
-  // Load the fileset for the backup set.  If load_all is true, this will work
-  // backward through the entire backup set (all volumes) and load the complete
-  // backup set history.  Otherwise, only the backup sets going back to the most
-  // recent full backup are loaded.  The returned vector is in order of newest
-  // to oldest.
-  //
-  // During processing, it may become necessary to change the media to another
-  // backup volume.  In this case, the function will return with Status::OK and
-  // next_volume will contain the volume number needed next to continue.  We're
-  // all done when next_volume is set to -1.
-  virtual StatusOr<std::vector<FileSet*> > LoadFileSets(
-      bool load_all, int64_t* next_volume) = 0;
+  // Load the fileset for the backup set.  If there are more file sets
+  // available, next_volume is filled with the volume containing the next recent
+  // backup fileset.  Otherwise, -1 is returned indicating the last one.
+  virtual StatusOr<FileSet*> LoadFileSet(int64_t* next_volume) = 0;
 
-  // Like LoadFileSets, but restrict the file sets to the provided label's
-  // lineage.  If load_all is specified, then all backups ever done against this
-  // label ID (regardless of renames) are loaded.
-  virtual StatusOr<std::vector<FileSet*> > LoadFileSetsFromLabel(
-      bool load_all, uint64_t label_id, int64_t* next_volume) = 0;
+  // Like LoadFileSet, but restrict the file set to the provided label's
+  // lineage.  This function may return OK status but still return a NULL
+  // pointer -- if that happens, this volume didn't contain a fileset with the
+  // given label.  Use next_volume to get the next volume with that label.
+  virtual StatusOr<FileSet*> LoadFileSetFromLabel(
+      uint64_t label_id, int64_t* next_volume) = 0;
 
   // Look up a chunk.
   virtual bool HasChunk(Uint128 md5sum) = 0;

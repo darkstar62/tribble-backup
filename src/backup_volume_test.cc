@@ -28,6 +28,7 @@ using testing::_;
 using testing::DoAll;
 using testing::InSequence;
 using testing::Mock;
+using testing::NotNull;
 using testing::Return;
 using testing::SetArrayArgument;
 using testing::SetArgPointee;
@@ -914,166 +915,80 @@ TEST_F(BackupVolumeTest, ReadBackupSets) {
   string label1_name = "foo bar blah";
   string label2_name = "another label";
   uint64_t label1_id = 0x123;
-  uint64_t label2_id = 0x456;
 
   // Version string.
   file->Write(kGoodVersion, 8);
 
-  uint64_t backup1_offset = 0;
+  // Create a ChunkHeader and chunk.  This one is not compressed.
+  uint64_t chunk1_offset = file->size();
+  string chunk_data = "1234567890123456";
+  ChunkHeader chunk_header;
+  chunk_header.encoded_size = chunk_data.size();
+  chunk_header.unencoded_size = chunk_data.size();
+  chunk_header.encoding_type = kEncodingTypeRaw;
+  chunk_header.md5sum.hi = 123;
+  chunk_header.md5sum.lo = 456;
+  file->Write(&chunk_header, sizeof(chunk_header));
+  file->Write(&chunk_data.at(0), chunk_data.size());
 
-  {
-    // Create a ChunkHeader and chunk.  This one is not compressed.
-    uint64_t chunk1_offset = file->size();
-    string chunk_data = "1234567890123456";
-    ChunkHeader chunk_header;
-    chunk_header.encoded_size = chunk_data.size();
-    chunk_header.unencoded_size = chunk_data.size();
-    chunk_header.encoding_type = kEncodingTypeRaw;
-    chunk_header.md5sum.hi = 123;
-    chunk_header.md5sum.lo = 456;
-    file->Write(&chunk_header, sizeof(chunk_header));
-    file->Write(&chunk_data.at(0), chunk_data.size());
+  // Create backup descriptor 1.
+  uint64_t desc1_offset = file->size();
+  BackupDescriptor1 descriptor1;
+  descriptor1.total_chunks = 1;
+  descriptor1.total_labels = 1;
+  file->Write(&descriptor1, sizeof(descriptor1));
 
-    // Create backup descriptor 1.
-    uint64_t desc1_offset = file->size();
-    BackupDescriptor1 descriptor1;
-    descriptor1.total_chunks = 1;
-    descriptor1.total_labels = 1;
-    file->Write(&descriptor1, sizeof(descriptor1));
+  // Create the descriptor 1 chunks.
+  BackupDescriptor1Chunk descriptor1_chunk;
+  descriptor1_chunk.md5sum = chunk_header.md5sum;
+  descriptor1_chunk.offset = chunk1_offset;
+  file->Write(&descriptor1_chunk, sizeof(descriptor1_chunk));
 
-    // Create the descriptor 1 chunks.
-    BackupDescriptor1Chunk descriptor1_chunk;
-    descriptor1_chunk.md5sum = chunk_header.md5sum;
-    descriptor1_chunk.offset = chunk1_offset;
-    file->Write(&descriptor1_chunk, sizeof(descriptor1_chunk));
+  // Create a descriptor 1 label.
+  BackupDescriptor1Label descriptor1_label;
+  descriptor1_label.id = label1_id;
+  descriptor1_label.name_size = label1_name.size();
+  file->Write(&descriptor1_label, sizeof(descriptor1_label));
+  file->Write(&label1_name.at(0), label1_name.size());
 
-    // Create a descriptor 1 label.
-    BackupDescriptor1Label descriptor1_label;
-    descriptor1_label.id = label1_id;
-    descriptor1_label.name_size = label1_name.size();
-    file->Write(&descriptor1_label, sizeof(descriptor1_label));
-    file->Write(&label1_name.at(0), label1_name.size());
+  // Create the descriptor 2.
+  string description = "backup";
+  BackupDescriptor2 descriptor2;
+  descriptor2.previous_backup_offset = 0;
+  descriptor2.previous_backup_volume_number = 0;
+  descriptor2.backup_type = kBackupTypeFull;
+  descriptor2.num_files = 1;
+  descriptor2.label_id = label1_id;
+  descriptor2.description_size = description.size();
+  descriptor2.unencoded_size = chunk_data.size();
+  descriptor2.backup_date = 12345;
+  file->Write(&descriptor2, sizeof(descriptor2));
+  file->Write(&description.at(0), description.size());
 
-    // Create the descriptor 2.
-    backup1_offset = file->size();
-    string description = "backup";
-    BackupDescriptor2 descriptor2;
-    descriptor2.previous_backup_offset = 0;
-    descriptor2.previous_backup_volume_number = 0;
-    descriptor2.backup_type = kBackupTypeFull;
-    descriptor2.num_files = 1;
-    descriptor2.label_id = label1_id;
-    descriptor2.description_size = description.size();
-    descriptor2.unencoded_size = chunk_data.size();
-    descriptor2.backup_date = 12345;
-    file->Write(&descriptor2, sizeof(descriptor2));
-    file->Write(&description.at(0), description.size());
+  // Create a BackupFile, and a chunk to go with it.
+  string filename = "/foo/bar";
+  BackupFile backup_file;
+  backup_file.file_size = chunk_data.size();
+  backup_file.num_chunks = 1;
+  backup_file.filename_size = filename.size();
+  file->Write(&backup_file, sizeof(backup_file));
+  file->Write(&filename.at(0), filename.size());
 
-    // Create a BackupFile, and a chunk to go with it.
-    string filename = "/foo/bar";
-    BackupFile backup_file;
-    backup_file.file_size = chunk_data.size();
-    backup_file.num_chunks = 1;
-    backup_file.filename_size = filename.size();
-    file->Write(&backup_file, sizeof(backup_file));
-    file->Write(&filename.at(0), filename.size());
+  // Create a FileChunk.
+  FileChunk file_chunk;
+  file_chunk.md5sum = chunk_header.md5sum;
+  file_chunk.volume_num = 0;
+  file_chunk.chunk_offset = 0;
+  file_chunk.unencoded_size = chunk_data.size();
+  file->Write(&file_chunk, sizeof(file_chunk));
 
-    // Create a FileChunk.
-    FileChunk file_chunk;
-    file_chunk.md5sum = chunk_header.md5sum;
-    file_chunk.volume_num = 0;
-    file_chunk.chunk_offset = 0;
-    file_chunk.unencoded_size = chunk_data.size();
-    file->Write(&file_chunk, sizeof(file_chunk));
-
-    // Create the backup header.
-    BackupDescriptorHeader header;
-    header.backup_descriptor_1_offset = desc1_offset;
-    header.backup_descriptor_2_present = true;
-    header.cancelled = false;
-    header.volume_number = 0;
-    file->Write(&header, sizeof(BackupDescriptorHeader));
-  }
-
-  {
-    // Create a ChunkHeader and chunk.  This one is not compressed.
-    uint64_t chunk1_offset = file->size();
-    string chunk_data = "1234567890123456";
-    ChunkHeader chunk_header;
-    chunk_header.encoded_size = chunk_data.size();
-    chunk_header.unencoded_size = chunk_data.size();
-    chunk_header.encoding_type = kEncodingTypeRaw;
-    chunk_header.md5sum.hi = 456;
-    chunk_header.md5sum.lo = 789;
-    file->Write(&chunk_header, sizeof(chunk_header));
-    file->Write(&chunk_data.at(0), chunk_data.size());
-
-    // Create backup descriptor 1.
-    uint64_t desc1_offset = file->size();
-    BackupDescriptor1 descriptor1;
-    descriptor1.total_chunks = 1;
-    descriptor1.total_labels = 2;
-    file->Write(&descriptor1, sizeof(descriptor1));
-
-    // Create the descriptor 1 chunks.
-    BackupDescriptor1Chunk descriptor1_chunk;
-    descriptor1_chunk.md5sum = chunk_header.md5sum;
-    descriptor1_chunk.offset = chunk1_offset;
-    file->Write(&descriptor1_chunk, sizeof(descriptor1_chunk));
-
-    // Create a descriptor 1 label.
-    BackupDescriptor1Label descriptor1_label;
-    descriptor1_label.id = label1_id;
-    descriptor1_label.name_size = label1_name.size();
-    file->Write(&descriptor1_label, sizeof(descriptor1_label));
-    file->Write(&label1_name.at(0), label1_name.size());
-
-    // ... and another one.
-    BackupDescriptor1Label descriptor1_label2;
-    descriptor1_label2.id = label2_id;
-    descriptor1_label2.name_size = label2_name.size();
-    file->Write(&descriptor1_label2, sizeof(descriptor1_label));
-    file->Write(&label2_name.at(0), label2_name.size());
-
-    // Create the descriptor 2.
-    string description = "backup 2";
-    BackupDescriptor2 descriptor2;
-    descriptor2.previous_backup_offset = backup1_offset;
-    descriptor2.previous_backup_volume_number = 0;
-    descriptor2.backup_type = kBackupTypeFull;
-    descriptor2.num_files = 1;
-    descriptor2.label_id = label2_id;
-    descriptor2.description_size = description.size();
-    descriptor2.unencoded_size = chunk_data.size();
-    descriptor2.backup_date = 12345;
-    file->Write(&descriptor2, sizeof(descriptor2));
-    file->Write(&description.at(0), description.size());
-
-    // Create a BackupFile, and a chunk to go with it.
-    string filename = "/foo/bleh";
-    BackupFile backup_file;
-    backup_file.file_size = chunk_data.size();
-    backup_file.num_chunks = 1;
-    backup_file.filename_size = filename.size();
-    file->Write(&backup_file, sizeof(backup_file));
-    file->Write(&filename.at(0), filename.size());
-
-    // Create a FileChunk.
-    FileChunk file_chunk;
-    file_chunk.md5sum = chunk_header.md5sum;
-    file_chunk.volume_num = 0;
-    file_chunk.chunk_offset = 0;
-    file_chunk.unencoded_size = chunk_data.size();
-    file->Write(&file_chunk, sizeof(file_chunk));
-
-    // Create the backup header.
-    BackupDescriptorHeader header;
-    header.backup_descriptor_1_offset = desc1_offset;
-    header.backup_descriptor_2_present = true;
-    header.cancelled = false;
-    header.volume_number = 0;
-    file->Write(&header, sizeof(BackupDescriptorHeader));
-  }
+  // Create the backup header.
+  BackupDescriptorHeader header;
+  header.backup_descriptor_1_offset = desc1_offset;
+  header.backup_descriptor_2_present = true;
+  header.cancelled = false;
+  header.volume_number = 0;
+  file->Write(&header, sizeof(BackupDescriptorHeader));
 
   // Reset for the test.
   BackupVolume volume(file);
@@ -1082,34 +997,22 @@ TEST_F(BackupVolumeTest, ReadBackupSets) {
   EXPECT_TRUE(volume.Init().ok());
 
   int64_t next_volume = 0;
-  StatusOr<vector<FileSet*> > file_sets =
-      volume.LoadFileSets(true, &next_volume);
-  EXPECT_TRUE(file_sets.ok()) << file_sets.status().ToString();
-  EXPECT_EQ(2, file_sets.value().size());
+  StatusOr<FileSet*> test_file_set = volume.LoadFileSet(&next_volume);
+  EXPECT_TRUE(test_file_set.ok()) << test_file_set.status().ToString();
   EXPECT_EQ(-1, next_volume);
 
-  // Check the first backup.  This should be the most recent one in the file.
-  FileSet* file_set1 = file_sets.value()[0];
-  EXPECT_EQ("backup 2", file_set1->description());
-  EXPECT_EQ(1, file_set1->num_files());
-  EXPECT_EQ("/foo/bleh", file_set1->GetFiles()[0]->filename());
-  EXPECT_EQ(label2_id, file_set1->label_id());
-  EXPECT_EQ(label2_name, file_set1->label_name());
-  EXPECT_EQ(12345, file_set1->date());
-
-  // Check the second backup.
-  FileSet* file_set2 = file_sets.value()[1];
-  EXPECT_EQ("backup", file_set2->description());
-  EXPECT_EQ(1, file_set2->num_files());
-  EXPECT_EQ("/foo/bar", file_set2->GetFiles()[0]->filename());
-  EXPECT_EQ(label1_id, file_set2->label_id());
-  EXPECT_EQ(label1_name, file_set2->label_name());
-  EXPECT_EQ(12345, file_set2->date());
+  // Check the backup.
+  FileSet* file_set = test_file_set.value();
+  ASSERT_THAT(file_set, NotNull());
+  EXPECT_EQ("backup", file_set->description());
+  EXPECT_EQ(1, file_set->num_files());
+  EXPECT_EQ("/foo/bar", file_set->GetFiles()[0]->filename());
+  EXPECT_EQ(label1_id, file_set->label_id());
+  EXPECT_EQ(label1_name, file_set->label_name());
+  EXPECT_EQ(12345, file_set->date());
 
   // Clean up.
-  for (FileSet* file_set : file_sets.value()) {
-    delete file_set;
-  }
+  delete file_set;
 }
 
 TEST_F(BackupVolumeTest, ReadBackupSetsMultiFile) {
@@ -1205,23 +1108,20 @@ TEST_F(BackupVolumeTest, ReadBackupSetsMultiFile) {
   EXPECT_TRUE(volume.Init().ok());
 
   int64_t next_volume = -5;
-  StatusOr<vector<FileSet*> > file_sets =
-      volume.LoadFileSets(true, &next_volume);
-  EXPECT_TRUE(file_sets.ok()) << file_sets.status().ToString();
-  EXPECT_EQ(1, file_sets.value().size());
+  StatusOr<FileSet*> test_file_set = volume.LoadFileSet(&next_volume);
+  EXPECT_TRUE(test_file_set.ok()) << test_file_set.status().ToString();
   EXPECT_EQ(1, next_volume);
 
   // Check the first backup.
-  FileSet* file_set = file_sets.value()[0];
+  FileSet* file_set = test_file_set.value();
+  ASSERT_THAT(file_set, NotNull());
   EXPECT_EQ("backup", file_set->description());
   EXPECT_EQ(1, file_set->num_files());
   EXPECT_EQ("/foo/bar", file_set->GetFiles()[0]->filename());
   EXPECT_EQ(12345, file_set->date());
 
   // Clean up.
-  for (FileSet* file_set : file_sets.value()) {
-    delete file_set;
-  }
+  delete file_set;
 }
 
 }  // namespace backup2

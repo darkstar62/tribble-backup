@@ -99,13 +99,15 @@ StatusOr<vector<FileSet*> > BackupLibrary::LoadFileSets(bool load_all) {
     LOG_RETURN_IF_ERROR(volume_result.status(), "Error getting backup volume");
     BackupVolumeInterface* volume = volume_result.value();
 
-    StatusOr<vector<FileSet*> > fileset_result = volume->LoadFileSets(
-        load_all, &next_volume);
+    StatusOr<FileSet*> fileset_result = volume->LoadFileSet(&next_volume);
     LOG_RETURN_IF_ERROR(fileset_result.status(), "Error getting file sets");
 
-    LOG(INFO) << fileset_result.value().size() << " filesets";
-    for (FileSet* item : fileset_result.value()) {
-      filesets.push_back(item);
+    if (fileset_result.value()) {
+      filesets.push_back(fileset_result.value());
+      if (!load_all &&
+          fileset_result.value()->backup_type() == kBackupTypeFull) {
+        break;
+      }
     }
     LOG(INFO) << filesets.size() << " filesets total";
   }
@@ -125,13 +127,16 @@ StatusOr<vector<FileSet*> > BackupLibrary::LoadFileSetsFromLabel(
     LOG_RETURN_IF_ERROR(volume_result.status(), "Error getting backup volume");
     BackupVolumeInterface* volume = volume_result.value();
 
-    StatusOr<vector<FileSet*> > fileset_result = volume->LoadFileSetsFromLabel(
-        load_all, label_id, &next_volume);
+    StatusOr<FileSet*> fileset_result = volume->LoadFileSetFromLabel(
+        label_id, &next_volume);
     LOG_RETURN_IF_ERROR(fileset_result.status(), "Error getting file sets");
 
-    LOG(INFO) << fileset_result.value().size() << " filesets";
-    for (FileSet* item : fileset_result.value()) {
-      filesets.push_back(item);
+    if (fileset_result.value()) {
+      filesets.push_back(fileset_result.value());
+      if (!load_all &&
+          fileset_result.value()->backup_type() == kBackupTypeFull) {
+        break;
+      }
     }
     LOG(INFO) << filesets.size() << " filesets total";
   }

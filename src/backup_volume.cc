@@ -62,15 +62,7 @@ Status BackupVolume::Init() {
     LOG_RETURN_IF_ERROR(retval, "Error checking backup descriptors");
   }
 
-  // Everything is OK -- re-open the file in append mode.
-  LOG(INFO) << "Closing file to re-open.";
-  retval = file_->Close();
-  LOG_RETURN_IF_ERROR(retval, "Error closing file");
-
-  LOG(INFO) << "Re-opening append";
-  retval = file_->Open(File::Mode::kModeAppend);
-  LOG_RETURN_IF_ERROR(retval, "Error re-opening file");
-
+  // Everything is OK.  Keep the file read-only to avoid corrupting the backup.
   return Status::OK;
 }
 
@@ -552,109 +544,70 @@ Status BackupVolume::ReadBackupDescriptor1() {
   return Status::OK;
 }
 
-StatusOr<vector<FileSet*> > BackupVolume::LoadFileSets(
-    bool load_all, int64_t* next_volume) {
+StatusOr<FileSet*> BackupVolume::LoadFileSet(int64_t* next_volume) {
   CHECK_NOTNULL(next_volume);
+  *next_volume = -1;
 
   // Seek to the descriptor 2 offset.
   if (!descriptor_header_.backup_descriptor_2_present) {
     return Status(kStatusNotLastVolume, "");
   }
 
-  // Start with the descriptor 2 at the end of the file, and work backward until
-  // we have them all.
-  uint64_t current_offset = descriptor2_offset_;
-  vector<FileSet*> filesets;
+  Status retval = file_->Seek(descriptor2_offset_);
+  LOG_RETURN_IF_ERROR(retval, "Could not seek to descriptor 2 offset");
 
-  // An offset of zero indicates we've reached the end.
-  Status retval = Status::OK;
-  while (current_offset > 0) {
-    VLOG(4) << "Seeking to 0x" << std::hex << current_offset;
-    retval = file_->Seek(current_offset);
-    if (!retval.ok()) {
-      retval = Status(kStatusCorruptBackup,
-                      "Could not seek to descriptor 2 offset");
-      break;
-    }
+  // Read descriptor 2, including all the file chunks.
+  BackupDescriptor2 descriptor2;
 
-    // Read descriptor 2, including all the file chunks.
-    BackupDescriptor2 descriptor2;
+  // This first read doesn't include the string for the description
+  retval = file_->Read(&descriptor2, sizeof(descriptor2), NULL);
+  LOG_RETURN_IF_ERROR(retval, "Couldn't read descriptor 2");
 
-    // This first read doesn't include the string for the description
-    retval = file_->Read(&descriptor2, sizeof(descriptor2), NULL);
-    if (!retval.ok()) {
-      break;
-    }
-    if (descriptor2.header_type != kHeaderTypeDescriptor2) {
-      retval = Status(kStatusCorruptBackup,
-                      "Invalid header type for descriptor 2");
-      break;
-    }
-
-    // Find out the description size and grab the description.
-    string description = "";
-    if (descriptor2.description_size > 0) {
-      description.resize(descriptor2.description_size);
-      retval = file_->Read(
-          &description.at(0), descriptor2.description_size, NULL);
-      if (!retval.ok()) {
-        break;
-      }
-    }
-    VLOG(3) << "Found backup: " << description;
-
-    FileSet* fileset = new FileSet;
-    fileset->set_description(description);
-    fileset->set_label_id(descriptor2.label_id);
-    fileset->set_label_name(labels_[descriptor2.label_id].name());
-    fileset->set_date(descriptor2.backup_date);
-
-    // Read in all the files, and the file chunks.
-    for (uint64_t file_num = 0; file_num < descriptor2.num_files; ++file_num) {
-      StatusOr<FileEntry*> entry = ReadFileEntry();
-      if (!entry.ok()) {
-        retval = entry.status();
-        break;
-      }
-      fileset->AddFile(entry.value());
-    }
-    if (!retval.ok()) {
-      break;
-    }
-
-    filesets.push_back(fileset);
-
-    VLOG(3) << "Backup type: " << descriptor2.backup_type;
-    // TODO(darkstar62): Check the backup type is valid
-    if (descriptor2.backup_type == kBackupTypeFull && !load_all) {
-      // We found the most recent full backup -- break out.
-      VLOG(3) << "Found full backup, done.";
-      break;
-    }
-
-    current_offset = descriptor2.previous_backup_offset;
-    VLOG(3) << "Current offset: " << current_offset;
-    if (descriptor2.previous_backup_volume_number == 0 && current_offset == 0) {
-      // 0 / 0 means we're done and there's no more left.
-      break;
-    }
-
-    if (descriptor2.previous_backup_volume_number != volume_number()) {
-      // We're done here -- return back with the next volume number.
-      *next_volume = descriptor2.previous_backup_volume_number;
-      return filesets;
-    }
+  if (descriptor2.header_type != kHeaderTypeDescriptor2) {
+    return Status(kStatusCorruptBackup,
+                  "Invalid header type for descriptor 2");
   }
 
-  VLOG(3) << "Done";
-  *next_volume = -1;
-  return filesets;
+  // Find out the description size and grab the description.
+  string description = "";
+  if (descriptor2.description_size > 0) {
+    description.resize(descriptor2.description_size);
+    retval = file_->Read(
+        &description.at(0), descriptor2.description_size, NULL);
+    LOG_RETURN_IF_ERROR(retval, "Error reading descriptor 2 description");
+  }
+  VLOG(3) << "Found backup: " << description;
+
+  FileSet* fileset = new FileSet;
+  fileset->set_description(description);
+  fileset->set_label_id(descriptor2.label_id);
+  fileset->set_label_name(labels_[descriptor2.label_id].name());
+  fileset->set_date(descriptor2.backup_date);
+  fileset->set_parent_backup_volume(descriptor2.parent_backup_volume_number);
+  fileset->set_parent_backup_offset(descriptor2.parent_backup_offset);
+
+  // Read in all the files, and the file chunks.
+  for (uint64_t file_num = 0; file_num < descriptor2.num_files; ++file_num) {
+    StatusOr<FileEntry*> entry = ReadFileEntry();
+    LOG_RETURN_IF_ERROR(entry.status(), "Error reading descriptor 2 file");
+    fileset->AddFile(entry.value());
+  }
+
+  if (descriptor2.previous_backup_volume_number == 0 &&
+      descriptor2.previous_backup_offset == 0) {
+    // 0 / 0 means we're done and there's no more left.
+    *next_volume = -1;
+  } else {
+    *next_volume = descriptor2.previous_backup_volume_number;
+  }
+
+  return fileset;
 }
 
-StatusOr<vector<FileSet*> > BackupVolume::LoadFileSetsFromLabel(
-    bool load_all, uint64_t label_id, int64_t* next_volume) {
+StatusOr<FileSet*> BackupVolume::LoadFileSetFromLabel(
+    uint64_t label_id, int64_t* next_volume) {
   CHECK_NOTNULL(next_volume);
-  vector<FileSet*> filesets;
+  *next_volume = -1;
 
   // Find the last backup 2 offset done with the given label.
   auto label_iter = labels_.find(label_id);
@@ -667,97 +620,22 @@ StatusOr<vector<FileSet*> > BackupVolume::LoadFileSetsFromLabel(
   // down, so return empty and tell the user which volume we need.
   if (label.last_volume() != volume_number()) {
     *next_volume = label.last_volume();
-    return filesets;
+    return NULL;
   }
 
-  // Start with the descriptor 2 specified by the label, and work backward until
-  // we have them all.
-  uint64_t current_offset = label.last_offset();
+  // The label is in our backup set, so just grab it.
+  StatusOr<FileSet*> fileset = LoadFileSet(next_volume);
+  LOG_RETURN_IF_ERROR(fileset.status(), "Couldn't load fileset");
 
-  // An offset of zero indicates we've reached the end.
-  Status retval = Status::OK;
-  while (current_offset > 0) {
-    VLOG(4) << "Seeking to 0x" << std::hex << current_offset;
-    retval = file_->Seek(current_offset);
-    if (!retval.ok()) {
-      retval = Status(kStatusCorruptBackup,
-                      "Could not seek to descriptor 2 offset");
-      break;
-    }
-
-    // Read descriptor 2, including all the file chunks.
-    BackupDescriptor2 descriptor2;
-
-    // This first read doesn't include the string for the description
-    retval = file_->Read(&descriptor2, sizeof(descriptor2), NULL);
-    if (!retval.ok()) {
-      break;
-    }
-    if (descriptor2.header_type != kHeaderTypeDescriptor2) {
-      retval = Status(kStatusCorruptBackup,
-                      "Invalid header type for descriptor 2");
-      break;
-    }
-
-    // Find out the description size and grab the description.
-    string description = "";
-    if (descriptor2.description_size > 0) {
-      description.resize(descriptor2.description_size);
-      retval = file_->Read(
-          &description.at(0), descriptor2.description_size, NULL);
-      if (!retval.ok()) {
-        break;
-      }
-    }
-    VLOG(3) << "Found backup: " << description;
-
-    FileSet* fileset = new FileSet;
-    fileset->set_description(description);
-    fileset->set_label_id(descriptor2.label_id);
-    fileset->set_label_name(labels_[descriptor2.label_id].name());
-    fileset->set_backup_type(descriptor2.backup_type);
-    fileset->set_date(descriptor2.backup_date);
-
-    // Read in all the files, and the file chunks.
-    for (uint64_t file_num = 0; file_num < descriptor2.num_files; ++file_num) {
-      StatusOr<FileEntry*> entry = ReadFileEntry();
-      if (!entry.ok()) {
-        retval = entry.status();
-        break;
-      }
-      fileset->AddFile(entry.value());
-    }
-    if (!retval.ok()) {
-      break;
-    }
-
-    filesets.push_back(fileset);
-
-    VLOG(3) << "Backup type: " << descriptor2.backup_type;
-    // TODO(darkstar62): Check the backup type is valid
-    if (descriptor2.backup_type == kBackupTypeFull && !load_all) {
-      // We found the most recent full backup -- break out.
-      VLOG(3) << "Found full backup, done.";
-      break;
-    }
-
-    current_offset = descriptor2.parent_backup_offset;
-    VLOG(3) << "Current offset: " << current_offset;
-    if (descriptor2.parent_backup_volume_number == 0 && current_offset == 0) {
-      // 0 / 0 means we're done and there's no more left.
-      break;
-    }
-
-    if (descriptor2.parent_backup_volume_number != volume_number()) {
-      // We're done here -- return back with the next volume number.
-      *next_volume = descriptor2.parent_backup_volume_number;
-      return filesets;
-    }
+  // Adjust the next volume to short-circuit us to the next one for this label.
+  if (fileset.value()->parent_backup_volume() == 0 &&
+      fileset.value()->parent_backup_offset() == 0) {
+    // 0 / 0 means we're done and there's no more left.
+    *next_volume = -1;
+  } else {
+    *next_volume = fileset.value()->parent_backup_volume();
   }
-
-  VLOG(3) << "Done";
-  *next_volume = -1;
-  return filesets;
+  return fileset;
 }
 
 StatusOr<FileEntry*> BackupVolume::ReadFileEntry() {

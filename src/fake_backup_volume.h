@@ -39,11 +39,7 @@ class FakeBackupVolume : public BackupVolumeInterface {
     labels_.insert(std::make_pair(1, Label(1, "Default")));
   }
 
-  ~FakeBackupVolume() {
-    for (FileSet* fileset : filesets_) {
-      delete fileset;
-    }
-  }
+  ~FakeBackupVolume() {}
 
   // Initialize the pre-conditions for the fake such that Init() will return
   // no-such-file, and Create will work.
@@ -95,7 +91,7 @@ class FakeBackupVolume : public BackupVolumeInterface {
     entry->AddChunk(file_chunk);
     fileset->AddFile(entry);
 
-    filesets_.push_back(fileset);
+    fileset_.reset(fileset);
 
     // Add the actual data too, in case we're asked.
     chunk_data_.insert(std::make_pair(chunk.md5sum, "1234567890123456"));
@@ -131,16 +127,15 @@ class FakeBackupVolume : public BackupVolumeInterface {
   virtual Status Init() { return init_status_; }
   virtual Status Create(const ConfigOptions& options) { return create_status_; }
 
-  virtual StatusOr<std::vector<FileSet*> > LoadFileSets(
-      bool load_all, int64_t* next_volume) {
+  virtual StatusOr<FileSet*> LoadFileSet(int64_t* next_volume) {
     *next_volume = -1;
-    return filesets_;
+    return fileset_.get();
   }
 
-  virtual StatusOr<std::vector<FileSet*> > LoadFileSetsFromLabel(
-      bool load_all, uint64_t label_id, int64_t* next_volume) {
+  virtual StatusOr<FileSet*> LoadFileSetFromLabel(
+      uint64_t label_id, int64_t* next_volume) {
     *next_volume = -1;
-    return filesets_;
+    return fileset_.get();
   }
 
   virtual bool HasChunk(Uint128 md5sum) {
@@ -223,7 +218,7 @@ class FakeBackupVolume : public BackupVolumeInterface {
   uint64_t estimated_size_;
   uint64_t volume_number_;
   ChunkMap chunks_;
-  std::vector<FileSet*> filesets_;
+  std::unique_ptr<FileSet> fileset_;
   std::unordered_map<Uint128, std::string, boost::hash<Uint128> > chunk_data_;
   std::unordered_map<Uint128, ChunkHeader, boost::hash<Uint128> >
       chunk_headers_;

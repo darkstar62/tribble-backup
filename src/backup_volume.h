@@ -37,10 +37,9 @@ class BackupVolume : public BackupVolumeInterface {
   // BackupVolumeInterface methods.
   virtual Status Init() MUST_USE_RESULT;
   virtual Status Create(const ConfigOptions& options) MUST_USE_RESULT;
-  virtual StatusOr<std::vector<FileSet*> > LoadFileSets(
-      bool load_all, int64_t* next_volume);
-  virtual StatusOr<std::vector<FileSet*> > LoadFileSetsFromLabel(
-      bool load_all, uint64_t label_id, int64_t* next_volume);
+  virtual StatusOr<FileSet*> LoadFileSet(int64_t* next_volume);
+  virtual StatusOr<FileSet*> LoadFileSetFromLabel(
+      uint64_t label_id, int64_t* next_volume);
   virtual bool HasChunk(Uint128 md5sum) { return chunks_.HasChunk(md5sum); }
   virtual void GetChunks(ChunkMap* dest) { dest->Merge(chunks_); }
   virtual bool GetChunk(Uint128 md5sum, BackupDescriptor1Chunk* chunk) {
