@@ -134,6 +134,10 @@ class BackupVolumeInterface {
   virtual Status CloseWithFileSetAndLabels(FileSet* fileset,
                                            const LabelMap& labels) = 0;
 
+  // Like Close(), but this marks the volume as cancelled so the backup library
+  // will know that the most recent backup lies before this descriptor.
+  virtual Status Cancel() = 0;
+
   // Returns the estimated disk size of the volume, including metadata (but not
   // descriptor 2, as that can't be known until after the backup).
   virtual uint64_t EstimatedSize() const = 0;
@@ -144,6 +148,12 @@ class BackupVolumeInterface {
   // Return the offset into the most recent backup.  This is used by
   // BackupLibrary to propagate metadata for chaining sets.
   virtual uint64_t last_backup_offset() const = 0;
+
+  // Return whether this volume was cancelled.
+  virtual bool was_cancelled() const = 0;
+
+  // Return whether this volume is the end of a backup set.
+  virtual bool is_completed_volume() const = 0;
 };
 
 // Interface for any backup volume factory.

@@ -313,7 +313,7 @@ struct FileChunk {
 //
 // These are placed both at the end of a backup volume, and at the end of a
 // backup set (i.e. after all chunks have been written for the backup).  What
-// kind of header it is can be determined by whether it clains the descriptor 2
+// kind of header it is can be determined by whether it claims the descriptor 2
 // header is present.  If not, it's the end of a backup volume, and the backup
 // continues on the next volume.
 struct BackupDescriptorHeader {
@@ -332,7 +332,12 @@ struct BackupDescriptorHeader {
   // Whether descriptor 2 is present for this header.  If so, this header marks
   // the end of a backup.  Otherwise, this header marks the end of a split
   // backup volume, and the backup continues into the next volume.
-  uint8_t backup_descriptor_2_present;
+  bool backup_descriptor_2_present;
+
+  // If the user cancelled the backup, we won't have a descriptor 2 for this
+  // set, nor will we have a later one to go to.   So, we mark that this was
+  // cancelled, so we can still reuse the chunks in this file.
+  bool cancelled;
 
   // Volume number in the set.
   uint64_t volume_number;

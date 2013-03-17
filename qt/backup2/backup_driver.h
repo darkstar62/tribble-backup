@@ -55,6 +55,8 @@ class BackupDriver : public QObject {
   static backup2::StatusOr<QVector<BackupItem> > GetHistory(
       std::string filename, uint64_t label);
 
+  void CancelBackup() { cancelled_ = true; }
+
  signals:
   void StatusUpdated(QString message, int progress);
   void LogEntry(QString log_message);
@@ -74,6 +76,9 @@ class BackupDriver : public QObject {
 
   PathList paths_;
   BackupOptions options_;
+
+  // If set to true, a running backup is aborted.
+  bool cancelled_;
 };
 
 #endif  // BACKUP2_QT_BACKUP2_BACKUP_DRIVER_H_

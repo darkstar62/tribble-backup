@@ -44,7 +44,8 @@ using std::vector;
 BackupDriver::BackupDriver(PathList paths, BackupOptions options)
     : QObject(0),
       paths_(paths),
-      options_(options) {
+      options_(options),
+      cancelled_(false) {
 }
 
 StatusOr<vector<Label> > BackupDriver::GetLabels(string filename) {
@@ -248,16 +249,24 @@ void BackupDriver::PerformBackup() {
               static_cast<int>(
                   static_cast<float>(completed_size) / total_size * 100.0));
         }
-      } while (status.code() != backup2::kStatusShortRead);
+      } while (!cancelled_ && status.code() != backup2::kStatusShortRead);
 
-      // We've reached the end of the file.  Close it out and start the next
-      // one.
+      // We've reached the end of the file (or cancelled).  Close it out and
+      // start the next one.
       file->Close();
+
+      if (cancelled_) {
+        break;
+      }
     }
   }
 
   // All done with the backup, close out the file set.
-  library.CloseBackup();
+  if (cancelled_) {
+    library.CancelBackup();
+  } else {
+    library.CloseBackup();
+  }
   emit StatusUpdated("Backup complete.", 100);
 }
 

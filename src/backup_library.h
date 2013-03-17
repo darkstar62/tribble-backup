@@ -151,6 +151,10 @@ class BackupLibrary {
   // and finalizes the backup volumes.
   Status CloseBackup();
 
+  // Cancel an open backup set.  Chunks written are still there, but the backup
+  // set content is not written.
+  Status CancelBackup();
+
   // Given a list of files to restore, optimize the chunk ordering to minimize
   // reads and volume changes.
   std::vector<std::pair<FileChunk, const FileEntry*> >
@@ -186,6 +190,13 @@ class BackupLibrary {
   // creating a new one if the requested one doesn't already exist.
   StatusOr<BackupVolumeInterface*> GetBackupVolume(
       uint64_t volume, bool create_if_not_exist);
+
+  // Find the last backup volume that represents a completed backup.  If the
+  // user aborted a backup, certain things won't be available in the last
+  // volume, so this gets the last volume with useful information.  If the very
+  // last volume doesn't say it was cancelled and isn't complete, this indicates
+  // we don't have the last volume available.
+  StatusOr<BackupVolumeInterface*> GetLastCompletedBackupVolume();
 
   // Load the labels from the last backup volume.  This needs to be kept in here
   // to allow us to write it back at the conclusion of a backup.

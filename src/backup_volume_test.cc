@@ -167,7 +167,8 @@ TEST_F(BackupVolumeTest, SuccessfulInit) {
   // Create the backup header.
   BackupDescriptorHeader header;
   header.backup_descriptor_1_offset = desc1_offset;
-  header.backup_descriptor_2_present = 1;
+  header.backup_descriptor_2_present = true;
+  header.cancelled = false;
   header.volume_number = 0;
   file->Write(&header, sizeof(BackupDescriptorHeader));
 
@@ -197,7 +198,8 @@ TEST_F(BackupVolumeTest, CreateAndClose) {
   // Create the backup header.
   BackupDescriptorHeader header;
   header.backup_descriptor_1_offset = desc1_offset;
-  header.backup_descriptor_2_present = 0;
+  header.backup_descriptor_2_present = false;
+  header.cancelled = false;
   header.volume_number = 0;
   file->Write(&header, sizeof(BackupDescriptorHeader));
 
@@ -254,7 +256,8 @@ TEST_F(BackupVolumeTest, CreateAddChunkAndClose) {
   // Create the backup header.
   BackupDescriptorHeader header;
   header.backup_descriptor_1_offset = desc1_offset;
-  header.backup_descriptor_2_present = 0;
+  header.backup_descriptor_2_present = false;
+  header.cancelled = false;
   header.volume_number = 0;
   file->Write(&header, sizeof(BackupDescriptorHeader));
 
@@ -278,6 +281,74 @@ TEST_F(BackupVolumeTest, CreateAddChunkAndClose) {
                                 &volume_offset).ok());
   EXPECT_EQ(descriptor1_chunk.offset, volume_offset);
   EXPECT_TRUE(volume.Close().ok());
+
+  // Validate the contents.
+  EXPECT_TRUE(file->CompareExpected());
+}
+
+TEST_F(BackupVolumeTest, CreateAddChunkAndCancel) {
+  // This test verifies that a create, add-chunk, and cancel results in a valid
+  // backup volume without a descriptor 2 and indicating canceled status.
+  FakeFile* file = new FakeFile;
+
+  // In an empty file, we have the version, backup 1 descriptor, and backup
+  // header only.
+
+  // Version string.
+  file->Write(kGoodVersion, 8);
+
+  // Create a ChunkHeader and chunk.
+  string chunk_data = "1234567890123456";
+  ChunkHeader chunk_header;
+  chunk_header.encoded_size = chunk_data.size();
+  chunk_header.unencoded_size = chunk_data.size();
+  chunk_header.encoding_type = kEncodingTypeRaw;
+  chunk_header.md5sum.hi = 123;
+  chunk_header.md5sum.lo = 456;
+  file->Write(&chunk_header, sizeof(chunk_header));
+  file->Write(&chunk_data.at(0), chunk_data.size());
+
+  // Create backup descriptor 1.
+  uint64_t desc1_offset = file->size();
+  BackupDescriptor1 descriptor1;
+  descriptor1.total_chunks = 1;
+  descriptor1.total_labels = 0;
+  file->Write(&descriptor1, sizeof(descriptor1));
+
+  // Create the descriptor 1 chunk.
+  BackupDescriptor1Chunk descriptor1_chunk;
+  descriptor1_chunk.md5sum = chunk_header.md5sum;
+  descriptor1_chunk.offset = 8;
+  file->Write(&descriptor1_chunk, sizeof(descriptor1_chunk));
+
+  // Create the backup header.
+  BackupDescriptorHeader header;
+  header.backup_descriptor_1_offset = desc1_offset;
+  header.backup_descriptor_2_present = false;
+  header.cancelled = true;
+  header.volume_number = 0;
+  file->Write(&header, sizeof(BackupDescriptorHeader));
+
+  // Reset for the test.
+  file->MakeCurrentDataExpectedResult();
+
+  // Create it as a backup would -- Init first, then on failure, Create.
+  BackupVolume volume(file);
+  ConfigOptions options;
+
+  EXPECT_FALSE(volume.Init().ok());
+  EXPECT_TRUE(volume.Create(options).ok());
+
+  // TODO(darkstar62): This should be a FakeFileEntry.
+  BackupFile* entry_metadata = new BackupFile;
+  FileEntry file_entry("/foo", entry_metadata);
+  uint64_t volume_offset = 0;
+  EXPECT_TRUE(volume.WriteChunk(chunk_header.md5sum, chunk_data,
+                                chunk_header.encoded_size,
+                                chunk_header.encoding_type,
+                                &volume_offset).ok());
+  EXPECT_EQ(descriptor1_chunk.offset, volume_offset);
+  EXPECT_TRUE(volume.Cancel().ok());
 
   // Validate the contents.
   EXPECT_TRUE(file->CompareExpected());
@@ -380,7 +451,8 @@ TEST_F(BackupVolumeTest, CreateAddChunkAndCloseWithFileSet) {
   // Create the backup header.
   BackupDescriptorHeader header;
   header.backup_descriptor_1_offset = desc1_offset;
-  header.backup_descriptor_2_present = 1;
+  header.backup_descriptor_2_present = true;
+  header.cancelled = false;
   header.volume_number = 0;
   file->Write(&header, sizeof(BackupDescriptorHeader));
 
@@ -513,7 +585,8 @@ TEST_F(BackupVolumeTest, CreateAddChunkAndCloseWithFileSetRenameLabel1) {
   // Create the backup header.
   BackupDescriptorHeader header;
   header.backup_descriptor_1_offset = desc1_offset;
-  header.backup_descriptor_2_present = 1;
+  header.backup_descriptor_2_present = true;
+  header.cancelled = false;
   header.volume_number = 0;
   file->Write(&header, sizeof(BackupDescriptorHeader));
 
@@ -660,7 +733,8 @@ TEST_F(BackupVolumeTest, CreateAddChunkAndCloseWithFileSetAndLabels) {
   // Create the backup header.
   BackupDescriptorHeader header;
   header.backup_descriptor_1_offset = desc1_offset;
-  header.backup_descriptor_2_present = 1;
+  header.backup_descriptor_2_present = true;
+  header.cancelled = false;
   header.volume_number = 0;
   file->Write(&header, sizeof(BackupDescriptorHeader));
 
@@ -782,7 +856,8 @@ TEST_F(BackupVolumeTest, ReadChunks) {
   // Create the backup header.
   BackupDescriptorHeader header;
   header.backup_descriptor_1_offset = desc1_offset;
-  header.backup_descriptor_2_present = 0;
+  header.backup_descriptor_2_present = false;
+  header.cancelled = false;
   header.volume_number = 0;
   file->Write(&header, sizeof(BackupDescriptorHeader));
 
@@ -914,7 +989,8 @@ TEST_F(BackupVolumeTest, ReadBackupSets) {
     // Create the backup header.
     BackupDescriptorHeader header;
     header.backup_descriptor_1_offset = desc1_offset;
-    header.backup_descriptor_2_present = 1;
+    header.backup_descriptor_2_present = true;
+    header.cancelled = false;
     header.volume_number = 0;
     file->Write(&header, sizeof(BackupDescriptorHeader));
   }
@@ -993,7 +1069,8 @@ TEST_F(BackupVolumeTest, ReadBackupSets) {
     // Create the backup header.
     BackupDescriptorHeader header;
     header.backup_descriptor_1_offset = desc1_offset;
-    header.backup_descriptor_2_present = 1;
+    header.backup_descriptor_2_present = true;
+    header.cancelled = false;
     header.volume_number = 0;
     file->Write(&header, sizeof(BackupDescriptorHeader));
   }
@@ -1115,7 +1192,8 @@ TEST_F(BackupVolumeTest, ReadBackupSetsMultiFile) {
     // Create the backup header.
     BackupDescriptorHeader header;
     header.backup_descriptor_1_offset = desc1_offset;
-    header.backup_descriptor_2_present = 1;
+    header.backup_descriptor_2_present = true;
+    header.cancelled = false;
     header.volume_number = 3;
     vol0->Write(&header, sizeof(BackupDescriptorHeader));
   }

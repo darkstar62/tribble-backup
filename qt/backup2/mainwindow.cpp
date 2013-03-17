@@ -30,7 +30,9 @@ MainWindow::MainWindow(QWidget *parent)
       model_(new FileSelectorModel),
       current_label_id_(1),
       current_label_name_("Default"),
-      current_label_set_(false) {
+      current_label_set_(false),
+      backup_driver_(NULL),
+      backup_thread_(NULL) {
   // Set up the backup model treeview.
   model_->setRootPath("");
   ui_->setupUi(this);

@@ -23,14 +23,20 @@ class FakeBackupVolume : public BackupVolumeInterface {
       : file_(NULL),
         init_status_(Status::UNKNOWN),
         create_status_(Status::UNKNOWN),
-        estimated_size_(0) {
+        cancelled_(false),
+        estimated_size_(0),
+        volume_number_(0) {
+    labels_.insert(std::make_pair(1, Label(1, "Default")));
   }
 
   explicit FakeBackupVolume(MockFile* file)
       : file_(file),
         init_status_(Status::UNKNOWN),
         create_status_(Status::UNKNOWN),
-        estimated_size_(0) {
+        cancelled_(false),
+        estimated_size_(0),
+        volume_number_(0) {
+    labels_.insert(std::make_pair(1, Label(1, "Default")));
   }
 
   ~FakeBackupVolume() {
@@ -46,6 +52,15 @@ class FakeBackupVolume : public BackupVolumeInterface {
     create_status_ = Status::OK;
   }
 
+  void InitializeForExistingWithDescriptor2AndLabels(
+      std::vector<Label> labels, bool use_compression = false) {
+    labels_.clear();
+    for (Label label : labels) {
+      labels_.insert(std::make_pair(label.id(), label));
+    }
+    InitializeForExistingWithDescriptor2(use_compression);
+  }
+
   void InitializeForExistingWithDescriptor2(bool use_compression = false) {
     // Existing backups initialize OK.
     init_status_ = Status::OK;
@@ -56,7 +71,7 @@ class FakeBackupVolume : public BackupVolumeInterface {
     chunk.md5sum.hi = 0x123;
     chunk.md5sum.lo = 0x456;
     chunk.offset = 0x8;
-    chunk.volume_number = 0;
+    chunk.volume_number = volume_number_;
     chunks_.Add(chunk.md5sum, chunk);
 
     ChunkHeader chunk_header;
@@ -73,7 +88,7 @@ class FakeBackupVolume : public BackupVolumeInterface {
 
     FileChunk file_chunk;
     file_chunk.md5sum = chunk.md5sum;
-    file_chunk.volume_num = 0;
+    file_chunk.volume_num = volume_number_;
     file_chunk.chunk_offset = 0;
     file_chunk.unencoded_size = 16;
 
@@ -85,6 +100,31 @@ class FakeBackupVolume : public BackupVolumeInterface {
     // Add the actual data too, in case we're asked.
     chunk_data_.insert(std::make_pair(chunk.md5sum, "1234567890123456"));
   }
+
+  void InitializeAsCancelled() {
+    // Existing backups initialize OK.
+    init_status_ = Status::OK;
+    create_status_ = Status::UNKNOWN;
+    cancelled_ = true;
+
+    // They also have one or more chunks.
+    BackupDescriptor1Chunk chunk;
+    chunk.md5sum.hi = 0x123aaa;
+    chunk.md5sum.lo = 0x456aaa;
+    chunk.offset = 0x8;
+    chunk.volume_number = volume_number_;
+    chunks_.Add(chunk.md5sum, chunk);
+
+    ChunkHeader chunk_header;
+    chunk_header.md5sum = chunk.md5sum;
+    chunk_header.encoding_type = kEncodingTypeRaw;
+    chunk_headers_.insert(std::make_pair(chunk.md5sum, chunk_header));
+
+    // Add the actual data too, in case we're asked.
+    chunk_data_.insert(std::make_pair(chunk.md5sum, "1234567890123456"));
+  }
+
+  void set_volume_number(uint64_t vol) { volume_number_ = vol; }
 
   // BackupVolumeInterface methods.
 
@@ -112,7 +152,9 @@ class FakeBackupVolume : public BackupVolumeInterface {
     return chunks_.GetChunk(md5sum, chunk);
   }
 
-  virtual void GetLabels(LabelMap* out_labels) {}
+  virtual void GetLabels(LabelMap* out_labels) {
+    *out_labels = labels_;
+  }
 
   virtual Status WriteChunk(
       Uint128 md5sum, const std::string& data, uint64_t raw_size,
@@ -122,7 +164,7 @@ class FakeBackupVolume : public BackupVolumeInterface {
     BackupDescriptor1Chunk chunk;
     chunk.md5sum = md5sum;
     chunk.offset = 0x8;
-    chunk.volume_number = 0;
+    chunk.volume_number = volume_number_;
     chunks_.Add(chunk.md5sum, chunk);
 
     ChunkHeader chunk_header;
@@ -160,24 +202,32 @@ class FakeBackupVolume : public BackupVolumeInterface {
     return Status::OK;
   }
 
+  virtual Status Cancel() { return Status::OK; }
   virtual uint64_t EstimatedSize() const { return estimated_size_; }
   virtual uint64_t volume_number() const {
-    return 0;
+    return volume_number_;
   }
   virtual uint64_t last_backup_offset() const {
     return 0;
+  }
+  virtual bool was_cancelled() const { return cancelled_; }
+  virtual bool is_completed_volume() const {
+    return init_status_.ok() && !cancelled_;
   }
 
  private:
   MockFile* file_;
   Status init_status_;
   Status create_status_;
+  bool cancelled_;
   uint64_t estimated_size_;
+  uint64_t volume_number_;
   ChunkMap chunks_;
   std::vector<FileSet*> filesets_;
   std::unordered_map<Uint128, std::string, boost::hash<Uint128> > chunk_data_;
   std::unordered_map<Uint128, ChunkHeader, boost::hash<Uint128> >
       chunk_headers_;
+  LabelMap labels_;
 
   DISALLOW_COPY_AND_ASSIGN(FakeBackupVolume);
 };

@@ -60,8 +60,9 @@ class MainWindow : public QMainWindow {
 
   // Backup driver.  This is created anew each time we start a new backup.
   // We also define the thread for it here.
-  BackupDriver* backup_driver_;
-  QThread* backup_thread_;
+  BackupDriver* backup_driver_;  // GUARDED_BY(backup_mutex_)
+  QThread* backup_thread_;  // GUARDED_BY(backup_mutex_)
+  QMutex backup_mutex_;
 };
 
 #endif  // BACKUP2_QT_BACKUP2_MAINWINDOW_H_

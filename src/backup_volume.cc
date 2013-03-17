@@ -142,7 +142,7 @@ Status BackupVolume::Create(const ConfigOptions& options) {
   // WriteBackupDescriptor2() is called, indicating this is the last file in the
   // set.
   descriptor_header_.backup_descriptor_1_offset = 0;
-  descriptor_header_.backup_descriptor_2_present = 0;
+  descriptor_header_.backup_descriptor_2_present = false;
   descriptor_header_.volume_number = options.volume_number;
 
   // Descriptor 2 isn't created directly here -- instead, we wait for the backup
@@ -245,6 +245,11 @@ Status BackupVolume::CloseWithFileSetAndLabels(FileSet* fileset,
 
   modified_ = false;
   return Status::OK;
+}
+
+Status BackupVolume::Cancel() {
+  descriptor_header_.cancelled = true;
+  return Close();
 }
 
 uint64_t BackupVolume::EstimatedSize() const {
@@ -415,7 +420,7 @@ Status BackupVolume::WriteBackupDescriptor2(const FileSet& fileset) {
   LOG_RETURN_IF_ERROR(retval, "Error seeking to EOF");
 
   LOG(INFO) << "Fileset date: " << fileset.date();
-  descriptor_header_.backup_descriptor_2_present = 1;
+  descriptor_header_.backup_descriptor_2_present = true;
   descriptor2_.num_files = fileset.num_files();
   descriptor2_.description_size = fileset.description().size();
   descriptor2_.backup_date = fileset.date();

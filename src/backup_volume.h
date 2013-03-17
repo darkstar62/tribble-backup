@@ -55,12 +55,19 @@ class BackupVolume : public BackupVolumeInterface {
   virtual Status Close();
   virtual Status CloseWithFileSetAndLabels(
       FileSet* fileset, const LabelMap& labels);
+  virtual Status Cancel();
   virtual uint64_t EstimatedSize() const;
   virtual uint64_t volume_number() const {
     return descriptor_header_.volume_number;
   }
   virtual uint64_t last_backup_offset() const {
     return descriptor2_offset_;
+  }
+  virtual bool was_cancelled() const {
+    return descriptor_header_.cancelled;
+  }
+  virtual bool is_completed_volume() const {
+    return descriptor_header_.backup_descriptor_2_present;
   }
 
  private:

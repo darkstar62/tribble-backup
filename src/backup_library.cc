@@ -343,6 +343,17 @@ Status BackupLibrary::CloseBackup() {
   return Status::OK;
 }
 
+Status BackupLibrary::CancelBackup() {
+  Status retval = current_backup_volume_->Cancel();
+  LOG_RETURN_IF_ERROR(retval, "Could not close backup volume");
+
+  // Merge the backup volume's chunk data with ours.  This way we have all the
+  // data we need if the user decides to initiate a second backup with this
+  // library still open.
+  current_backup_volume_->GetChunks(&chunks_);
+  return Status::OK;
+}
+
 vector<pair<FileChunk, const FileEntry*> >
     BackupLibrary::OptimizeChunksForRestore(vector<FileEntry*> files) {
   // Construct a vector containing every chunk in the FileEntry vector given.
@@ -376,6 +387,8 @@ Status BackupLibrary::LoadAllChunkData() {
 
 StatusOr<BackupVolumeInterface*> BackupLibrary::GetBackupVolume(
     uint64_t volume_num, bool create_if_not_exist) {
+  LOG_IF(INFO, cached_backup_volume_.get())
+      << cached_backup_volume_->volume_number();
   if (cached_backup_volume_.get() &&
       cached_backup_volume_->volume_number() == volume_num) {
     return cached_backup_volume_.get();
@@ -408,6 +421,36 @@ StatusOr<BackupVolumeInterface*> BackupLibrary::GetBackupVolume(
   return cached_backup_volume_.get();
 }
 
+StatusOr<BackupVolumeInterface*> BackupLibrary::GetLastCompletedBackupVolume() {
+  // For this function, we are looking specifically for the last volume not
+  // marked cancelled that has a descriptor 2.
+  bool cancelled_was_last = false;
+
+  for (int64_t vol_num = last_volume_; vol_num >= 0; --vol_num) {
+    LOG(INFO) << "Trying vol " << vol_num;
+    StatusOr<BackupVolumeInterface*> volume = GetBackupVolume(vol_num, false);
+    LOG_RETURN_IF_ERROR(volume.status(), "Could not load volume");
+
+    if (static_cast<uint64_t>(vol_num) == last_volume_ &&
+        volume.value()->was_cancelled()) {
+      cancelled_was_last = true;
+    }
+
+    if (volume.value()->is_completed_volume()) {
+      if (static_cast<uint64_t>(vol_num) != last_volume_ &&
+          !cancelled_was_last) {
+        // We may have an incomplete set -- alert the user that they should
+        // ensure they have the last volume inthe library.
+        // TODO(darkstar62): implement this.
+        LOG(FATAL)
+            << "Last volume was not cancelled -- do you have all volumes?";
+      }
+      return volume;
+    }
+  }
+  return Status(kStatusCorruptBackup, "Couldn't find completed volume");
+}
+
 std::string BackupLibrary::FilenameFromVolume(uint64_t volume) {
   ostringstream file_str;
   file_str << basename_ << "." << volume << ".bkp";
@@ -415,8 +458,9 @@ std::string BackupLibrary::FilenameFromVolume(uint64_t volume) {
 }
 
 Status BackupLibrary::LoadLabels() {
+  // To load the labels, we need to find the last non-cancelled backup set.
   StatusOr<BackupVolumeInterface*> volume_result =
-      GetBackupVolume(last_volume_, false);
+      GetLastCompletedBackupVolume();
   LOG_RETURN_IF_ERROR(volume_result.status(),
                       "Error loading last backup volume");
   BackupVolumeInterface* volume = volume_result.value();
