@@ -266,8 +266,8 @@ void BackupDriver::PerformBackup() {
     library.CancelBackup();
   } else {
     library.CloseBackup();
+    emit StatusUpdated("Backup complete.", 100);
   }
-  emit StatusUpdated("Backup complete.", 100);
 }
 
 uint64_t BackupDriver::LoadIncrementalFilelist(

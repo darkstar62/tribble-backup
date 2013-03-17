@@ -1010,6 +1010,7 @@ TEST_F(BackupVolumeTest, ReadBackupSets) {
   EXPECT_EQ(label1_id, file_set->label_id());
   EXPECT_EQ(label1_name, file_set->label_name());
   EXPECT_EQ(12345, file_set->date());
+  EXPECT_EQ(kBackupTypeFull, file_set->backup_type());
 
   // Clean up.
   delete file_set;

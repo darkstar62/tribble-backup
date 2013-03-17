@@ -119,14 +119,20 @@ StatusOr<vector<FileSet*> > BackupLibrary::LoadFileSetsFromLabel(
   // Start with the most recent backup volume and work upwards until we find all
   // of the backup sets.
   vector<FileSet*> filesets;
-  LOG(INFO) << filesets.size() << " filesets total (beginning)";
-  int64_t next_volume = last_volume_;
-  while (next_volume != -1) {
-    StatusOr<BackupVolumeInterface*> volume_result =
-        GetBackupVolume(next_volume, false);
-    LOG_RETURN_IF_ERROR(volume_result.status(), "Error getting backup volume");
-    BackupVolumeInterface* volume = volume_result.value();
 
+  StatusOr<BackupVolumeInterface*> volume_result =
+      GetLastCompletedBackupVolume();
+  if (!volume_result.ok()) {
+    if (volume_result.status().code() == kStatusNoSuccessfulBackups) {
+      // Not an error, return empty.
+      return filesets;
+    }
+    LOG_RETURN_IF_ERROR(volume_result.status(), "Error getting backup volume");
+  }
+  BackupVolumeInterface* volume = volume_result.value();
+
+  int64_t next_volume = last_volume_;
+  do {
     StatusOr<FileSet*> fileset_result = volume->LoadFileSetFromLabel(
         label_id, &next_volume);
     LOG_RETURN_IF_ERROR(fileset_result.status(), "Error getting file sets");
@@ -139,7 +145,14 @@ StatusOr<vector<FileSet*> > BackupLibrary::LoadFileSetsFromLabel(
       }
     }
     LOG(INFO) << filesets.size() << " filesets total";
-  }
+
+    // Load the next one.
+    if (next_volume != -1) {
+      volume_result = GetBackupVolume(next_volume, false);
+      LOG_RETURN_IF_ERROR(volume_result.status(), "Error getting backup volume");
+      volume = volume_result.value();
+    }
+  } while (next_volume != -1);
   return filesets;
 }
 
@@ -453,7 +466,12 @@ StatusOr<BackupVolumeInterface*> BackupLibrary::GetLastCompletedBackupVolume() {
       return volume;
     }
   }
-  return Status(kStatusCorruptBackup, "Couldn't find completed volume");
+
+  // If we're here, the user probably has cancelled all the backups they've
+  // tried to do.  That's not an error, and there could still be useful
+  // information in all the backup sets.  But we need to return that this is the
+  // case.
+  return Status(kStatusNoSuccessfulBackups, "");
 }
 
 std::string BackupLibrary::FilenameFromVolume(uint64_t volume) {
@@ -466,8 +484,18 @@ Status BackupLibrary::LoadLabels() {
   // To load the labels, we need to find the last non-cancelled backup set.
   StatusOr<BackupVolumeInterface*> volume_result =
       GetLastCompletedBackupVolume();
-  LOG_RETURN_IF_ERROR(volume_result.status(),
-                      "Error loading last backup volume");
+  if (!volume_result.ok()) {
+    // If there's no successful backups, we just use the default set of labels
+    // and act like everything is OK.  We can still make use of the chunks
+    // so-far written, but this isn't an error.
+    if (volume_result.status().code() == kStatusNoSuccessfulBackups) {
+      LOG(WARNING) << "No successful backups yet done.";
+      return Status::OK;
+    }
+    LOG_RETURN_IF_ERROR(volume_result.status(),
+                        "Error loading last backup volume");
+  }
+
   BackupVolumeInterface* volume = volume_result.value();
 
   volume->GetLabels(&labels_);

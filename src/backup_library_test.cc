@@ -636,4 +636,100 @@ TEST_F(BackupLibraryTest, ReadLabelsWithCancelledSet) {
   delete cb;
 }
 
+TEST_F(BackupLibraryTest, ReadLabelsWithNoGoodSets) {
+  // This test verifies a backup library with all cancelled volumes can still
+  // initialize and return sane defaults.
+  MockFile* file = new MockFile;
+  MockMd5Generator* md5_generator = new MockMd5Generator;
+  auto cb = NewPermanentCallback(
+      static_cast<BackupLibraryTest*>(this),
+      &BackupLibraryTest::GetNextFilename);
+
+  MockBackupVolumeFactory* volume_factory = new MockBackupVolumeFactory();
+
+  EXPECT_CALL(*file, FindBasenameAndLastVolume(_, _, _))
+      .WillOnce(DoAll(
+          SetArgPointee<0>("/foo/bar"),
+          SetArgPointee<1>(0),
+          SetArgPointee<2>(1),
+          Return(Status::OK)));
+  BackupLibrary library(
+      file, cb,
+      md5_generator,
+      new MockEncoder(),
+      volume_factory);
+
+  // Create a set that's been cancelled.  This will be the only set we have.
+  FakeBackupVolume* volume = new FakeBackupVolume(file);
+  volume->InitializeAsCancelled();
+  volume->set_volume_number(0);
+
+  // Expectation: The first thing that's done is to read the labels and chunk
+  // data from the backup volumes.
+  EXPECT_CALL(*volume_factory, Create("/foo/bar.0.bkp")).WillRepeatedly(
+      Return(volume));
+
+  EXPECT_TRUE(library.Init().ok());
+
+  // Get the labels from the set.
+  vector<Label> out_labels;
+  Status retval = library.GetLabels(&out_labels);
+  EXPECT_TRUE(retval.ok());
+  EXPECT_EQ(0, out_labels.size());
+
+  // All created objects should delete themselves through the library.
+  delete cb;
+}
+
+TEST_F(BackupLibraryTest, ReadLabelsWithNoGoodSetsMulti) {
+  // This test verifies a backup library with all cancelled volumes can still
+  // initialize and return sane defaults.  This one is a multi-set test.
+  MockFile* file = new MockFile;
+  MockMd5Generator* md5_generator = new MockMd5Generator;
+  auto cb = NewPermanentCallback(
+      static_cast<BackupLibraryTest*>(this),
+      &BackupLibraryTest::GetNextFilename);
+
+  MockBackupVolumeFactory* volume_factory = new MockBackupVolumeFactory();
+
+  EXPECT_CALL(*file, FindBasenameAndLastVolume(_, _, _))
+      .WillOnce(DoAll(
+          SetArgPointee<0>("/foo/bar"),
+          SetArgPointee<1>(1),
+          SetArgPointee<2>(2),
+          Return(Status::OK)));
+  BackupLibrary library(
+      file, cb,
+      md5_generator,
+      new MockEncoder(),
+      volume_factory);
+
+  // Create sets that have been cancelled.
+  FakeBackupVolume* volume1 = new FakeBackupVolume(file);
+  volume1->InitializeAsCancelled();
+  volume1->set_volume_number(0);
+
+  FakeBackupVolume* volume2 = new FakeBackupVolume(file);
+  volume2->InitializeAsCancelled();
+  volume2->set_volume_number(1);
+
+  // Expectation: The first thing that's done is to read the labels and chunk
+  // data from the backup volumes.
+  EXPECT_CALL(*volume_factory, Create("/foo/bar.1.bkp")).WillRepeatedly(
+      Return(volume2));
+  EXPECT_CALL(*volume_factory, Create("/foo/bar.0.bkp")).WillRepeatedly(
+      Return(volume1));
+
+  EXPECT_TRUE(library.Init().ok());
+
+  // Get the labels from the set.
+  vector<Label> out_labels;
+  Status retval = library.GetLabels(&out_labels);
+  EXPECT_TRUE(retval.ok());
+  EXPECT_EQ(0, out_labels.size());
+
+  // All created objects should delete themselves through the library.
+  delete cb;
+}
+
 }  // namespace backup2

@@ -45,6 +45,7 @@ void FileSelectorModel::CancelScanning() {
     return;
   }
   scanner_->Cancel();
+  scanner_thread_->quit();
   scanner_thread_->blockSignals(true);
   scanner_thread_->wait();
 
@@ -186,6 +187,7 @@ void FileSelectorModel::OnDirectoryLoaded(const QString& path) {
 }
 
 void FileSelectorModel::OnScanningFinished(PathList files) {
+  scanner_thread_ = NULL;
   emit SelectedFilesLoaded(files);
 }
 
@@ -218,6 +220,10 @@ void FilesystemScanner::ScanFilesystem() {
   for (string entry : final_entries) {
     output.append(tr(entry.c_str()));
   }
+  if (!operation_running_) {
+    // We were cancelled, just return.
+    return;
+  }
   emit ScanFinished(output);
 }
 
@@ -229,7 +235,6 @@ vector<string> FilesystemScanner::ProcessPathsRecursive(
 
   for (string scannable : positive_selections) {
     // Check if this scannable is a file or directory.
-    LOG(INFO) << scannable;
     File file(scannable);
     if (!file.IsDirectory()) {
       // Regular file.  If it's not in the negative selections, add it in.

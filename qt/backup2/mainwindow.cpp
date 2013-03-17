@@ -197,6 +197,7 @@ void MainWindow::InitBackupProgress(QString message) {
   ui_->backup_cancel_button->setText("Cancel");
   ui_->backup_cancel_button->setIcon(
       QIcon(":/icons/graphics/1363245997_stop.png"));
+  ui_->backup_cancel_button->setVisible(true);
 }
 
 void MainWindow::RunBackup() {
@@ -207,6 +208,20 @@ void MainWindow::RunBackup() {
   UpdateBackupStatus("Scanning files...", 0);
   OnEstimatedTimeUpdated("Estimating time remaining...");
   model_->BeginScanningSelectedItems();
+}
+
+void MainWindow::BackupComplete() {
+  LOG(INFO) << "Backup complete signalled";
+  {
+    QMutexLocker ml(&backup_mutex_);
+    backup_thread_ = NULL;
+    backup_driver_ = NULL;
+  }
+
+  BackupLogEntry("Backup complete!");
+  ui_->backup_estimated_time_label->setText("Done!");
+  ui_->backup_cancel_button->setText("Done");
+  ui_->backup_cancel_button->setIcon(QIcon(":/icons/graphics/pstatus_green.png"));
 }
 
 void MainWindow::CancelOrCloseBackup() {
@@ -242,17 +257,36 @@ void MainWindow::CancelOrCloseBackup() {
     ui_->backup_destination_label->setText("");
     ui_->summary_use_compression->setText("");
     ui_->summary_label->setText("");
-
-    // Clear the general progress section.
-    ui_->general_progress->setVisible(false);
-    ui_->general_progress->setValue(0);
-    ui_->general_info->setText("");
-    ui_->general_info->setVisible(false);
-    ui_->general_separator->setVisible(false);
   } else {
     // Cancel the running backup.
-    // TODO: Implement this.
+    LOG(INFO) << "Cancelling scanning";
+    model_->CancelScanning();
+
+    // If we've started a backup, cancel that too.
+    LOG(INFO) << "Cancelling backup";
+    QMutexLocker ml(&backup_mutex_);
+    if (backup_driver_) {
+      backup_driver_->CancelBackup();
+      backup_thread_->quit();
+      backup_thread_->wait();
+      backup_driver_ = NULL;
+      backup_thread_ = NULL;
+    }
+    LOG(INFO) << "Cancelled";
+
+    BackupLogEntry("Backup cancelled.");
+    ui_->backup_estimated_time_label->setText("");
+    ui_->backup_cancel_button->setVisible(false);
+    ui_->backup_cancelled_back_button->setVisible(true);
+    ui_->backup_current_op_label->setText("Operation cancelled.");
   }
+
+  // Clear the general progress section.
+  ui_->general_progress->setVisible(false);
+  ui_->general_progress->setValue(0);
+  ui_->general_info->setText("");
+  ui_->general_info->setVisible(false);
+  ui_->general_separator->setVisible(false);
 }
 
 void MainWindow::BackupFilesLoaded(PathList paths) {
@@ -300,10 +334,13 @@ void MainWindow::BackupFilesLoaded(PathList paths) {
   }
 
   // Create our backup driver and spawn it off in a new thread.
+  QMutexLocker ml(&backup_mutex_);
   backup_driver_ = new BackupDriver(paths, options);
   backup_thread_ = new QThread(this);
   QWidget::connect(backup_thread_, SIGNAL(started()), backup_driver_,
                    SLOT(PerformBackup()));
+  QWidget::connect(backup_thread_, SIGNAL(finished()), this,
+                   SLOT(BackupComplete()));
   QWidget::connect(backup_thread_, SIGNAL(finished()), backup_driver_,
                    SLOT(deleteLater()));
 
@@ -325,11 +362,8 @@ void MainWindow::UpdateBackupStatus(QString message, int progress) {
   ui_->general_progress->setValue(progress);
   ui_->backup_progress->setValue(progress);
 
-  if (progress >= 100) {
-    BackupLogEntry("Backup complete!");
-    ui_->backup_estimated_time_label->setText("Done!");
-    ui_->backup_cancel_button->setText("Done");
-    ui_->backup_cancel_button->setIcon(QIcon(":/icons/graphics/pstatus_green.png"));
+  if (progress == 100) {
+    backup_thread_->quit();
   }
 }
 

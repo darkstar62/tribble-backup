@@ -585,6 +585,7 @@ StatusOr<FileSet*> BackupVolume::LoadFileSet(int64_t* next_volume) {
   fileset->set_date(descriptor2.backup_date);
   fileset->set_parent_backup_volume(descriptor2.parent_backup_volume_number);
   fileset->set_parent_backup_offset(descriptor2.parent_backup_offset);
+  fileset->set_backup_type(descriptor2.backup_type);
 
   // Read in all the files, and the file chunks.
   for (uint64_t file_num = 0; file_num < descriptor2.num_files; ++file_num) {

@@ -40,8 +40,9 @@ class MainWindow : public QMainWindow {
   void BackupLocationChanged();
   void ManageLabels();
   void RunBackup();
-  void CancelOrCloseBackup();
-  void BackupFilesLoaded(PathList paths);
+  void BackupComplete();
+  void CancelOrCloseBackup();  // LOCKS_EXCLUDED(backup_mutex_)
+  void BackupFilesLoaded(PathList paths);  // LOCKS_EXCLUDED(backup_mutex)
 
   void UpdateBackupStatus(QString message, int progress);
   void BackupLogEntry(QString message);
