@@ -149,7 +149,8 @@ StatusOr<vector<FileSet*> > BackupLibrary::LoadFileSetsFromLabel(
     // Load the next one.
     if (next_volume != -1) {
       volume_result = GetBackupVolume(next_volume, false);
-      LOG_RETURN_IF_ERROR(volume_result.status(), "Error getting backup volume");
+      LOG_RETURN_IF_ERROR(volume_result.status(),
+                          "Error getting backup volume");
       volume = volume_result.value();
     }
   } while (next_volume != -1);

@@ -221,7 +221,8 @@ void MainWindow::BackupComplete() {
   BackupLogEntry("Backup complete!");
   ui_->backup_estimated_time_label->setText("Done!");
   ui_->backup_cancel_button->setText("Done");
-  ui_->backup_cancel_button->setIcon(QIcon(":/icons/graphics/pstatus_green.png"));
+  ui_->backup_cancel_button->setIcon(
+      QIcon(":/icons/graphics/pstatus_green.png"));
 }
 
 void MainWindow::CancelOrCloseBackup() {

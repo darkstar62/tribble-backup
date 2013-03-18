@@ -63,7 +63,8 @@ void FileSelectorModel::Reset() {
     int selection_state = log_iter->second;
 
     QModelIndex item_index = index(filename);
-    setData(item_index, selection_state == Qt::Checked ? Qt::Unchecked : Qt::Checked,
+    setData(item_index,
+            selection_state == Qt::Checked ? Qt::Unchecked : Qt::Checked,
             Qt::CheckStateRole, false);
   }
 
