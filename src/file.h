@@ -21,6 +21,8 @@ class File : public FileInterface {
   virtual bool Exists();
   virtual bool IsDirectory();
   virtual std::vector<std::string> ListDirectory();
+  virtual std::string RootName();
+  virtual std::string ProperName();
   virtual Status Open(const Mode mode);
   virtual Status Close();
   virtual Status Unlink();

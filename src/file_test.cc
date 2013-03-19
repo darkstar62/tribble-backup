@@ -290,4 +290,19 @@ TEST_F(FileTest, FindBasenameAndLastVolume) {
   boost::filesystem::remove_all(boost::filesystem::path(test_dir));
 }
 
+#ifdef _WIN32
+TEST_F(FileTest, RootAndProperName) {
+  // This test verifies root paths work coorectly.
+  EXPECT_EQ("C:\\", File("C:\\Foobar\\Blah").RootName());
+  EXPECT_EQ("C:\\", File("C:/Foobar/Blah").RootName());
+  EXPECT_EQ("D:\\", File("D:\\Foobar\\Blah").RootName());
+  EXPECT_EQ("D:\\", File("D:\\Foobar\\Blah").RootName());
+  EXPECT_EQ("\\\\Foobar\\", File("\\\\Foobar\\Blah").RootName());
+
+  EXPECT_EQ(
+      "\\\\?\\Users\\darkstar62\\Foo\\Bar",
+      File("\\\\?\\Users\\darkstar62/Foo/Bar").ProperName());
+}
+#endif  // _WIN32
+
 }  // namespace backup2

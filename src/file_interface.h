@@ -31,6 +31,15 @@ class FileInterface {
   // List directory contents.
   virtual std::vector<std::string> ListDirectory() = 0;
 
+  // Return the root name of the file.  For all OSes besides Windows, this will
+  // return an empty string.  For Windows, this returns the drive letter or UNC
+  // root of the path.
+  virtual std::string RootName() = 0;
+
+  // Return the proper name for the file.  This is the filename formatted as
+  // preferred for the system.
+  virtual std::string ProperName() = 0;
+
   // Open the given file with the given mode.  Args are the same as fopen().
   // Returns status of the operation.
   virtual Status Open(const FileInterface::Mode mode) = 0;

@@ -15,11 +15,21 @@
 #include "qt/backup2/mainwindow.h"
 #include "qt/backup2/manage_labels_dlg.h"
 #include "qt/backup2/file_selector_model.h"
+
+#ifdef _WIN32
+#include "qt/backup2/vss_proxy.h"
+#else
+#include "qt/backup2/dummy_vss_proxy.h"
+#endif
+
+#include "qt/backup2/vss_proxy_interface.h"
 #include "src/backup_volume_interface.h"
+#include "src/file.h"
 #include "src/status.h"
 
 #include "ui_mainwindow.h"  // NOLINT
 
+using backup2::File;
 using backup2::StatusOr;
 using std::string;
 using std::vector;
@@ -153,7 +163,7 @@ void MainWindow::BackupLocationBrowse() {
   QStringList filenames;
   if (dialog.exec()) {
     filenames = dialog.selectedFiles();
-    ui_->backup_dest->setText(filenames[0]);
+    ui_->backup_dest->setText(tr(File(filenames[0].toStdString()).ProperName().c_str()));
   }
 }
 
@@ -335,8 +345,14 @@ void MainWindow::BackupFilesLoaded(PathList paths) {
   }
 
   // Create our backup driver and spawn it off in a new thread.
+#ifdef _WIN32
+  VssProxyInterface* vss = new VssProxy();
+#else
+  VssProxyInterface* vss = new DummyVssProxy();
+#endif
+
   QMutexLocker ml(&backup_mutex_);
-  backup_driver_ = new BackupDriver(paths, options);
+  backup_driver_ = new BackupDriver(paths, options, vss);
   backup_thread_ = new QThread(this);
   QWidget::connect(backup_thread_, SIGNAL(started()), backup_driver_,
                    SLOT(PerformBackup()));

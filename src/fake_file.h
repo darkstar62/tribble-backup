@@ -29,6 +29,14 @@ class FakeFile : public FileInterface {
     return std::vector<std::string>();
   }
 
+  virtual std::string RootName() {
+    return "";
+  }
+
+  virtual std::string ProperName() {
+    return "";
+  }
+
   virtual Status Open(FileInterface::Mode mode) {
     open_ = true;
     return Status::OK;

@@ -17,13 +17,17 @@ SOURCES += main.cpp\
     file_selector_model.cpp \
     manage_labels_dlg.cpp \
     backup_driver.cpp \
-    label_history_dlg.cpp
+    label_history_dlg.cpp \
+    vss_proxy.cpp
 
 HEADERS  += mainwindow.h \
     file_selector_model.h \
     manage_labels_dlg.h \
     backup_driver.h \
-    label_history_dlg.h
+    label_history_dlg.h \
+    vss_proxy.h \
+    vss_proxy_interface.h \
+    dummy_vss_proxy.h
 
 FORMS    += mainwindow.ui \
     manage_labels_dlg.ui \
@@ -35,6 +39,9 @@ INCLUDEPATH += graphics \
                C:/Users/darkstar62/Projects/glog-0.3.3/src/windows
 RESOURCES += \
     Graphics.qrc
+
+win32: SOURCES += vss_proxy.cpp
+win32: HEADERS += vss_proxy.h
 
 win32:CONFIG(release, debug|release): LIBS += -L$$PWD/../../src/release/ -lbackup_library -lfileset -lfile -lbackup_volume -lmd5_generator -lgzip_encoder -lstatus
 else:win32:CONFIG(debug, debug|release): LIBS += -L$$PWD/../../src/debug/ -lbackup_library -lfileset -lfile -lbackup_volume -lmd5_generator -lgzip_encoder -lstatus
@@ -64,5 +71,7 @@ else:unix: LIBS += -L$$PWD/../../../zlib-1.2.3/contrib/vstudio/vc8/x64/ZlibDllRe
 INCLUDEPATH += $$PWD/../../../zlib-1.2.3/contrib/vstudio/vc8/x64/ZlibDllReleaseWithoutAsm
 DEPENDPATH += $$PWD/../../../zlib-1.2.3/contrib/vstudio/vc8/x64/ZlibDllReleaseWithoutAsm
 
-unix: QMAKE_CXXFLAGS += -std=gnu++0x -O3 -Wall -Werror -Wextra -Wnon-virtual-dtor
+win32: LIBS += -lvssapi
+else:unix: QMAKE_CXXFLAGS += -std=gnu++0x -O3 -Wall -Werror -Wextra -Wnon-virtual-dtor
+
 OTHER_FILES +=

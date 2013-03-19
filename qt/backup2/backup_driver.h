@@ -12,6 +12,7 @@
 #include "qt/backup2/file_selector_model.h"
 #include "qt/backup2/label_history_dlg.h"
 #include "qt/backup2/manage_labels_dlg.h"
+#include "qt/backup2/vss_proxy_interface.h"
 #include "src/backup_volume_interface.h"
 #include "src/status.h"
 
@@ -44,7 +45,7 @@ class BackupDriver : public QObject {
   Q_OBJECT
 
  public:
-  BackupDriver(PathList paths, BackupOptions options);
+  BackupDriver(PathList paths, BackupOptions options, VssProxyInterface *vss);
 
   // Return a list of labels from the backup library at filename.  Returns
   // a status error if something goes wrong.
@@ -74,6 +75,7 @@ class BackupDriver : public QObject {
       bool differential);
   std::string GetBackupVolume(std::string orig_filename);
 
+  VssProxyInterface* vss_;
   PathList paths_;
   BackupOptions options_;
 

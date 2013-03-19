@@ -3,9 +3,14 @@
 
 #include <QFileDialog>
 
+#include <iostream>
+#include <map>
 #include <memory>
+#include <set>
+#include <sstream>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "qt/backup2/backup_driver.h"
@@ -36,13 +41,20 @@ using backup2::Md5Generator;
 using backup2::NewPermanentCallback;
 using backup2::Status;
 using backup2::StatusOr;
+using std::make_pair;
+using std::map;
+using std::ostringstream;
+using std::pair;
+using std::set;
 using std::string;
 using std::unique_ptr;
 using std::unordered_map;
 using std::vector;
+using std::wstring;
 
-BackupDriver::BackupDriver(PathList paths, BackupOptions options)
+BackupDriver::BackupDriver(PathList paths, BackupOptions options, VssProxyInterface* vss)
     : QObject(0),
+      vss_(vss),
       paths_(paths),
       options_(options),
       cancelled_(false) {
@@ -165,7 +177,6 @@ void BackupDriver::PerformBackup() {
       new BackupVolumeFactory());
   Status retval = library.Init();
   if (!retval.ok()) {
-    // TODO(darkstar62): Handle the error.
     emit LogEntry("Error opening library:");
     emit LogEntry(retval.ToString().c_str());
     emit StatusUpdated("Error encountered.", 100);
@@ -196,6 +207,14 @@ void BackupDriver::PerformBackup() {
       LOG(FATAL) << "Invalid backup type: " << options_.backup_type;
   }
 
+  retval = vss_->CreateShadowCopies(filelist);
+  if (!retval.ok()) {
+    emit LogEntry("Error creating shadow copy:");
+    emit LogEntry(retval.ToString().c_str());
+    emit StatusUpdated("Error encountered.", 100);
+    return;
+  }
+
   // Now we've got our filelist.  It doesn't much matter at this point what kind
   // of backup we're doing, because the backup type only defines what files we
   // add to the backup set.
@@ -212,11 +231,19 @@ void BackupDriver::PerformBackup() {
   uint64_t size_since_last_update = 0;
   for (string filename : filelist) {
     VLOG(3) << "Processing " << filename;
+    filename = File(filename).ProperName();
     emit LogEntry("Backing up: " + tr(filename.c_str()));
-    unique_ptr<File> file(new File(filename));
+
+    // Convert the filename
+    string converted_filename = vss_->ConvertFilename(filename);
+    unique_ptr<File> file(new File(converted_filename));
+    if (!file->Exists()) {
+      LOG(INFO) << "Skipping " << converted_filename;
+      continue;
+    }
 
     // Create the metadata for the file and stat() it to get the details.
-    string relative_filename = file->RelativePath();
+    string relative_filename = File(filename).RelativePath();
     BackupFile metadata;
     file->FillBackupFile(&metadata);
 
@@ -224,40 +251,47 @@ void BackupDriver::PerformBackup() {
 
     // If the file type is a directory, we don't store any chunks or try and
     // read from it.
-
-    if (metadata.file_type == BackupFile::kFileTypeRegularFile) {
-      file->Open(File::Mode::kModeRead);
-      Status status = Status::OK;
-
-      do {
-        uint64_t current_offset = file->Tell();
-        size_t read = 0;
-        string data;
-        data.resize(64*1024);
-        status = file->Read(&data.at(0), data.size(), &read);
-        data.resize(read);
-        Status retval = library.AddChunk(data, current_offset, entry);
-        LOG_IF(FATAL, !retval.ok())
-            << "Could not add chunk to volume: " << retval.ToString();
-
-        completed_size += read;
-        size_since_last_update += read;
-        if (size_since_last_update > 1048576) {
-          size_since_last_update = 0;
-          emit StatusUpdated(
-              "Backup in progress...",
-              static_cast<int>(
-                  static_cast<float>(completed_size) / total_size * 100.0));
-        }
-      } while (!cancelled_ && status.code() != backup2::kStatusShortRead);
-
-      // We've reached the end of the file (or cancelled).  Close it out and
-      // start the next one.
-      file->Close();
-
+    if (metadata.file_type != BackupFile::kFileTypeRegularFile) {
       if (cancelled_) {
         break;
       }
+      continue;
+    }
+
+    Status status = file->Open(File::Mode::kModeRead);
+    if (!status.ok()) {
+      LOG(ERROR) << "Open " << converted_filename << ": " << status.ToString();
+    }
+    status = Status::OK;
+
+    do {
+      uint64_t current_offset = file->Tell();
+      size_t read = 0;
+      string data;
+      data.resize(64*1024);
+      status = file->Read(&data.at(0), data.size(), &read);
+      data.resize(read);
+      Status retval = library.AddChunk(data, current_offset, entry);
+      LOG_IF(FATAL, !retval.ok())
+          << "Could not add chunk to volume: " << retval.ToString();
+
+      completed_size += read;
+      size_since_last_update += read;
+      if (size_since_last_update > 1048576) {
+        size_since_last_update = 0;
+        emit StatusUpdated(
+            "Backup in progress...",
+            static_cast<int>(
+                static_cast<float>(completed_size) / total_size * 100.0));
+      }
+    } while (!cancelled_ && status.code() != backup2::kStatusShortRead);
+
+    // We've reached the end of the file (or cancelled).  Close it out and
+    // start the next one.
+    file->Close();
+
+    if (cancelled_) {
+      break;
     }
   }
 

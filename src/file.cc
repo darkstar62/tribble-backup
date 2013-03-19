@@ -59,6 +59,15 @@ vector<string> File::ListDirectory() {
   return files;
 }
 
+string File::RootName() {
+  return boost::filesystem::path(filename_)
+      .root_path().make_preferred().string();
+}
+
+string File::ProperName() {
+  return boost::filesystem::path(filename_).make_preferred().string();
+}
+
 Status File::Open(const Mode mode) {
   CHECK(!file_) << "File already open";
 
@@ -255,17 +264,17 @@ string File::RelativePath() {
 
 Status File::FillBackupFile(BackupFile* metadata) {
   boost::filesystem::path filepath(filename_);
-  metadata->modify_date = boost::filesystem::last_write_time(filepath);
-
   boost::filesystem::file_status status = boost::filesystem::status(filepath);
   switch (status.type()) {
     case boost::filesystem::regular_file:
       metadata->file_type = BackupFile::kFileTypeRegularFile;
       metadata->file_size = size();
+      metadata->modify_date = boost::filesystem::last_write_time(filepath);
       break;
     case boost::filesystem::directory_file:
       metadata->file_type = BackupFile::kFileTypeDirectory;
       metadata->file_size = 0;
+      metadata->modify_date = 0;
       break;
     default:
       LOG(FATAL) << "Cannot handle files of type " << status.type();
