@@ -17,15 +17,13 @@ SOURCES += main.cpp\
     file_selector_model.cpp \
     manage_labels_dlg.cpp \
     backup_driver.cpp \
-    label_history_dlg.cpp \
-    vss_proxy.cpp
+    label_history_dlg.cpp
 
 HEADERS  += mainwindow.h \
     file_selector_model.h \
     manage_labels_dlg.h \
     backup_driver.h \
     label_history_dlg.h \
-    vss_proxy.h \
     vss_proxy_interface.h \
     dummy_vss_proxy.h
 

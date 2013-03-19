@@ -2,6 +2,7 @@
 // Author: Cory Maccarrone <darkstar6262@gmail.com>
 #include "qt/backup2/vss_proxy.h"
 
+#include <algorithm>
 #include <map>
 #include <set>
 #include <string>
@@ -14,9 +15,9 @@
 
 // These headers have to be included here because of the ridiculous namespace
 // pollution the Windows headers do.
-#include <vss.h>
-#include <vswriter.h>
-#include <vsbackup.h>
+#include <vss.h>  // NOLINT
+#include <vswriter.h>  // NOLINT
+#include <vsbackup.h>  // NOLINT
 
 using backup2::File;
 using backup2::Status;

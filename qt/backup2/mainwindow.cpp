@@ -163,7 +163,8 @@ void MainWindow::BackupLocationBrowse() {
   QStringList filenames;
   if (dialog.exec()) {
     filenames = dialog.selectedFiles();
-    ui_->backup_dest->setText(tr(File(filenames[0].toStdString()).ProperName().c_str()));
+    ui_->backup_dest->setText(
+        tr(File(filenames[0].toStdString()).ProperName().c_str()));
   }
 }
 

@@ -52,7 +52,8 @@ using std::unordered_map;
 using std::vector;
 using std::wstring;
 
-BackupDriver::BackupDriver(PathList paths, BackupOptions options, VssProxyInterface* vss)
+BackupDriver::BackupDriver(PathList paths, BackupOptions options,
+                           VssProxyInterface* vss)
     : QObject(0),
       vss_(vss),
       paths_(paths),

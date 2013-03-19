@@ -9,6 +9,7 @@ LINT_SOURCES(
   QT_SOURCES
     backup_driver.cpp
     backup_driver.h
+    dummy_vss_proxy.h
     file_selector_model.cpp
     file_selector_model.h
     label_history_dlg.cpp
@@ -18,4 +19,7 @@ LINT_SOURCES(
     mainwindow.h
     manage_labels_dlg.cpp
     manage_labels_dlg.h
+    vss_proxy.cpp
+    vss_proxy.h
+    vss_proxy_interface.h
   )

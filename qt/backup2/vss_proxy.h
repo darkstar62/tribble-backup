@@ -13,9 +13,9 @@
 
 // These headers have to be included here because of the ridiculous namespace
 // pollution the Windows headers do.
-#include <vss.h>
-#include <vswriter.h>
-#include <vsbackup.h>
+#include <vss.h>  // NOLINT
+#include <vswriter.h>  // NOLINT
+#include <vsbackup.h>  // NOLINT
 
 // This VssProxy implementation does a real volume shadow copy.  It must be
 // used only on Windows, and will fail to compile otherwise.

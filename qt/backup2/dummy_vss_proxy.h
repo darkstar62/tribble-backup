@@ -3,6 +3,9 @@
 #ifndef BACKUP2_QT_BACKUP2_DUMMY_VSS_PROXY_H_
 #define BACKUP2_QT_BACKUP2_DUMMY_VSS_PROXY_H_
 
+#include <string>
+#include <vector>
+
 #include "qt/backup2/vss_proxy_interface.h"
 #include "src/status.h"
 
@@ -10,8 +13,8 @@
 // support any kind of filesystem-based shadow service.
 class DummyVssProxy : public VssProxyInterface {
  public:
-  DummyVssProxy();
-  virtual ~DummyVssProxy();
+  DummyVssProxy() {}
+  virtual ~DummyVssProxy() {}
 
   // VssProxyInterface methods.
   virtual backup2::Status CreateShadowCopies(
