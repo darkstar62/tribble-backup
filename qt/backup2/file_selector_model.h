@@ -44,9 +44,6 @@ class FileSelectorModel : public QFileSystemModel {
   // this function is a no-op.
   void CancelScanning();  // LOCKS_EXCLUDED(scanner_mutex_)
 
-  // Reset the widget.  This clears all check marks.
-  void Reset();
-
   // QDirModel overrides.
   virtual Qt::ItemFlags flags(const QModelIndex& index) const;
   virtual QVariant data(const QModelIndex& index,
@@ -80,7 +77,7 @@ class FileSelectorModel : public QFileSystemModel {
   QSet<QString> tristate_;
 
   // This set contains the paths that the user actually selected or deselected.
-  std::vector<std::pair<QString, int> > user_log_;
+  std::vector<std::pair<std::string, int> > user_log_;
 
   // A filesystem scanner pointer, and thread to go with it.  If these are NULL,
   // no scanning is happening.
@@ -93,7 +90,7 @@ class FilesystemScanner : public QObject {
   Q_OBJECT
 
  public:
-  explicit FilesystemScanner(std::vector<std::pair<QString, int> > user_log)
+  explicit FilesystemScanner(std::vector<std::pair<std::string, int> > user_log)
       : user_log_(user_log), operation_running_(false) {}
 
   // Cancel a running scan operation.
@@ -113,7 +110,7 @@ class FilesystemScanner : public QObject {
       const std::vector<std::string>& positive_selections,
       const std::set<std::string>& negative_selections);
 
-  std::vector<std::pair<QString, int> > user_log_;
+  std::vector<std::pair<std::string, int> > user_log_;
 
   // Set to true once scanning starts.  If Cancel() is called, this is set
   // to false, and the thread will eventually stop.

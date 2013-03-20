@@ -49,6 +49,7 @@ class MainWindow : public QMainWindow {
   void OnEstimatedTimeUpdated(QString message);
 
  private:
+  void InitBackupTreeviewModel();
   void InitBackupProgress(QString message);
 
   Ui::MainWindow* ui_;

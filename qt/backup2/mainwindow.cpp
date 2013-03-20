@@ -37,20 +37,17 @@ using std::vector;
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent),
       ui_(new Ui::MainWindow),
-      model_(new FileSelectorModel),
+      model_(),
       current_label_id_(1),
       current_label_name_("Default"),
       current_label_set_(false),
       backup_driver_(NULL),
       backup_thread_(NULL) {
-  // Set up the backup model treeview.
-  model_->setRootPath("");
   ui_->setupUi(this);
-  ui_->treeView->setModel(model_.get());
-  ui_->treeView->hideColumn(1);
-  ui_->treeView->hideColumn(2);
-  ui_->treeView->hideColumn(3);
-  ui_->treeView->header()->hide();
+
+  // Set up the backup model treeview.
+  InitBackupTreeviewModel();
+
   ui_->tabWidget->setCurrentIndex(0);
   ui_->backup_tabset->setCurrentIndex(0);
   ui_->main_tabset->setCurrentIndex(0);
@@ -86,8 +83,6 @@ MainWindow::MainWindow(QWidget *parent)
   QObject::connect(
       ui_->backup_tabset, SIGNAL(currentChanged(int)), this,
       SLOT(BackupTabChanged(int)));
-  QObject::connect(model_.get(), SIGNAL(SelectedFilesLoaded(PathList)), this,
-                   SLOT(BackupFilesLoaded(PathList)));
   QObject::connect(ui_->backup_cancelled_back_button, SIGNAL(clicked()), this,
                    SLOT(SwitchToBackupPage3()));
   QObject::connect(ui_->backup_cancel_button, SIGNAL(clicked()), this,
@@ -97,6 +92,19 @@ MainWindow::MainWindow(QWidget *parent)
 
 MainWindow::~MainWindow() {
   delete ui_;
+}
+
+void MainWindow::InitBackupTreeviewModel() {
+  model_.reset(new FileSelectorModel);
+  model_->setRootPath("");
+  ui_->treeView->setModel(model_.get());
+  ui_->treeView->hideColumn(1);
+  ui_->treeView->hideColumn(2);
+  ui_->treeView->hideColumn(3);
+  ui_->treeView->header()->hide();
+
+  QObject::connect(model_.get(), SIGNAL(SelectedFilesLoaded(PathList)), this,
+                   SLOT(BackupFilesLoaded(PathList)));
 }
 
 void MainWindow::UpdateBackupComboDescription(int index) {
@@ -253,7 +261,7 @@ void MainWindow::CancelOrCloseBackup() {
     // What to backup.
     ui_->backup_type_combo->setCurrentIndex(0);
     ui_->backup_type_label->setText("");
-    model_->Reset();
+    InitBackupTreeviewModel();
 
     // Where and how.
     ui_->backup_dest->setText("");

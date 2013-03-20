@@ -54,26 +54,6 @@ void FileSelectorModel::CancelScanning() {
   scanner_thread_ = NULL;
 }
 
-void FileSelectorModel::Reset() {
-  // To reset, we roll back the click log.
-  std::vector<std::pair<QString, int> > user_log = user_log_;
-  for (auto log_iter = user_log.rbegin(); log_iter != user_log.rend();
-       ++log_iter) {
-    QString filename = log_iter->first;
-    int selection_state = log_iter->second;
-
-    QModelIndex item_index = index(filename);
-    setData(item_index,
-            selection_state == Qt::Checked ? Qt::Unchecked : Qt::Checked,
-            Qt::CheckStateRole, false);
-  }
-
-  // Clear out all the state.
-  checked_.clear();
-  tristate_.clear();
-  user_log_.clear();
-}
-
 Qt::ItemFlags FileSelectorModel::flags(const QModelIndex& index) const {
   Qt::ItemFlags f = QFileSystemModel::flags(index);
   if (index.column() == 0) {
@@ -101,7 +81,9 @@ bool FileSelectorModel::setData(const QModelIndex& index, const QVariant& value,
   if (index.isValid() && index.column() == 0 && role == Qt::CheckStateRole) {
     // Store checked paths, remove unchecked paths.
     if (value.toInt() != Qt::PartiallyChecked) {
-      user_log_.push_back(make_pair(filePath(index), value.toInt()));
+      user_log_.push_back(
+          make_pair(File(filePath(index).toStdString()).ProperName(),
+                    value.toInt()));
     } else {
       LOG(FATAL) << "BUG: We shouldn't be getting partially checked here!";
     }
@@ -113,6 +95,7 @@ bool FileSelectorModel::setData(const QModelIndex& index, const QVariant& value,
                                 int role, bool no_parents) {
   if (index.isValid() && index.column() == 0 && role == Qt::CheckStateRole) {
     // Store checked paths, remove unchecked paths.
+
     if (value.toInt() == Qt::Checked) {
       checked_.insert(filePath(index));
       tristate_.remove(filePath(index));
@@ -202,13 +185,13 @@ void FilesystemScanner::ScanFilesystem() {
   vector<string> positive_selections;
   set<string> negative_selections;
 
-  for (pair<QString, int> entry : user_log_) {
+  for (pair<string, int> entry : user_log_) {
     if (entry.second == Qt::Checked) {
       // Positive selection.
-      positive_selections.push_back(entry.first.toStdString());
+      positive_selections.push_back(entry.first);
     } else {
       // Negative selection.
-      negative_selections.insert(entry.first.toStdString());
+      negative_selections.insert(entry.first);
     }
   }
 
@@ -234,22 +217,27 @@ vector<string> FilesystemScanner::ProcessPathsRecursive(
   vector<string> result;
   vector<string> dirs_to_scan;
 
+  // TODO(darkstar62): This processes hidden and system files too, which is bad,
+  // because those aren't visible in the tree, and there's no way to de-select
+  // them.  Either we need to make hidden files available, or make a policy
+  // change to specifically exclude hidden files.
   for (string scannable : positive_selections) {
     // Check if this scannable is a file or directory.
     File file(scannable);
+    string proper_name = file.ProperName();
     if (!file.IsDirectory()) {
       // Regular file.  If it's not in the negative selections, add it in.
-      if (negative_selections.find(scannable) == negative_selections.end()) {
-        result.push_back(scannable);
+      if (negative_selections.find(proper_name) == negative_selections.end()) {
+        result.push_back(proper_name);
       }
     } else {
       // Directory -- Add it to a list of directories to scan recursively and
       // keep going, but only if it's not in the negative selections.  Add the
       // directory to the results too, since it could be the directory is empty
       // and we want to restore the directory tree too.
-      if (negative_selections.find(scannable) == negative_selections.end()) {
-        dirs_to_scan.push_back(scannable);
-        result.push_back(scannable);
+      if (negative_selections.find(proper_name) == negative_selections.end()) {
+        dirs_to_scan.push_back(proper_name);
+        result.push_back(proper_name);
       }
     }
 
