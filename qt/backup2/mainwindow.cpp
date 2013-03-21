@@ -154,7 +154,8 @@ void MainWindow::LoadScript() {
     read_xml(filename, pt);
 
     // Grab the backup information.
-    BackupType backup_type = static_cast<BackupType>(pt.get<int>("backup.type"));
+    BackupType backup_type =
+        static_cast<BackupType>(pt.get<int>("backup.type"));
     string backup_description = pt.get<string>("backup.description");
     string backup_destination = pt.get<string>("backup.destination");
     bool enable_compression = pt.get<bool>("backup.enable_compression");
@@ -180,7 +181,8 @@ void MainWindow::LoadScript() {
     for (auto v : pt.get_child("backup.paths")) {
       string log_type = v.first;
       string path = v.second.data();
-      log.push_back(make_pair(path, log_type == "checked" ? Qt::Checked : Qt::Unchecked));
+      log.push_back(
+          make_pair(path, log_type == "checked" ? Qt::Checked : Qt::Unchecked));
     }
 
     InitBackupTreeviewModel();
@@ -204,7 +206,8 @@ void MainWindow::SaveScript() {
     pt.put("backup.type", ui_->backup_type_combo->currentIndex());
     pt.put("backup.description", ui_->backup_description->text().toStdString());
     pt.put("backup.destination", ui_->backup_dest->text().toStdString());
-    pt.put("backup.enable_compression", ui_->enable_compression_checkbox->isChecked());
+    pt.put("backup.enable_compression",
+           ui_->enable_compression_checkbox->isChecked());
     pt.put("backup.split", ui_->split_fixed_check->isChecked());
     pt.put("backup.volume_size_index", ui_->fixed_size_combo->currentIndex());
     pt.put("backup.use_default_label", !current_label_set_);

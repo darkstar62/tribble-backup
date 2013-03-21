@@ -66,18 +66,20 @@ void FileSelectorModel::ReplayLog(UserLog user_log) {
     boost::filesystem::path b_path(path);
     boost::filesystem::path parent_path = b_path.parent_path();
 
-    QModelIndex parent_index = this->index(tr(parent_path.make_preferred().string().c_str()));
+    QModelIndex parent_index =
+        index(tr(parent_path.make_preferred().string().c_str()));
     if (canFetchMore(parent_index)) {
       fetchMore(parent_index);
       break;
     }
 
-    QModelIndex p_index = this->index(tr(path.c_str()));
+    QModelIndex p_index = index(tr(path.c_str()));
     if (p_index.isValid()) {
       LOG(INFO) << p_index.data().toString().toStdString();
       replay_log_.erase(log_entry);
 
-      setData(p_index, checked ? Qt::Checked : Qt::Unchecked, Qt::CheckStateRole);
+      setData(
+          p_index, checked ? Qt::Checked : Qt::Unchecked, Qt::CheckStateRole);
     } else {
       LOG(WARNING) << "Not valid: " << path;
     }
