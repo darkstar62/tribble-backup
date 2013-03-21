@@ -13,5 +13,7 @@
         <file>graphics/label-icon.png</file>
         <file>graphics/1363245997_stop.png</file>
         <file>graphics/pstatus_green.png</file>
+        <file>graphics/Open_win7.ico</file>
+        <file>graphics/bigfolder.png</file>
     </qresource>
 </RCC>

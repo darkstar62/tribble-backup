@@ -193,11 +193,21 @@ void BackupDriver::PerformBackup() {
   // previous backups to determine what to back up.
   switch (options_.backup_type) {
     case kBackupTypeIncremental:
-      total_size = LoadIncrementalFilelist(&library, &filelist, false);
+      if (!LoadIncrementalFilelist(&library, &filelist, false, &total_size)) {
+        // No suitable base, load the full list, and switch to full backup.
+        emit LogEntry("No incremental base found, assuming full backup.");
+        options.set_type(backup2::kBackupTypeFull);
+        total_size = LoadFullFilelist(&filelist);
+      }
       break;
 
     case kBackupTypeDifferential:
-      total_size = LoadIncrementalFilelist(&library, &filelist, true);
+      if (!LoadIncrementalFilelist(&library, &filelist, true, &total_size)) {
+        // No suitable base, load the full list, and switch to full backup.
+        emit LogEntry("No differential base found, assuming full backup.");
+        options.set_type(backup2::kBackupTypeFull);
+        total_size = LoadFullFilelist(&filelist);
+      }
       break;
 
     case kBackupTypeFull:
@@ -305,8 +315,9 @@ void BackupDriver::PerformBackup() {
   }
 }
 
-uint64_t BackupDriver::LoadIncrementalFilelist(
-    BackupLibrary* library, vector<string>* filelist, bool differential) {
+bool BackupDriver::LoadIncrementalFilelist(
+    BackupLibrary* library, vector<string>* filelist, bool differential,
+    uint64_t* size_out) {
   uint64_t total_size = 0;
 
   // Read the filesets from the library leading up to the last full backup.
@@ -314,7 +325,18 @@ uint64_t BackupDriver::LoadIncrementalFilelist(
   // recent one should be a full backup.
   StatusOr<vector<FileSet*> > filesets = library->LoadFileSetsFromLabel(
       false, options_.label_id);
-  CHECK(filesets.ok()) << filesets.status().ToString();
+  if (!filesets.ok()) {
+    if (filesets.status().code() == backup2::kStatusNoSuchFile) {
+      // New backup, we're doing a full backup.
+      return false;
+    }
+    LOG(FATAL) << "Unhandled error: " << filesets.status().ToString();
+  }
+
+  if (filesets.value().size() == 0) {
+    // No suitable base, the backup driver should assume a full backup.
+    return false;
+  }
 
   // Extract out the filenames and directories from each set from most recent to
   // least recent, and construct a map of filename to FileEntry.  We'll then use
@@ -382,7 +404,8 @@ uint64_t BackupDriver::LoadIncrementalFilelist(
   // We don't care about deleted files, because the user always has access to
   // load those files.  Plus, the UI should only be passing in files that
   // actually exist.
-  return total_size;
+  *size_out = total_size;
+  return true;
 }
 
 uint64_t BackupDriver::LoadFullFilelist(vector<string>* filelist) {

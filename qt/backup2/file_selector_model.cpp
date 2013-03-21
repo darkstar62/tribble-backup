@@ -54,6 +54,36 @@ void FileSelectorModel::CancelScanning() {
   scanner_thread_ = NULL;
 }
 
+void FileSelectorModel::ReplayLog(UserLog user_log) {
+  replay_log_ = user_log;
+  while (replay_log_.size() > 0) {
+    auto log_entry = replay_log_.begin();
+
+    string path = log_entry->first;
+    int checked = log_entry->second;
+
+    // Try and load all the paths up to the checked one.
+    boost::filesystem::path b_path(path);
+    boost::filesystem::path parent_path = b_path.parent_path();
+
+    QModelIndex parent_index = this->index(tr(parent_path.make_preferred().string().c_str()));
+    if (canFetchMore(parent_index)) {
+      fetchMore(parent_index);
+      break;
+    }
+
+    QModelIndex p_index = this->index(tr(path.c_str()));
+    if (p_index.isValid()) {
+      LOG(INFO) << p_index.data().toString().toStdString();
+      replay_log_.erase(log_entry);
+
+      setData(p_index, checked ? Qt::Checked : Qt::Unchecked, Qt::CheckStateRole);
+    } else {
+      LOG(WARNING) << "Not valid: " << path;
+    }
+  }
+}
+
 Qt::ItemFlags FileSelectorModel::flags(const QModelIndex& index) const {
   Qt::ItemFlags f = QFileSystemModel::flags(index);
   if (index.column() == 0) {
@@ -88,11 +118,11 @@ bool FileSelectorModel::setData(const QModelIndex& index, const QVariant& value,
       LOG(FATAL) << "BUG: We shouldn't be getting partially checked here!";
     }
   }
-  return setData(index, value, role, false);
+  return setData(index, value, false, role);
 }
 
 bool FileSelectorModel::setData(const QModelIndex& index, const QVariant& value,
-                                int role, bool no_parents) {
+                                bool no_parents, int role) {
   if (index.isValid() && index.column() == 0 && role == Qt::CheckStateRole) {
     // Store checked paths, remove unchecked paths.
 
@@ -128,11 +158,11 @@ bool FileSelectorModel::setData(const QModelIndex& index, const QVariant& value,
       }
 
       if (all_checked && !all_clear) {
-        setData(parent(index), Qt::Checked, Qt::CheckStateRole, false);
+        setData(parent(index), Qt::Checked, false, Qt::CheckStateRole);
       } else if (all_clear && !all_checked) {
-        setData(parent(index), Qt::Unchecked, Qt::CheckStateRole, false);
+        setData(parent(index), Qt::Unchecked, false, Qt::CheckStateRole);
       } else if (!all_clear && !all_checked) {
-        setData(parent(index), Qt::PartiallyChecked, Qt::CheckStateRole, false);
+        setData(parent(index), Qt::PartiallyChecked, false, Qt::CheckStateRole);
       } else {
         LOG(FATAL) << "BUG: Invalid state!";
       }
@@ -143,7 +173,7 @@ bool FileSelectorModel::setData(const QModelIndex& index, const QVariant& value,
       for (int child_num = 0; child_num < rowCount(index); ++child_num) {
         QModelIndex child_index = this->index(child_num, index.column(), index);
         if (child_index.isValid()) {
-          setData(child_index, value, Qt::CheckStateRole, true);
+          setData(child_index, value, true, Qt::CheckStateRole);
         }
       }
     }
@@ -165,8 +195,13 @@ void FileSelectorModel::OnDirectoryLoaded(const QString& path) {
     QModelIndex child_index = this->index(child_num, path_index.column(),
                                           path_index);
     if (child_index.isValid()) {
-      setData(child_index, value, Qt::CheckStateRole, true);
+      setData(child_index, value, true, Qt::CheckStateRole);
     }
+  }
+
+  // If we're replaying a log, grab the next one.
+  if (replay_log_.size() > 0) {
+    ReplayLog(replay_log_);
   }
 }
 
@@ -182,23 +217,35 @@ void FilesystemScanner::ScanFilesystem() {
   LOG(INFO) << "Scanning filesystem";
   operation_running_ = true;
 
-  vector<string> positive_selections;
+  set<string> positive_selections;
   set<string> negative_selections;
 
   for (pair<string, int> entry : user_log_) {
     if (entry.second == Qt::Checked) {
       // Positive selection.
-      positive_selections.push_back(entry.first);
+      positive_selections.insert(entry.first);
+      auto negative_iter = negative_selections.find(entry.first);
+      if (negative_iter != negative_selections.end()) {
+        negative_selections.erase(negative_iter);
+      }
     } else {
       // Negative selection.
+      auto positive_iter = positive_selections.find(entry.first);
+      if (positive_iter != positive_selections.end()) {
+        positive_selections.erase(positive_iter);
+      }
       negative_selections.insert(entry.first);
     }
   }
 
   // Start a recursive algorithm that will read the entires in each selected
   // directory and process them against the negative selections.
+  vector<string> positive_vector;
+  for (string value : positive_selections) {
+    positive_vector.push_back(value);
+  }
   vector<string> final_entries = ProcessPathsRecursive(
-      positive_selections, negative_selections);
+      positive_vector, negative_selections);
 
   PathList output;
   for (string entry : final_entries) {
@@ -260,4 +307,3 @@ vector<string> FilesystemScanner::ProcessPathsRecursive(
 
   return result;
 }
-

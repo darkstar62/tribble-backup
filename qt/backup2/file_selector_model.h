@@ -18,6 +18,7 @@
 class FilesystemScanner;
 
 typedef QVector<QString> PathList;
+typedef std::vector<std::pair<std::string, int> > UserLog;
 
 class FileSelectorModel : public QFileSystemModel {
   Q_OBJECT
@@ -44,6 +45,11 @@ class FileSelectorModel : public QFileSystemModel {
   // this function is a no-op.
   void CancelScanning();  // LOCKS_EXCLUDED(scanner_mutex_)
 
+  // Replay a user log, recovering the checked items that were in the list.
+  void ReplayLog(UserLog user_log);
+
+  UserLog user_log() const { return user_log_; }
+
   // QDirModel overrides.
   virtual Qt::ItemFlags flags(const QModelIndex& index) const;
   virtual QVariant data(const QModelIndex& index,
@@ -69,7 +75,7 @@ class FileSelectorModel : public QFileSystemModel {
   // This version of setData is used to iterate through and update the visuals
   // in the tree.
   virtual bool setData(const QModelIndex& index, const QVariant& value,
-                       int role = Qt::EditRole, bool no_parents = false);
+                       bool no_parents, int role = Qt::EditRole);
 
   // These sets indicate the checked state of each path, only for GUI
   // interactions.
@@ -77,7 +83,8 @@ class FileSelectorModel : public QFileSystemModel {
   QSet<QString> tristate_;
 
   // This set contains the paths that the user actually selected or deselected.
-  std::vector<std::pair<std::string, int> > user_log_;
+  UserLog user_log_;
+  UserLog replay_log_;
 
   // A filesystem scanner pointer, and thread to go with it.  If these are NULL,
   // no scanning is happening.
@@ -90,7 +97,7 @@ class FilesystemScanner : public QObject {
   Q_OBJECT
 
  public:
-  explicit FilesystemScanner(std::vector<std::pair<std::string, int> > user_log)
+  explicit FilesystemScanner(UserLog user_log)
       : user_log_(user_log), operation_running_(false) {}
 
   // Cancel a running scan operation.
@@ -110,7 +117,7 @@ class FilesystemScanner : public QObject {
       const std::vector<std::string>& positive_selections,
       const std::set<std::string>& negative_selections);
 
-  std::vector<std::pair<std::string, int> > user_log_;
+  UserLog user_log_;
 
   // Set to true once scanning starts.  If Cancel() is called, this is set
   // to false, and the thread will eventually stop.

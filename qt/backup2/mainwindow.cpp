@@ -10,6 +10,8 @@
 #include <string>
 #include <vector>
 
+#include "boost/property_tree/ptree.hpp"
+#include "boost/property_tree/xml_parser.hpp"
 #include "glog/logging.h"
 #include "qt/backup2/backup_driver.h"
 #include "qt/backup2/mainwindow.h"
@@ -87,6 +89,10 @@ MainWindow::MainWindow(QWidget *parent)
                    SLOT(SwitchToBackupPage3()));
   QObject::connect(ui_->backup_cancel_button, SIGNAL(clicked()), this,
                    SLOT(CancelOrCloseBackup()));
+  QObject::connect(ui_->load_script_button, SIGNAL(clicked()), this,
+                   SLOT(LoadScript()));
+  QObject::connect(ui_->save_backup_script, SIGNAL(clicked()), this,
+                   SLOT(SaveScript()));
   qRegisterMetaType<PathList>("PathList");
 }
 
@@ -134,6 +140,91 @@ void MainWindow::UpdateBackupComboDescription(int index) {
   ui_->summary_backup_type->setText(summary_backup_type);
 }
 
+void MainWindow::LoadScript() {
+  QFileDialog dialog(this);
+  dialog.setNameFilter(tr("Backup scripts (*.trb)"));
+  dialog.setAcceptMode(QFileDialog::AcceptOpen);
+  dialog.setConfirmOverwrite(false);
+
+  QStringList filenames;
+  if (dialog.exec()) {
+    filenames = dialog.selectedFiles();
+    string filename = File(filenames[0].toStdString()).ProperName();
+    boost::property_tree::ptree pt;
+    read_xml(filename, pt);
+
+    // Grab the backup information.
+    BackupType backup_type = static_cast<BackupType>(pt.get<int>("backup.type"));
+    string backup_description = pt.get<string>("backup.description");
+    string backup_destination = pt.get<string>("backup.destination");
+    bool enable_compression = pt.get<bool>("backup.enable_compression");
+    bool split_volumes = pt.get<bool>("backup.split");
+    int volume_size_index = pt.get<int>("backup.volume_size_index");
+    bool use_default_label = pt.get<bool>("backup.use_default_label");
+    uint64_t label_id = pt.get<uint64_t>("backup.label_id");
+    string label_name = pt.get<string>("backup.label_name");
+
+    // Populate the UI.
+    current_label_set_ = false;
+    ui_->backup_type_combo->setCurrentIndex(static_cast<int>(backup_type));
+    ui_->backup_description->setText(tr(backup_description.c_str()));
+    ui_->backup_dest->setText(tr(backup_destination.c_str()));
+    ui_->enable_compression_checkbox->setChecked(enable_compression);
+    ui_->split_fixed_check->setChecked(split_volumes);
+    ui_->fixed_size_combo->setCurrentIndex(volume_size_index);
+    current_label_set_ = !use_default_label;
+    current_label_id_ = label_id;
+    current_label_name_ = label_name;
+
+    UserLog log;
+    for (auto v : pt.get_child("backup.paths")) {
+      string log_type = v.first;
+      string path = v.second.data();
+      log.push_back(make_pair(path, log_type == "checked" ? Qt::Checked : Qt::Unchecked));
+    }
+
+    InitBackupTreeviewModel();
+    model_->ReplayLog(log);
+  }
+}
+
+void MainWindow::SaveScript() {
+  QFileDialog dialog(this);
+  dialog.setNameFilter(tr("Backup scripts (*.trb)"));
+  dialog.setAcceptMode(QFileDialog::AcceptSave);
+  dialog.setConfirmOverwrite(true);
+
+  QStringList filenames;
+  if (dialog.exec()) {
+    filenames = dialog.selectedFiles();
+    string filename = File(filenames[0].toStdString()).ProperName();
+    boost::property_tree::ptree pt;
+
+    // Grab the backup information.
+    pt.put("backup.type", ui_->backup_type_combo->currentIndex());
+    pt.put("backup.description", ui_->backup_description->text().toStdString());
+    pt.put("backup.destination", ui_->backup_dest->text().toStdString());
+    pt.put("backup.enable_compression", ui_->enable_compression_checkbox->isChecked());
+    pt.put("backup.split", ui_->split_fixed_check->isChecked());
+    pt.put("backup.volume_size_index", ui_->fixed_size_combo->currentIndex());
+    pt.put("backup.use_default_label", !current_label_set_);
+    pt.put("backup.label_id", current_label_id_);
+    pt.put("backup.label_name", current_label_name_);
+
+    UserLog log = model_->user_log();
+    for (auto log_entry : log) {
+      string path = log_entry.first;
+      int checked = log_entry.second;
+
+      if (checked) {
+        pt.add("backup.paths.checked", path);
+      } else {
+        pt.add("backup.paths.unchecked", path);
+      }
+    }
+    write_xml(filename, pt);
+  }
+}
 void MainWindow::SwitchToBackupPage1() {
   ui_->backup_tabset->setCurrentIndex(0);
 }
@@ -141,6 +232,7 @@ void MainWindow::SwitchToBackupPage1() {
 void MainWindow::SwitchToBackupPage2() {
   ui_->backup_tabset->setCurrentIndex(1);
 }
+
 void MainWindow::SwitchToBackupPage3() {
   // This one, unlike the others, will actually calculate the summary details
   // for the view.

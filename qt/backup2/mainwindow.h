@@ -32,6 +32,8 @@ class MainWindow : public QMainWindow {
 
  private slots:
   void UpdateBackupComboDescription(int index);
+  void LoadScript();
+  void SaveScript();
   void SwitchToBackupPage1();
   void SwitchToBackupPage2();
   void SwitchToBackupPage3();

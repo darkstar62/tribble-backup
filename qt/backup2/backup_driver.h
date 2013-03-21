@@ -69,10 +69,20 @@ class BackupDriver : public QObject {
   void PerformBackup();
 
  private:
+  // Load the full file list.  Returns the filelist in the passed vector, and
+  // the size in bytes of all the files as the return value.
   uint64_t LoadFullFilelist(std::vector<std::string>* filelist);
-  uint64_t LoadIncrementalFilelist(
+
+  // Load an incremental or differential filelist from the library.  If there
+  // is no suitable base to create a filelist off of, this function returns
+  // false, indicating the backup driver should use a full backup.  Otherwise,
+  // the filelist is returned, along with the size in bytes of all the files,
+  // in the out parameters.
+  bool LoadIncrementalFilelist(
       backup2::BackupLibrary* library, std::vector<std::string>* filelist,
-      bool differential);
+      bool differential, uint64_t *size_out);
+
+  // Callback in case the backup library needs to load a volume it can't find.
   std::string GetBackupVolume(std::string orig_filename);
 
   VssProxyInterface* vss_;
