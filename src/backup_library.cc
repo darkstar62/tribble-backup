@@ -48,7 +48,8 @@ BackupLibrary::BackupLibrary(
       file_set_(),
       current_backup_volume_(NULL),
       read_cached_data_(""),
-      cached_backup_volume_() {
+      cached_backup_volume_(),
+      volume_bytes_remaining_(0) {
   read_cached_md5sum_.hi = 0;
   read_cached_md5sum_.lo = 0;
 }
@@ -291,9 +292,20 @@ Status BackupLibrary::AddChunk(const string& data, const uint64_t chunk_offset,
   file->AddChunk(chunk);
 
   // Check the volume size -- if it's too big, start a new one.
-  if (options_.max_volume_size_mb() > 0 &&
-      current_backup_volume_->EstimatedSize() >= (
-          options_.max_volume_size_mb() * 1048576)) {
+  if (options_.max_volume_size_mb() == 0) {
+    return Status::OK;
+  }
+
+  // Figure out how much space we have left, given the total backup size.
+  uint64_t current_estimated_size =
+       current_backup_volume_->EstimatedSize();
+  uint64_t bytes_remaining =
+      (options_.max_volume_size_mb() - kMaxSizeThresholdMb) * 1048576;
+  if (volume_bytes_remaining_ > 0) {
+    bytes_remaining = volume_bytes_remaining_;
+  }
+
+  if (current_estimated_size >= bytes_remaining) {
     // Close out the current volume.  We need to grab the chunk list from the
     // volume so we can continue to de-dup.
     current_backup_volume_->Close();
@@ -305,6 +317,8 @@ Status BackupLibrary::AddChunk(const string& data, const uint64_t chunk_offset,
         last_volume_, true);
     CHECK(volume_result.ok()) << volume_result.status().ToString();
     current_backup_volume_ = volume_result.value();
+
+    volume_bytes_remaining_ = 0;
   }
 
   return Status::OK;
@@ -392,6 +406,7 @@ vector<pair<FileChunk, const FileEntry*> >
 
 Status BackupLibrary::LoadAllChunkData() {
   // Iterate through all backup volumes loading the chunk data from each.
+  volume_bytes_remaining_ = 0;
   for (int64_t volume = last_volume_; volume >= 0; --volume) {
     StatusOr<BackupVolumeInterface*> volume_result = GetBackupVolume(
         volume, false);
@@ -399,6 +414,20 @@ Status BackupLibrary::LoadAllChunkData() {
     ChunkMap chunks;
     volume_result.value()->GetChunks(&chunks);
     chunks_.Merge(chunks);
+
+    // Also grab thee file size of the volume.  This way, if the last few
+    // volumes didn't add up to the max volume size, we can limit the first new
+    // file to the remaining size.
+    uint64_t backup_size  = volume_result.value()->DiskSize();
+    uint64_t threshold_bytes =
+        (options_.max_volume_size_mb() - kMaxSizeThresholdMb) * 1048576;
+    if (backup_size < threshold_bytes) {
+      volume_bytes_remaining_ += threshold_bytes - backup_size;
+    }
+    if (volume_bytes_remaining_ >= threshold_bytes) {
+      volume_bytes_remaining_ -= threshold_bytes;
+    }
+    LOG(INFO) << "Remaining: " << volume_bytes_remaining_;
   }
 
   return Status::OK;

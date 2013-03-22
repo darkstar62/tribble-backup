@@ -399,7 +399,7 @@ TEST_F(BackupLibraryTest, CreateBackupWriteFilesMultiVolume) {
   Status retval = library.CreateBackup(
       BackupOptions().set_description("Foo")
                      .set_enable_compression(false)
-                     .set_max_volume_size_mb(2)
+                     .set_max_volume_size_mb(20)
                      .set_type(kBackupTypeFull));
   EXPECT_TRUE(retval.ok()) << retval.ToString();
 
@@ -408,9 +408,9 @@ TEST_F(BackupLibraryTest, CreateBackupWriteFilesMultiVolume) {
   FileEntry* entry = library.CreateNewFile("/foo/bar/bleh", metadata);
 
   // Add some data to it.  Do this three times.
-  for (int i = 0; i < 3; ++i) {
+  for (int i = 0; i < 35; ++i) {
     string data;
-    data.resize(512 * 1025);
+    data.resize(512 * 1024);
     fill(data.begin(), data.end(), 'A');
 
     Uint128 md5sum;
@@ -428,11 +428,131 @@ TEST_F(BackupLibraryTest, CreateBackupWriteFilesMultiVolume) {
       Return(volume2));
 
   string data;
-  data.resize(512 * 1025);
+  data.resize(512 * 1024);
   fill(data.begin(), data.end(), 'A');
 
   Uint128 md5sum;
-  md5sum.hi = 0x834671 + 3;
+  md5sum.hi = 0x834671 + 99;
+  md5sum.lo = 0x892376;
+  EXPECT_CALL(*md5_generator, Checksum(data)).WillOnce(Return(md5sum));
+
+  retval = library.AddChunk(data, 0, entry);
+  EXPECT_TRUE(retval.ok()) << retval.ToString();
+
+  retval = library.CloseBackup();
+  EXPECT_TRUE(retval.ok()) << retval.ToString();
+
+  // All created objects should delete themselves through the library.
+  delete cb;
+}
+
+TEST_F(BackupLibraryTest, CreateBackupWriteFilesPartialMultiVolume) {
+  // This test verifies that continuing a backup library with volumes not at
+  // max size results in another file that fills up the remaining size.
+  MockFile* file = new MockFile;
+
+  MockMd5Generator* md5_generator = new MockMd5Generator;
+  auto cb = NewPermanentCallback(
+      static_cast<BackupLibraryTest*>(this),
+      &BackupLibraryTest::GetNextFilename);
+
+  MockBackupVolumeFactory* volume_factory = new MockBackupVolumeFactory();
+
+  EXPECT_CALL(*file, FindBasenameAndLastVolume(_, _, _))
+      .WillOnce(DoAll(
+          SetArgPointee<0>("/foo/bar"),
+          SetArgPointee<1>(1),
+          SetArgPointee<2>(2),
+          Return(Status::OK)));
+  BackupLibrary library(
+      file, cb,
+      md5_generator,
+      new MockEncoder(),
+      volume_factory);
+
+  // Create the backup now.
+  FakeBackupVolume* volume = new FakeBackupVolume(file);
+  volume->set_volume_number(0);
+  volume->InitializeForExistingWithDescriptor2();
+
+  FakeBackupVolume* volume2 = new FakeBackupVolume(file);
+  volume2->set_volume_number(1);
+  volume2->InitializeForExistingWithDescriptor2();
+
+  FakeBackupVolume* volume2_2 = new FakeBackupVolume(file);
+  volume2_2->set_volume_number(1);
+  volume2_2->InitializeForExistingWithDescriptor2();
+
+  FakeBackupVolume* volume3 = new FakeBackupVolume(file);
+  volume3->set_volume_number(2);
+  volume3->InitializeForNewVolume();
+
+  FakeBackupVolume* volume4 = new FakeBackupVolume(file);
+  volume4->set_volume_number(3);
+  volume4->InitializeForNewVolume();
+
+  uint64_t amount_remaining =
+      (20 - BackupLibrary::kMaxSizeThresholdMb) * 1048576 -
+          volume->DiskSize() - volume2_2->DiskSize();
+  EXPECT_GT((20 - BackupLibrary::kMaxSizeThresholdMb) * 1048576,
+            amount_remaining);
+
+  // Expectation: The first thing that's done is to read the chunk data from the
+  // backup volumes, so volume 0 will be opened first.
+  EXPECT_CALL(*volume_factory, Create("/foo/bar.1.bkp"))
+      .WillOnce(Return(volume2))
+      .WillOnce(Return(volume2_2));
+  EXPECT_CALL(*volume_factory, Create("/foo/bar.0.bkp")).WillOnce(
+      Return(volume));
+  EXPECT_TRUE(library.Init().ok());
+
+  // Init will return kStatusNoSuchFile, prompting the library to create a new
+  // volume.  This will succeed, and the library will then attempt to merge the
+  // chunk database (which is empty for these initial conditions) with its own.
+  // Seeing that, and seeing that this is the first backup volume, library will
+  // only set up metadata and ensure that the volume is marked current.
+  EXPECT_CALL(*volume_factory, Create("/foo/bar.2.bkp")).WillOnce(
+      Return(volume3));
+  Status retval = library.CreateBackup(
+      BackupOptions().set_description("Foo")
+                     .set_enable_compression(false)
+                     .set_max_volume_size_mb(20)
+                     .set_type(kBackupTypeFull));
+  EXPECT_TRUE(retval.ok()) << retval.ToString();
+
+  // Add a file to the backup.
+  BackupFile metadata;
+  FileEntry* entry = library.CreateNewFile("/foo/bar/bleh", metadata);
+
+  // Add some data to it.  Do this until the amount remaining drops below 512kb.
+  uint64_t i = 0;
+  while (amount_remaining > 512 * 1024) {
+    string data;
+    data.resize(512 * 1024);
+    fill(data.begin(), data.end(), 'A');
+
+    Uint128 md5sum;
+    md5sum.hi = 0x834671 + i++;
+    md5sum.lo = 0x892376;
+    EXPECT_CALL(*md5_generator, Checksum(data)).WillOnce(Return(md5sum));
+
+    retval = library.AddChunk(data, 0, entry);
+    EXPECT_TRUE(retval.ok()) << retval.ToString();
+
+    amount_remaining -= data.size();
+  }
+
+  // Upon doing this one more time, the library should open another backup
+  // volume.
+  EXPECT_CALL(*volume_factory, Create("/foo/bar.3.bkp")).WillOnce(
+      Return(volume4));
+
+  string data;
+  data.resize(512 * 1024);
+  fill(data.begin(), data.end(), 'A');
+
+  Uint128 md5sum;
+  md5sum.hi = 0x834671 + i++;
   md5sum.lo = 0x892376;
   EXPECT_CALL(*md5_generator, Checksum(data)).WillOnce(Return(md5sum));
 

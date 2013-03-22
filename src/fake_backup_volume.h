@@ -95,6 +95,8 @@ class FakeBackupVolume : public BackupVolumeInterface {
 
     // Add the actual data too, in case we're asked.
     chunk_data_.insert(std::make_pair(chunk.md5sum, "1234567890123456"));
+
+    estimated_size_ = 0x323;
   }
 
   void InitializeAsCancelled() {
@@ -118,6 +120,8 @@ class FakeBackupVolume : public BackupVolumeInterface {
 
     // Add the actual data too, in case we're asked.
     chunk_data_.insert(std::make_pair(chunk.md5sum, "1234567890123456"));
+
+    estimated_size_ = 0x123;
   }
 
   void set_volume_number(uint64_t vol) { volume_number_ = vol; }
@@ -199,6 +203,7 @@ class FakeBackupVolume : public BackupVolumeInterface {
 
   virtual Status Cancel() { return Status::OK; }
   virtual uint64_t EstimatedSize() const { return estimated_size_; }
+  virtual uint64_t DiskSize() const { return estimated_size_; }
   virtual uint64_t volume_number() const {
     return volume_number_;
   }

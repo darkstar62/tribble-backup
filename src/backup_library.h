@@ -80,6 +80,9 @@ class BackupOptions {
 // different files, and even reach out to other media (via UI callbacks).
 class BackupLibrary {
  public:
+  // Margin around the maximum volume size to leave.
+  static const uint64_t kMaxSizeThresholdMb = 2;
+
   // Volume change callback.  This is used whenever the backup library needs to
   // load a volume but can't figure out the correct filename to use.
   // BackupLibrary supplies the filename and path it was looking for, and
@@ -253,7 +256,15 @@ class BackupLibrary {
   Uint128 read_cached_md5sum_;
   std::string read_cached_data_;
 
+  // Currently active backup volume.  This only changes when we need to
+  // request a different volume than we currently have.
   std::unique_ptr<BackupVolumeInterface> cached_backup_volume_;
+
+  // Amount of bytes remaining in the current backup volume before we need to
+  // start a new one.  This is normally not populated until right before a new
+  // backup.
+  uint64_t volume_bytes_remaining_;
+
   DISALLOW_COPY_AND_ASSIGN(BackupLibrary);
 };
 

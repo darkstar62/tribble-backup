@@ -135,6 +135,10 @@ class BackupVolumeInterface {
   // descriptor 2, as that can't be known until after the backup).
   virtual uint64_t EstimatedSize() const = 0;
 
+  // Returns the on-disk size of the backup volume so far.  This is used mainly
+  // to account for backup volumes that don't fill up the maximum volume size.
+  virtual uint64_t DiskSize() const = 0;
+
   // Return the volume number this backup volume represents.
   virtual uint64_t volume_number() const = 0;
 

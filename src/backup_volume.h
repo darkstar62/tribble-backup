@@ -56,6 +56,7 @@ class BackupVolume : public BackupVolumeInterface {
       FileSet* fileset, const LabelMap& labels);
   virtual Status Cancel();
   virtual uint64_t EstimatedSize() const;
+  virtual uint64_t DiskSize() const;
   virtual uint64_t volume_number() const {
     return descriptor_header_.volume_number;
   }

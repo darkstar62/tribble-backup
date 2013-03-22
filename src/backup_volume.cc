@@ -248,6 +248,10 @@ uint64_t BackupVolume::EstimatedSize() const {
   return file_->size() + chunks_.disk_size();
 }
 
+uint64_t BackupVolume::DiskSize() const {
+  return file_->size();
+}
+
 Status BackupVolume::WriteChunk(
     Uint128 md5sum, const string& data, uint64_t raw_size, EncodingType type,
     uint64_t* chunk_offset_out) {
