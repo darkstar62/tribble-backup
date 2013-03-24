@@ -26,7 +26,7 @@ class VssProxy : public VssProxyInterface {
 
   // VssProxyInterface methods.
   virtual backup2::Status CreateShadowCopies(
-      const std::vector<std::string> filelist);
+      const std::vector<std::string>& filelist);
   virtual std::string ConvertFilename(std::string filename);
 
  private:

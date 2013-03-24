@@ -478,7 +478,7 @@ QTabWidget#main_tabset::pane {
             <enum>QTabWidget::Rounded</enum>
            </property>
            <property name="currentIndex">
-            <number>2</number>
+            <number>1</number>
            </property>
            <property name="iconSize">
             <size>
@@ -1424,6 +1424,19 @@ QTabWidget::pane {
                                  </spacer>
                                 </item>
                                </layout>
+                              </item>
+                              <item>
+                               <widget class="QCheckBox" name="backup_use_vss">
+                                <property name="toolTip">
+                                 <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Windows volume shadow services (VSS) is a service provided by Windows which allows backup programs to copy files in use safely.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                                </property>
+                                <property name="whatsThis">
+                                 <string>Windows volume shadow services (VSS) is a service provided by Windows which allows backup programs to copy files in use safely.</string>
+                                </property>
+                                <property name="text">
+                                 <string>Use Windows Volume Shadow Services</string>
+                                </property>
+                               </widget>
                               </item>
                               <item>
                                <spacer name="verticalSpacer">

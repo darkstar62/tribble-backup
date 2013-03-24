@@ -39,7 +39,7 @@ VssProxy::~VssProxy() {
   }
 }
 
-Status VssProxy::CreateShadowCopies(const vector<string> filelist) {
+Status VssProxy::CreateShadowCopies(const vector<string>& filelist) {
   HRESULT result = CreateVssBackupComponents(&components_);
   if (result != S_OK) {
     if (result == E_ACCESSDENIED) {

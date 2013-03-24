@@ -33,6 +33,7 @@ struct BackupOptions {
   std::string description;
   BackupType backup_type;
   bool split_volumes;
+  bool use_vss;
   uint64_t volume_size_mb;
 
   // Label information.

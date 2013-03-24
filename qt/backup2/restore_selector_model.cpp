@@ -54,9 +54,7 @@ void RestoreSelectorModel::AddPath(QString path) {
 }
 
 void RestoreSelectorModel::FinalizeModel() {
-  LOG(INFO) << "Finalize >>>";
   InsertChildren(invisibleRootItem(), &root_node_, "", 0);
-  LOG(INFO) << "Finalize <<<";
   blockSignals(false);
   emit dataChanged(
       this->index(0, 0), this->index(rowCount() - 1, columnCount() - 1));

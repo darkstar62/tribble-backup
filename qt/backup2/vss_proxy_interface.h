@@ -19,7 +19,7 @@ class VssProxyInterface {
   // filelist.  Upon success, this class can be used to convert canonical
   // names to their shadow equivalents.
   virtual backup2::Status CreateShadowCopies(
-      const std::vector<std::string> filelist) = 0;
+      const std::vector<std::string>& filelist) = 0;
 
   // Convert a canonical filename to the equivalent shadow file name.
   virtual std::string ConvertFilename(std::string filename) = 0;

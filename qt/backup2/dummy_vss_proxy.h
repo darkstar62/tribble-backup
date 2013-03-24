@@ -18,7 +18,7 @@ class DummyVssProxy : public VssProxyInterface {
 
   // VssProxyInterface methods.
   virtual backup2::Status CreateShadowCopies(
-      const std::vector<std::string> /* filelist */) {
+      const std::vector<std::string>& /* filelist */) {
     return backup2::Status::OK;
   }
 

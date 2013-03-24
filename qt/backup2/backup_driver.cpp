@@ -1,6 +1,7 @@
 // Copyright (C) 2013 Cory Maccarrone
 // Author: Cory Maccarrone <darkstar6262@gmail.com>
 
+#include <QElapsedTimer>
 #include <QFileDialog>
 
 #include <iostream>
@@ -234,6 +235,7 @@ void BackupDriver::PerformBackup() {
 
   // If this is an incremental backup, we need to use the FileSets from the
   // previous backups to determine what to back up.
+  emit LogEntry("Determining actual filelist...");
   switch (options_.backup_type) {
     case kBackupTypeIncremental:
       if (!LoadIncrementalFilelist(&library, &filelist, false, &total_size)) {
@@ -261,6 +263,10 @@ void BackupDriver::PerformBackup() {
       LOG(FATAL) << "Invalid backup type: " << options_.backup_type;
   }
 
+  if (options_.use_vss) {
+    emit LogEntry("Creating shadow copy...");
+  }
+
   retval = vss_->CreateShadowCopies(filelist);
   if (!retval.ok()) {
     emit LogEntry("Error creating shadow copy:");
@@ -281,6 +287,9 @@ void BackupDriver::PerformBackup() {
       << "Couldn't create backup: " << retval.ToString();
 
   // Start processing files.
+  QElapsedTimer timer;
+  timer.start();
+
   uint64_t completed_size = 0;
   uint64_t size_since_last_update = 0;
   for (string filename : filelist) {
@@ -336,6 +345,16 @@ void BackupDriver::PerformBackup() {
             "Backup in progress...",
             static_cast<int>(
                 static_cast<float>(completed_size) / total_size * 100.0));
+
+        qint64 msecs_elapsed = timer.elapsed();
+        if (msecs_elapsed / 1000 > 0) {
+          qint64 mb_per_sec = (completed_size / 1048576) / (msecs_elapsed / 1000);
+          qint64 sec_remaining = ((total_size - completed_size) / 1048576) / mb_per_sec;
+
+          emit EstimatedTimeUpdated(
+                QString("Elapsed: " + QTime(0, 0, 0).addMSecs(msecs_elapsed).toString() +
+                        ", Remaining: " + QTime(0, 0, 0).addSecs(sec_remaining).toString()));
+        }
       }
     } while (!cancelled_ && status.code() != backup2::kStatusShortRead);
 
@@ -349,6 +368,7 @@ void BackupDriver::PerformBackup() {
   }
 
   // All done with the backup, close out the file set.
+  emit LogEntry("Closing backup library...");
   if (cancelled_) {
     library.CancelBackup();
   } else {

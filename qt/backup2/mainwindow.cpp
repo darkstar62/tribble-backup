@@ -9,6 +9,7 @@
 #include <QVector>
 
 #include <algorithm>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -16,17 +17,14 @@
 #include "boost/property_tree/xml_parser.hpp"
 #include "glog/logging.h"
 #include "qt/backup2/backup_driver.h"
+#include "qt/backup2/dummy_vss_proxy.h"
 #include "qt/backup2/mainwindow.h"
 #include "qt/backup2/manage_labels_dlg.h"
 #include "qt/backup2/file_selector_model.h"
-
+#include "qt/backup2/restore_selector_model.h"
 #ifdef _WIN32
 #include "qt/backup2/vss_proxy.h"
-#else
-#include "qt/backup2/dummy_vss_proxy.h"
 #endif
-
-#include "qt/backup2/restore_selector_model.h"
 #include "qt/backup2/vss_proxy_interface.h"
 #include "src/backup_volume_interface.h"
 #include "src/file.h"
@@ -37,6 +35,7 @@
 using backup2::File;
 using backup2::StatusOr;
 using std::string;
+using std::unique_ptr;
 using std::vector;
 
 MainWindow::MainWindow(QWidget *parent)
@@ -188,6 +187,7 @@ void MainWindow::LoadScript() {
     string backup_destination = pt.get<string>("backup.destination");
     bool enable_compression = pt.get<bool>("backup.enable_compression");
     bool split_volumes = pt.get<bool>("backup.split");
+    bool use_vss = pt.get<bool>("backup.use_vss");
     int volume_size_index = pt.get<int>("backup.volume_size_index");
     bool use_default_label = pt.get<bool>("backup.use_default_label");
     uint64_t label_id = pt.get<uint64_t>("backup.label_id");
@@ -200,6 +200,7 @@ void MainWindow::LoadScript() {
     ui_->backup_dest->setText(tr(backup_destination.c_str()));
     ui_->enable_compression_checkbox->setChecked(enable_compression);
     ui_->split_fixed_check->setChecked(split_volumes);
+    ui_->backup_use_vss->setChecked(use_vss);
     ui_->fixed_size_combo->setCurrentIndex(volume_size_index);
     current_label_set_ = !use_default_label;
     current_label_id_ = label_id;
@@ -237,6 +238,7 @@ void MainWindow::SaveScript() {
     pt.put("backup.enable_compression",
            ui_->enable_compression_checkbox->isChecked());
     pt.put("backup.split", ui_->split_fixed_check->isChecked());
+    pt.put("backup.use_vss", ui_->backup_use_vss->isChecked());
     pt.put("backup.volume_size_index", ui_->fixed_size_combo->currentIndex());
     pt.put("backup.use_default_label", !current_label_set_);
     pt.put("backup.label_id", current_label_id_);
@@ -276,6 +278,12 @@ void MainWindow::SwitchToBackupPage3() {
   ui_->summary_use_compression->setText(
       ui_->enable_compression_checkbox->isChecked() ? "Yes" : "No");
   ui_->backup_tabset->setCurrentIndex(2);
+
+#ifdef _WIN32
+  ui_->backup_use_vss->setVisible(true);
+#else
+  ui_->backup_use_vss->setVisible(false);
+#endif  // _WIN32
 }
 
 void MainWindow::BackupTabChanged(int tab) {
@@ -438,7 +446,7 @@ void MainWindow::BackupFilesLoaded(PathList paths) {
   options.filename = ui_->backup_dest->text().toStdString();
   options.enable_compression = ui_->enable_compression_checkbox->isChecked();
   options.description = ui_->backup_description->text().toStdString();
-
+  options.use_vss = ui_->backup_use_vss->isChecked();
   options.label_set = current_label_set_;
   options.label_id = current_label_id_;
   options.label_name = current_label_name_;
@@ -469,7 +477,7 @@ void MainWindow::BackupFilesLoaded(PathList paths) {
       options.volume_size_mb = 700;
       break;
     case 2:
-      options.volume_size_mb = 4700;
+      options.volume_size_mb = 4400;
       break;
     case 3:
       options.volume_size_mb = 15000;
@@ -477,14 +485,15 @@ void MainWindow::BackupFilesLoaded(PathList paths) {
   }
 
   // Create our backup driver and spawn it off in a new thread.
+  unique_ptr<VssProxyInterface> vss(new DummyVssProxy());
 #ifdef _WIN32
-  VssProxyInterface* vss = new VssProxy();
-#else
-  VssProxyInterface* vss = new DummyVssProxy();
-#endif
+  if (options.use_vss) {
+    vss.reset(new VssProxy());
+  }
+#endif  // _WIN32
 
   QMutexLocker ml(&backup_mutex_);
-  backup_driver_ = new BackupDriver(paths, options, vss);
+  backup_driver_ = new BackupDriver(paths, options, vss.release());
   backup_thread_ = new QThread(this);
   QWidget::connect(backup_thread_, SIGNAL(started()), backup_driver_,
                    SLOT(PerformBackup()));
@@ -597,13 +606,11 @@ void MainWindow::SwitchToRestorePage2() {
   // the user's selections.
   if (restore_page_1_changed_) {
     // Read the backup information out of the file to get all the filesets.
-    LOG(INFO) << "Get History >>>";
     StatusOr<QVector<BackupItem> > history =
         BackupDriver::GetHistory(
             ui_->restore_source->text().toStdString(),
             ui_->restore_labels->currentItem()->data(
                 1, Qt::DisplayRole).toULongLong());
-    LOG(INFO) << "Get History <<<";
     if (!history.ok()) {
       QMessageBox::warning(this, "Error loading history",
                            "This backup set appears to have errors, please "
@@ -637,14 +644,12 @@ void MainWindow::OnHistorySliderChanged(int position) {
       item.date.toString() + ": " + item.description + " (" + item.type + ")");
 
   // Load up the file list from this date.
-  LOG(INFO) << "GetFiles >>>";
   StatusOr<QVector<QString> > files =
       BackupDriver::GetFilesForSnapshot(
           ui_->restore_source->text().toStdString(),
           ui_->restore_labels->currentItem()->data(
               1, Qt::DisplayRole).toULongLong(),
           position);
-  LOG(INFO) << "GetFiles <<<";
   if (!files.ok()) {
     QMessageBox::warning(this, "Error loading files",
                          "Could not load filelist from backup: " +
