@@ -51,9 +51,9 @@ Status VssProxy::CreateShadowCopies(const vector<string> filelist) {
   }
 
   LOG(INFO) << "Initialize";
-  components_->AbortBackup();
   result = components_->InitializeForBackup();
   if (result != S_OK) {
+    LOG(ERROR) << "Result: 0x" << std::hex << result;
     return Status(backup2::kStatusUnknown,
                   "Could not initialize for backup");
   }

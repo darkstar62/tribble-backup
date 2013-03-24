@@ -15,5 +15,7 @@
         <file>graphics/pstatus_green.png</file>
         <file>graphics/Open_win7.ico</file>
         <file>graphics/bigfolder.png</file>
+        <file>graphics/restore_button.svg</file>
+        <file>graphics/restore_inactive_button.svg</file>
     </qresource>
 </RCC>

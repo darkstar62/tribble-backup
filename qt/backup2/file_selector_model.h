@@ -75,7 +75,7 @@ class FileSelectorModel : public QFileSystemModel {
   // This version of setData is used to iterate through and update the visuals
   // in the tree.
   virtual bool setData(const QModelIndex& index, const QVariant& value,
-                       bool no_parents, int role = Qt::EditRole);
+                       bool parents, int role = Qt::EditRole);
 
   // These sets indicate the checked state of each path, only for GUI
   // interactions.

@@ -139,6 +139,49 @@ StatusOr<QVector<BackupItem> > BackupDriver::GetHistory(
   return items;
 }
 
+StatusOr<QVector<QString> > BackupDriver::GetFilesForSnapshot(
+    string filename, uint64_t label, uint64_t snapshot) {
+  File* file = new File(filename);
+  if (!file->Exists()) {
+    delete file;
+    return Status(backup2::kStatusNoSuchFile, "");
+  }
+
+  BackupLibrary library(
+      file, NULL,
+      new Md5Generator(), new GzipEncoder(),
+      new BackupVolumeFactory());
+  Status retval = library.Init();
+  if (!retval.ok()) {
+    LOG(ERROR) << "Could not init library: " << retval.ToString();
+    return retval;
+  }
+
+  StatusOr<vector<FileSet*> > backup_sets = library.LoadFileSetsFromLabel(
+      true, label);
+  if (!retval.ok()) {
+    LOG(ERROR) << "Could not load sets: " << retval.ToString();
+    return retval;
+  }
+
+  QSet<QString> files;
+
+  // Start at the least recent backup and go forward until we hit the index
+  // passed by the user.
+  LOG(INFO) << "Snapshot = " << snapshot;
+  for (int64_t index = backup_sets.value().size() - 1;
+       index >= static_cast<int64_t>(snapshot); --index) {
+    LOG(INFO) << "Loading index: " << index;
+    FileSet* fileset = backup_sets.value().at(index);
+    vector<backup2::FileEntry*> entries = fileset->GetFiles();
+    for (FileEntry* entry : entries) {
+      files.insert(tr(entry->filename().c_str()));
+    }
+  }
+
+  return files.toList().toVector();
+}
+
 void BackupDriver::PerformBackup() {
   LOG(INFO) << "Performing backup.";
   backup2::BackupOptions options;
@@ -254,11 +297,11 @@ void BackupDriver::PerformBackup() {
     }
 
     // Create the metadata for the file and stat() it to get the details.
-    string relative_filename = File(filename).RelativePath();
+    //string relative_filename = File(filename).RelativePath();
     BackupFile metadata;
     file->FillBackupFile(&metadata);
 
-    FileEntry* entry = library.CreateNewFile(relative_filename, metadata);
+    FileEntry* entry = library.CreateNewFile(filename, metadata);
 
     // If the file type is a directory, we don't store any chunks or try and
     // read from it.
@@ -371,10 +414,10 @@ bool BackupDriver::LoadIncrementalFilelist(
   // changed.
   for (QString filename : paths_) {
     unique_ptr<File> file(new File(filename.toStdString()));
-    string relative_filename = file->RelativePath();
+    //string relative_filename = file->RelativePath();
 
     // Look for the file in our map.
-    auto iter = combined_files.find(relative_filename);
+    auto iter = combined_files.find(filename.toStdString());
     if (iter == combined_files.end()) {
       // Not found, add it to the final filelist.
       filelist->push_back(filename.toStdString());

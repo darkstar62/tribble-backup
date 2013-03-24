@@ -54,6 +54,12 @@ vector<string> File::ListDirectory() {
   for (boost::filesystem::directory_iterator iter =
            boost::filesystem::directory_iterator(filename_);
        iter != boost::filesystem::directory_iterator(); ++iter) {
+    boost::filesystem::path filepath((*iter).path().string());
+    boost::filesystem::file_status status = boost::filesystem::status(filepath);
+    if (status.type() != boost::filesystem::directory_file &&
+        status.type() != boost::filesystem::regular_file) {
+      continue;
+    }
     files.push_back((*iter).path().string());
   }
   return files;

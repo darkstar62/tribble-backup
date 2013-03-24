@@ -3,10 +3,12 @@
 #include <QFileDialog>
 #include <QMessageBox>
 #include <QScrollBar>
+#include <QSortFilterProxyModel>
 #include <QString>
 #include <QThread>
 #include <QVector>
 
+#include <algorithm>
 #include <string>
 #include <vector>
 
@@ -24,6 +26,7 @@
 #include "qt/backup2/dummy_vss_proxy.h"
 #endif
 
+#include "qt/backup2/restore_selector_model.h"
 #include "qt/backup2/vss_proxy_interface.h"
 #include "src/backup_volume_interface.h"
 #include "src/file.h"
@@ -44,15 +47,17 @@ MainWindow::MainWindow(QWidget *parent)
       current_label_name_("Default"),
       current_label_set_(false),
       backup_driver_(NULL),
-      backup_thread_(NULL) {
+      backup_thread_(NULL),
+      restore_page_1_changed_(false) {
   ui_->setupUi(this);
 
   // Set up the backup model treeview.
   InitBackupTreeviewModel();
 
-  ui_->tabWidget->setCurrentIndex(0);
-  ui_->backup_tabset->setCurrentIndex(0);
+  ui_->sidebar_tab->setCurrentIndex(0);
   ui_->main_tabset->setCurrentIndex(0);
+  ui_->backup_tabset->setCurrentIndex(0);
+  ui_->restore_tabset->setCurrentIndex(0);
 
   ui_->general_separator->setVisible(false);
   ui_->general_progress->setVisible(false);
@@ -60,8 +65,7 @@ MainWindow::MainWindow(QWidget *parent)
   ui_->general_info->setText("");
   ui_->general_info->setVisible(false);
 
-  // Connect up a change event to the backup type combo box to change the
-  // description underneath.
+  // Connect up all the signals for the backup tab set.
   QObject::connect(
       ui_->backup_type_combo,
       SIGNAL(currentIndexChanged(int)),
@@ -94,6 +98,30 @@ MainWindow::MainWindow(QWidget *parent)
   QObject::connect(ui_->save_backup_script, SIGNAL(clicked()), this,
                    SLOT(SaveScript()));
   qRegisterMetaType<PathList>("PathList");
+
+  // Connect up all the signals for the restore tabset.
+  QObject::connect(ui_->restore_source_browse, SIGNAL(clicked()), this,
+                   SLOT(RestoreSourceBrowse()));
+  QObject::connect(ui_->restore_source, SIGNAL(textChanged(QString)), this,
+                   SLOT(RestoreSourceChanged(QString)));
+  QObject::connect(ui_->restore_back_button_2, SIGNAL(clicked()), this,
+                   SLOT(SwitchToRestorePage1()));
+  QObject::connect(ui_->restore_next_button_1, SIGNAL(clicked()), this,
+                   SLOT(SwitchToRestorePage2()));
+  QObject::connect(ui_->restore_back_button_3, SIGNAL(clicked()), this,
+                   SLOT(SwitchToRestorePage2()));
+  QObject::connect(ui_->restore_next_button_2, SIGNAL(clicked()), this,
+                   SLOT(SwitchToRestorePage3()));
+  QObject::connect(ui_->run_restore_button, SIGNAL(clicked()), this,
+                   SLOT(RunRestore()));
+  QObject::connect(ui_->restore_history_slider, SIGNAL(valueChanged(int)), this,
+                   SLOT(OnHistorySliderChanged(int)));
+  QObject::connect(ui_->restore_to_browse, SIGNAL(clicked()), this,
+                   SLOT(OnRestoreToBrowse()));
+  QObject::connect(
+      ui_->restore_labels,
+      SIGNAL(currentItemChanged(QTreeWidgetItem*, QTreeWidgetItem*)),
+      this, SLOT(LabelViewChanged(QTreeWidgetItem*,QTreeWidgetItem*)));
 }
 
 MainWindow::~MainWindow() {
@@ -349,7 +377,7 @@ void MainWindow::CancelOrCloseBackup() {
     current_label_set_ = false;
 
     // Move to home tab.
-    ui_->tabWidget->setCurrentIndex(0);
+    ui_->sidebar_tab->setCurrentIndex(0);
     ui_->backup_tabset->setCurrentIndex(0);
 
     // Reset the backup pages.
@@ -496,4 +524,166 @@ void MainWindow::BackupLogEntry(QString message) {
 
 void MainWindow::OnEstimatedTimeUpdated(QString message) {
   ui_->backup_estimated_time_label->setText(message);
+}
+
+void MainWindow::RestoreSourceBrowse() {
+  QFileDialog dialog(this);
+  dialog.setNameFilter(tr("Backup volumes (*.0.bkp)"));
+  dialog.setAcceptMode(QFileDialog::AcceptOpen);
+  dialog.setDefaultSuffix(".0.bkp");
+  dialog.setConfirmOverwrite(false);
+
+  QStringList filenames;
+  if (dialog.exec()) {
+    filenames = dialog.selectedFiles();
+    ui_->restore_source->setText(
+        tr(File(filenames[0].toStdString()).ProperName().c_str()));
+  }
+}
+
+void MainWindow::RestoreSourceChanged(QString text) {
+  // Grab the labels.
+  restore_page_1_changed_ = true;
+
+  StatusOr<vector<backup2::Label> > labels_ret =
+      BackupDriver::GetLabels(text.toStdString());
+  if (!labels_ret.ok()) {
+    if (labels_ret.status().code() != backup2::kStatusNoSuchFile) {
+      // TODO(darkstar62): Handle the error.
+      LOG(ERROR) << "Could not load labels: " << labels_ret.status().ToString();
+      return;
+    }
+    ui_->restore_labels->clear();
+    return;
+  }
+
+  ui_->restore_labels->clear();
+  ui_->restore_labels->hideColumn(1);
+  for (uint64_t label_num = 0; label_num < labels_ret.value().size();
+       ++label_num) {
+    backup2::Label label = labels_ret.value().at(label_num);
+    QStringList values;
+    values.append(tr(label.name().c_str()));
+    values.append(QString::number(label.id()));
+    auto item = new QTreeWidgetItem(ui_->restore_labels, values);
+    item->setIcon(0, QIcon(":/icons/graphics/label-icon.png"));
+  }
+}
+
+void MainWindow::LabelViewChanged(QTreeWidgetItem* /* parent */,
+                                  QTreeWidgetItem* /* item */) {
+  restore_page_1_changed_ = true;
+}
+
+void MainWindow::SwitchToRestorePage1() {
+  ui_->restore_tabset->setCurrentIndex(0);
+}
+
+void MainWindow::SwitchToRestorePage2() {
+  // Check that the user selected a backup volume and a label.
+  if (ui_->restore_source->text() == "") {
+    QMessageBox::warning(this, "Must Set Restore Source",
+                         "You must select a valid backup to restore from.");
+    return;
+  }
+
+  if (!ui_->restore_labels->currentIndex().isValid()) {
+    QMessageBox::warning(this, "Must pick a Label",
+                         "Please choose a label to restore from.");
+    return;
+  }
+
+  // If nothing changed, don't do the rest of this, otherwise we'll lose
+  // the user's selections.
+  if (restore_page_1_changed_) {
+    // Read the backup information out of the file to get all the filesets.
+    LOG(INFO) << "Get History >>>";
+    StatusOr<QVector<BackupItem> > history =
+        BackupDriver::GetHistory(
+            ui_->restore_source->text().toStdString(),
+            ui_->restore_labels->currentItem()->data(
+                1, Qt::DisplayRole).toULongLong());
+    LOG(INFO) << "Get History <<<";
+    if (!history.ok()) {
+      QMessageBox::warning(this, "Error loading history",
+                           "This backup set appears to have errors, please "
+                           "choose a different one.");
+      return;
+    }
+
+    restore_history_ = history.value();
+    ui_->restore_history_slider->setRange(0, restore_history_.size() - 1);
+    ui_->restore_history_slider->setValue(0);
+    OnHistorySliderChanged(0);
+    restore_page_1_changed_ = false;
+  }
+
+  ui_->restore_tabset->setCurrentIndex(1);
+}
+
+void MainWindow::SwitchToRestorePage3() {
+
+  ui_->restore_tabset->setCurrentIndex(2);
+}
+
+void MainWindow::OnHistorySliderChanged(int position) {
+  BackupItem item = restore_history_.at(position);
+  ui_->backup_info_date->setText(item.date.toString());
+  ui_->backup_info_description->setText(item.description);
+  ui_->backup_info_label->setText(ui_->restore_labels->currentItem()->data(
+                                      0, Qt::DisplayRole).toString());
+  ui_->backup_info_type->setText(item.type);
+  ui_->backup_info_size_uncompressed->setText(QLocale().toString(item.size));
+  ui_->restore_date_description->setText(
+      item.date.toString() + ": " + item.description + " (" + item.type + ")");
+
+  // Load up the file list from this date.
+  LOG(INFO) << "GetFiles >>>";
+  StatusOr<QVector<QString> > files =
+      BackupDriver::GetFilesForSnapshot(
+          ui_->restore_source->text().toStdString(),
+          ui_->restore_labels->currentItem()->data(
+              1, Qt::DisplayRole).toULongLong(),
+          position);
+  LOG(INFO) << "GetFiles <<<";
+  if (!files.ok()) {
+    QMessageBox::warning(this, "Error loading files",
+                         "Could not load filelist from backup: " +
+                         tr(files.status().ToString().c_str()));
+    return;
+  }
+
+  RestoreSelectorModel* model = new RestoreSelectorModel(this);
+  restore_model_.reset(new QSortFilterProxyModel(this));
+
+  for (QString file : files.value()) {
+    model->AddPath(file);
+  }
+  model->FinalizeModel();
+
+  restore_model_->setSourceModel(model);  // Takes ownership.
+  restore_model_->setSortCaseSensitivity(Qt::CaseInsensitive);
+  restore_model_->setSortLocaleAware(true);
+  restore_model_->sort(1, Qt::AscendingOrder);
+
+  ui_->restore_fileview->setModel(restore_model_.get());
+  ui_->restore_fileview->header()->hide();
+  ui_->restore_fileview->hideColumn(1);
+  ui_->restore_fileview->hideColumn(2);
+}
+
+void MainWindow::OnRestoreToBrowse() {
+  QFileDialog dialog(this);
+  dialog.setFileMode(QFileDialog::Directory);
+  dialog.setAcceptMode(QFileDialog::AcceptOpen);
+
+  QStringList filenames;
+  if (dialog.exec()) {
+    filenames = dialog.selectedFiles();
+    ui_->restore_to_location_2->setText(
+        tr(File(filenames[0].toStdString()).ProperName().c_str()));
+  }
+}
+
+void MainWindow::RunRestore() {
 }

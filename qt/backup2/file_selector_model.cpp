@@ -119,12 +119,18 @@ bool FileSelectorModel::setData(const QModelIndex& index, const QVariant& value,
     } else {
       LOG(FATAL) << "BUG: We shouldn't be getting partially checked here!";
     }
+
+    blockSignals(true);
+    setData(index, value, true, role);
+    setData(index, value, false, role);
+    blockSignals(false);
+    emit dataChanged(this->index(0, 0), this->index(rowCount() - 1, columnCount() - 1));
   }
-  return setData(index, value, false, role);
+  return QFileSystemModel::setData(index, value, role);
 }
 
 bool FileSelectorModel::setData(const QModelIndex& index, const QVariant& value,
-                                bool no_parents, int role) {
+                                bool parents, int role) {
   if (index.isValid() && index.column() == 0 && role == Qt::CheckStateRole) {
     // Store checked paths, remove unchecked paths.
 
@@ -140,7 +146,7 @@ bool FileSelectorModel::setData(const QModelIndex& index, const QVariant& value,
     }
 
     // Look for our siblings.  If they're all checked, this one is checked too.
-    if (!no_parents && parent(index).isValid()) {
+    if (parents && parent(index).isValid()) {
       bool all_checked = true;
       bool all_clear = true;
 
@@ -160,28 +166,27 @@ bool FileSelectorModel::setData(const QModelIndex& index, const QVariant& value,
       }
 
       if (all_checked && !all_clear) {
-        setData(parent(index), Qt::Checked, false, Qt::CheckStateRole);
+        setData(parent(index), Qt::Checked, true, Qt::CheckStateRole);
       } else if (all_clear && !all_checked) {
-        setData(parent(index), Qt::Unchecked, false, Qt::CheckStateRole);
+        setData(parent(index), Qt::Unchecked, true, Qt::CheckStateRole);
       } else if (!all_clear && !all_checked) {
-        setData(parent(index), Qt::PartiallyChecked, false, Qt::CheckStateRole);
+        setData(parent(index), Qt::PartiallyChecked, true, Qt::CheckStateRole);
       } else {
         LOG(FATAL) << "BUG: Invalid state!";
       }
     }
 
     // If we checked this one, look at our children and check them too.
-    if (value.toInt() == Qt::Checked || value.toInt() == Qt::Unchecked) {
+    if (!parents && value.toInt() != Qt::PartiallyChecked) {
       for (int child_num = 0; child_num < rowCount(index); ++child_num) {
         QModelIndex child_index = this->index(child_num, index.column(), index);
         if (child_index.isValid()) {
-          setData(child_index, value, true, Qt::CheckStateRole);
+          setData(child_index, value, false, Qt::CheckStateRole);
         }
       }
     }
-    return true;
   }
-  return QFileSystemModel::setData(index, value, role);
+  return true;
 }
 
 void FileSelectorModel::OnDirectoryLoaded(const QString& path) {

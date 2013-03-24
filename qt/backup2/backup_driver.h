@@ -56,6 +56,11 @@ class BackupDriver : public QObject {
   static backup2::StatusOr<QVector<BackupItem> > GetHistory(
       std::string filename, uint64_t label);
 
+  // Return the files contained for the label and snapshot (where snapshot zero
+  // is the most recent, and n is least recent of n snapshots).
+  static backup2::StatusOr<QVector<QString> > GetFilesForSnapshot(
+      std::string filename, uint64_t label, uint64_t snapshot);
+
   void CancelBackup() { cancelled_ = true; }
 
  signals:

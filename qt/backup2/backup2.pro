@@ -17,7 +17,9 @@ SOURCES += main.cpp\
     file_selector_model.cpp \
     manage_labels_dlg.cpp \
     backup_driver.cpp \
-    label_history_dlg.cpp
+    label_history_dlg.cpp \
+    restore_selector_model.cpp \
+    icon_provider.cpp
 
 HEADERS  += mainwindow.h \
     file_selector_model.h \
@@ -25,7 +27,9 @@ HEADERS  += mainwindow.h \
     backup_driver.h \
     label_history_dlg.h \
     vss_proxy_interface.h \
-    dummy_vss_proxy.h
+    dummy_vss_proxy.h \
+    restore_selector_model.h \
+    icon_provider.h
 
 FORMS    += mainwindow.ui \
     manage_labels_dlg.ui \
@@ -69,7 +73,9 @@ else:unix: LIBS += -L$$PWD/../../../zlib-1.2.3/contrib/vstudio/vc8/x64/ZlibDllRe
 INCLUDEPATH += $$PWD/../../../zlib-1.2.3/contrib/vstudio/vc8/x64/ZlibDllReleaseWithoutAsm
 DEPENDPATH += $$PWD/../../../zlib-1.2.3/contrib/vstudio/vc8/x64/ZlibDllReleaseWithoutAsm
 
-win32: LIBS += -lvssapi
+win32: LIBS += -lvssapi -lshell32 -lole32
+
+win32: QMAKE_CXXFLAGS += /O2
 else:unix: QMAKE_CXXFLAGS += -std=gnu++0x -O3 -Wall -Werror -Wextra -Wnon-virtual-dtor
 
 OTHER_FILES +=

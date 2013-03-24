@@ -20,12 +20,10 @@ LabelHistoryDlg::LabelHistoryDlg(
 
   for (BackupItem item : history_) {
     QStringList view_strings;
-    std::ostringstream os;
-    os << item.size;
-
+    QString size = QLocale().toString(item.size);
     view_strings.append(item.date.toString());
     view_strings.append(item.type);
-    view_strings.append(tr(os.str().c_str()));
+    view_strings.append(size);
     view_strings.append(item.label);
     view_strings.append(item.description);
 

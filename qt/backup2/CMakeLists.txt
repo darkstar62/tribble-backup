@@ -19,6 +19,8 @@ LINT_SOURCES(
     mainwindow.h
     manage_labels_dlg.cpp
     manage_labels_dlg.h
+    restore_selector_model.cpp
+    restore_selector_model.h
     vss_proxy.cpp
     vss_proxy.h
     vss_proxy_interface.h
