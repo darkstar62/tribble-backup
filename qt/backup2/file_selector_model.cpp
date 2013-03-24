@@ -124,7 +124,8 @@ bool FileSelectorModel::setData(const QModelIndex& index, const QVariant& value,
     setData(index, value, true, role);
     setData(index, value, false, role);
     blockSignals(false);
-    emit dataChanged(this->index(0, 0), this->index(rowCount() - 1, columnCount() - 1));
+    emit dataChanged(
+        this->index(0, 0), this->index(rowCount() - 1, columnCount() - 1));
   }
   return QFileSystemModel::setData(index, value, role);
 }

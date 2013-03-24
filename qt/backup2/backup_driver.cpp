@@ -297,7 +297,6 @@ void BackupDriver::PerformBackup() {
     }
 
     // Create the metadata for the file and stat() it to get the details.
-    //string relative_filename = File(filename).RelativePath();
     BackupFile metadata;
     file->FillBackupFile(&metadata);
 
@@ -414,7 +413,6 @@ bool BackupDriver::LoadIncrementalFilelist(
   // changed.
   for (QString filename : paths_) {
     unique_ptr<File> file(new File(filename.toStdString()));
-    //string relative_filename = file->RelativePath();
 
     // Look for the file in our map.
     auto iter = combined_files.find(filename.toStdString());

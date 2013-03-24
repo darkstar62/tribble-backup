@@ -121,7 +121,7 @@ MainWindow::MainWindow(QWidget *parent)
   QObject::connect(
       ui_->restore_labels,
       SIGNAL(currentItemChanged(QTreeWidgetItem*, QTreeWidgetItem*)),
-      this, SLOT(LabelViewChanged(QTreeWidgetItem*,QTreeWidgetItem*)));
+      this, SLOT(LabelViewChanged(QTreeWidgetItem*, QTreeWidgetItem*)));
 }
 
 MainWindow::~MainWindow() {
@@ -622,7 +622,6 @@ void MainWindow::SwitchToRestorePage2() {
 }
 
 void MainWindow::SwitchToRestorePage3() {
-
   ui_->restore_tabset->setCurrentIndex(2);
 }
 

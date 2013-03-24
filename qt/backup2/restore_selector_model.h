@@ -18,7 +18,7 @@
 
 class PathNode {
  public:
-  PathNode(std::string value)
+  explicit PathNode(std::string value)
       : parent_(NULL), value_(value) {}
 
   ~PathNode() {
@@ -59,13 +59,14 @@ class PathNode {
   }
 
  private:
-  std::string value_;
   PathNode* parent_;
+  std::string value_;
   std::unordered_map<std::string, PathNode*> children_;
 };
 
 class RestoreSelectorModel : public QStandardItemModel {
     Q_OBJECT
+
  public:
   explicit RestoreSelectorModel(QObject *parent = 0);
 
@@ -86,10 +87,6 @@ class RestoreSelectorModel : public QStandardItemModel {
                         int role = Qt::DisplayRole) const;
   virtual bool setData(const QModelIndex& index, const QVariant& value,
                        int role = Qt::EditRole);
-
- signals:
-    
- public slots:
 
  private:
   // This version of setData is used to iterate through and update the visuals

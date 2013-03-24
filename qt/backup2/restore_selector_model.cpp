@@ -1,6 +1,6 @@
 // Copyright (C) 2013 Cory Maccarrone
 // Author: Cory Maccarrone <darkstar6262@gmail.com>
-#include "restore_selector_model.h"
+#include "qt/backup2/restore_selector_model.h"
 
 #include <QFileIconProvider>
 #include <QModelIndex>
@@ -27,7 +27,7 @@ RestoreSelectorModel::RestoreSelectorModel(QObject *parent)
   blockSignals(true);
 }
 
-QModelIndex RestoreSelectorModel::LookupPath(QString path) {
+QModelIndex RestoreSelectorModel::LookupPath(QString /* path */) {
   return QModelIndex();
 }
 
@@ -58,7 +58,8 @@ void RestoreSelectorModel::FinalizeModel() {
   InsertChildren(invisibleRootItem(), &root_node_, "", 0);
   LOG(INFO) << "Finalize <<<";
   blockSignals(false);
-  emit dataChanged(this->index(0, 0), this->index(rowCount() - 1, columnCount() - 1));
+  emit dataChanged(
+      this->index(0, 0), this->index(rowCount() - 1, columnCount() - 1));
 }
 
 Qt::ItemFlags RestoreSelectorModel::flags(const QModelIndex& index) const {
@@ -90,7 +91,8 @@ bool RestoreSelectorModel::setData(
     setData(index, value, true, role);
     setData(index, value, false, role);
     blockSignals(false);
-    emit dataChanged(this->index(0, 0), this->index(rowCount() - 1, columnCount() - 1));
+    emit dataChanged(
+        this->index(0, 0), this->index(rowCount() - 1, columnCount() - 1));
   }
   return QStandardItemModel::setData(index, value, role);
 }
@@ -120,7 +122,8 @@ bool RestoreSelectorModel::setData(
       default:
         LOG(FATAL) << "Unhandled value type: " << value.toInt();
     }
-    itemFromIndex(index)->setCheckState(static_cast<Qt::CheckState>(value.toInt()));
+    itemFromIndex(index)->setCheckState(
+        static_cast<Qt::CheckState>(value.toInt()));
 
     // Look for our siblings.  If they're all checked, this one is checked too.
     if (parents && parent(index).isValid()) {
@@ -168,7 +171,8 @@ bool RestoreSelectorModel::setData(
 }
 
 void RestoreSelectorModel::InsertChildren(
-    QStandardItem* tree_parent, PathNode* node_parent, QString path, int depth) {
+    QStandardItem* tree_parent, PathNode* node_parent, QString path,
+    int depth) {
   for (auto iter : node_parent->children()) {
     PathNode* child_node = iter.second;
     QString filename(child_node->value().c_str());
@@ -194,9 +198,11 @@ void RestoreSelectorModel::InsertChildren(
     boost::filesystem::path appended(path.toStdString());
     appended /= boost::filesystem::path(filename.toStdString());
     appended = appended.make_preferred();
-    QStandardItem* item_full_path = new QStandardItem(tr(appended.string().c_str()));
+    QStandardItem* item_full_path = new QStandardItem(
+        tr(appended.string().c_str()));
 
-    QStandardItem* item_type = new QStandardItem(type + " : " + tr(appended.string().c_str()));
+    QStandardItem* item_type = new QStandardItem(
+        type + " : " + tr(appended.string().c_str()));
 
     tree_parent->appendRow(item);
     tree_parent->setChild(tree_parent->rowCount() - 1, 1, item_type);
