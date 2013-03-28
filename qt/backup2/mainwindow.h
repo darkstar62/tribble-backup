@@ -12,7 +12,9 @@
 #include <vector>
 
 #include "qt/backup2/backup_driver.h"
+#include "qt/backup2/backup_snapshot_manager.h"
 #include "qt/backup2/file_selector_model.h"
+#include "qt/backup2/please_wait_dlg.h"
 
 namespace Ui {
 class MainWindow;
@@ -25,6 +27,7 @@ class Label;
 class BackupDriver;
 class QTreeWidgetItem;
 class QSortFilterProxyModel;
+class RestoreSelectorModel;
 
 class MainWindow : public QMainWindow {
   Q_OBJECT
@@ -133,6 +136,8 @@ class MainWindow : public QMainWindow {
   // visible and is set to reasonable defaults, and the given message.
   void InitBackupProgress(QString message);
 
+  void ThreadedGetHistoryForRestore();
+
   // UI elements represented by this class.
   Ui::MainWindow* ui_;
 
@@ -159,7 +164,14 @@ class MainWindow : public QMainWindow {
   bool restore_page_1_changed_;
 
   // Model for the restore tree view.
-  std::unique_ptr<QSortFilterProxyModel> restore_model_;
+  std::unique_ptr<RestoreSelectorModel> restore_model_;
+
+  // Backup snapshot manager for history and whatnot.
+  BackupSnapshotManager snapshot_manager_;
+
+  int current_restore_snapshot_;
+
+  PleaseWaitDlg please_wait_dlg_;
 };
 
 #endif  // BACKUP2_QT_BACKUP2_MAINWINDOW_H_

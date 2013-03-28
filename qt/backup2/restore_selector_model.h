@@ -9,6 +9,7 @@
 #include <QStandardItemModel>
 #include <QString>
 #include <QVariant>
+#include <QVector>
 
 #include <string>
 #include <unordered_map>
@@ -16,10 +17,15 @@
 
 #include "qt/backup2/icon_provider.h"
 
+class RestoreSelectorModel;
+
 class PathNode {
  public:
   explicit PathNode(std::string value)
-      : parent_(NULL), value_(value) {}
+      : parent_(NULL),
+        value_(value),
+        path_(value),
+        item_(NULL) {}
 
   ~PathNode() {
     for (auto iter : children_) {
@@ -29,14 +35,9 @@ class PathNode {
 
   // Add a child to the tree.  Returns true if the child was inserted, or false
   // if the child already exists.
-  bool AddChild(PathNode* child) {
-    if (FindChild(child->value())) {
-      return false;
-    }
-    children_.insert(std::make_pair(child->value(), child));
-    child->set_parent(this);
-    return true;
-  }
+  bool AddChild(PathNode* child, IconProvider* icon_provider);
+
+  bool DeleteChild(PathNode* child);
 
   // Find a child node in the tree.  If the child can't be found, this function
   // returns NULL.
@@ -50,9 +51,13 @@ class PathNode {
 
   // Accessors for various things.
   std::string value() const { return value_; }
+  std::string path() const { return path_; }
 
-  void set_parent(PathNode* parent) { parent_ = parent; }
+  void set_parent(PathNode* parent);
   PathNode* parent() { return parent_; }
+
+  void set_item(QStandardItem* item) { item_ = item; }
+  QStandardItem* item() const { return item_; }
 
   std::unordered_map<std::string, PathNode*> children() const {
     return children_;
@@ -61,6 +66,8 @@ class PathNode {
  private:
   PathNode* parent_;
   std::string value_;
+  std::string path_;
+  QStandardItem* item_;
   std::unordered_map<std::string, PathNode*> children_;
 };
 
@@ -70,16 +77,11 @@ class RestoreSelectorModel : public QStandardItemModel {
  public:
   explicit RestoreSelectorModel(QObject *parent = 0);
 
-  // Given a path, recurse down the tree until we find the leaf of the given
-  // path.  If the path can't be found, returns an invalid model index.
-  QModelIndex LookupPath(QString path);
+  // Add a set of paths to the tree, creating children along the way.
+  void AddPaths(const QSet<QString>& path);
 
-  // Add a path to the tree, creating children along the way.
-  void AddPath(QString path);
-
-  // Finalize the model.  This converts our internal path tree to an actual
-  // tree representation in the model itself.
-  void FinalizeModel();
+  // Remove paths from the tree.
+  void RemovePaths(const QSet<QString>& paths);
 
   // QStandardItemModel overrides.
   virtual Qt::ItemFlags flags(const QModelIndex& index) const;
@@ -98,6 +100,8 @@ class RestoreSelectorModel : public QStandardItemModel {
   void InsertChildren(QStandardItem* tree_parent, PathNode* node_parent,
                       QString path, int depth);
 
+  void HandleParentChecks(QModelIndex parent_index);
+
   QString filePath(const QModelIndex& index) const;
 
   // These sets indicate the checked state of each path, only for GUI
@@ -108,6 +112,9 @@ class RestoreSelectorModel : public QStandardItemModel {
   // Tree of path items.  This is converted to rows in the model upon
   // finalization of the model.
   PathNode root_node_;
+
+  // Set of leaf nodes in the tree.
+  std::unordered_map<std::string, PathNode*> leaves_;
 
   // Icon provider for the tree view.
   IconProvider icon_provider_;

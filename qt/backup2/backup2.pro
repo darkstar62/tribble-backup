@@ -19,7 +19,9 @@ SOURCES += main.cpp\
     backup_driver.cpp \
     label_history_dlg.cpp \
     restore_selector_model.cpp \
-    icon_provider.cpp
+    icon_provider.cpp \
+    please_wait_dlg.cpp \
+    backup_snapshot_manager.cpp
 
 HEADERS  += mainwindow.h \
     file_selector_model.h \
@@ -29,11 +31,15 @@ HEADERS  += mainwindow.h \
     vss_proxy_interface.h \
     dummy_vss_proxy.h \
     restore_selector_model.h \
-    icon_provider.h
+    icon_provider.h \
+    ../please_wait_dlg.h \
+    please_wait_dlg.h \
+    backup_snapshot_manager.h
 
 FORMS    += mainwindow.ui \
     manage_labels_dlg.ui \
-    label_history_dlg.ui
+    label_history_dlg.ui \
+    please_wait_dlg.ui
 
 INCLUDEPATH += graphics \
                ../../ \
@@ -75,7 +81,7 @@ DEPENDPATH += $$PWD/../../../zlib-1.2.3/contrib/vstudio/vc8/x64/ZlibDllReleaseWi
 
 win32: LIBS += -lvssapi -lshell32 -lole32
 
-win32: QMAKE_CXXFLAGS += /O2
+win32: QMAKE_CXXFLAGS += /O2 /Zi
 else:unix: QMAKE_CXXFLAGS += -std=gnu++0x -O3 -Wall -Werror -Wextra -Wnon-virtual-dtor
 
 OTHER_FILES +=

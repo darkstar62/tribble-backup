@@ -1,10 +1,13 @@
 // Copyright (C) 2013 Cory Maccarrone
 // Author: Cory Maccarrone <darkstar6262@gmail.com>
+#include "glog/logging.h"
+
 #include <QFileDialog>
 #include <QMessageBox>
 #include <QScrollBar>
 #include <QSortFilterProxyModel>
 #include <QString>
+#include <QtConcurrent/QtConcurrent>
 #include <QThread>
 #include <QVector>
 
@@ -15,12 +18,12 @@
 
 #include "boost/property_tree/ptree.hpp"
 #include "boost/property_tree/xml_parser.hpp"
-#include "glog/logging.h"
 #include "qt/backup2/backup_driver.h"
 #include "qt/backup2/dummy_vss_proxy.h"
 #include "qt/backup2/mainwindow.h"
 #include "qt/backup2/manage_labels_dlg.h"
 #include "qt/backup2/file_selector_model.h"
+#include "qt/backup2/please_wait_dlg.h"
 #include "qt/backup2/restore_selector_model.h"
 #ifdef _WIN32
 #include "qt/backup2/vss_proxy.h"
@@ -47,8 +50,11 @@ MainWindow::MainWindow(QWidget *parent)
       current_label_set_(false),
       backup_driver_(NULL),
       backup_thread_(NULL),
-      restore_page_1_changed_(false) {
+      restore_page_1_changed_(false),
+      restore_model_(),
+      current_restore_snapshot_(0) {
   ui_->setupUi(this);
+  please_wait_dlg_.setWindowFlags(Qt::CustomizeWindowHint | Qt::SplashScreen);
 
   // Set up the backup model treeview.
   InitBackupTreeviewModel();
@@ -606,25 +612,36 @@ void MainWindow::SwitchToRestorePage2() {
   // the user's selections.
   if (restore_page_1_changed_) {
     // Read the backup information out of the file to get all the filesets.
-    StatusOr<QVector<BackupItem> > history =
-        BackupDriver::GetHistory(
-            ui_->restore_source->text().toStdString(),
-            ui_->restore_labels->currentItem()->data(
-                1, Qt::DisplayRole).toULongLong());
-    if (!history.ok()) {
-      QMessageBox::warning(this, "Error loading history",
-                           "This backup set appears to have errors, please "
-                           "choose a different one.");
-      return;
-    }
+    please_wait_dlg_.show();
+    QtConcurrent::run(this, &MainWindow::ThreadedGetHistoryForRestore);
+  } else {
+    ui_->restore_tabset->setCurrentIndex(1);
+  }
+}
 
-    restore_history_ = history.value();
-    ui_->restore_history_slider->setRange(0, restore_history_.size() - 1);
-    ui_->restore_history_slider->setValue(0);
-    OnHistorySliderChanged(0);
-    restore_page_1_changed_ = false;
+void MainWindow::ThreadedGetHistoryForRestore() {
+  LOG(INFO) << "1";
+  StatusOr<QVector<BackupItem> > history =
+      BackupDriver::GetHistory(
+          ui_->restore_source->text().toStdString(),
+          ui_->restore_labels->currentItem()->data(
+              1, Qt::DisplayRole).toULongLong());
+  LOG(INFO) << "2";
+  if (!history.ok()) {
+    QMessageBox::warning(this, "Error loading history",
+                         "This backup set appears to have errors, please "
+                         "choose a different one.");
+    return;
   }
 
+  restore_history_ = history.value();
+  ui_->restore_fileview->setModel(NULL);
+  restore_model_.reset();
+  ui_->restore_history_slider->setRange(0, restore_history_.size() - 1);
+  ui_->restore_history_slider->setValue(0);
+  OnHistorySliderChanged(0);
+  restore_page_1_changed_ = false;
+  please_wait_dlg_.hide();
   ui_->restore_tabset->setCurrentIndex(1);
 }
 
@@ -644,36 +661,56 @@ void MainWindow::OnHistorySliderChanged(int position) {
       item.date.toString() + ": " + item.description + " (" + item.type + ")");
 
   // Load up the file list from this date.
-  StatusOr<QVector<QString> > files =
-      BackupDriver::GetFilesForSnapshot(
+  StatusOr<QSet<QString> > files_current =
+      snapshot_manager_.GetFilesForSnapshot(
+          ui_->restore_source->text().toStdString(),
+          ui_->restore_labels->currentItem()->data(
+              1, Qt::DisplayRole).toULongLong(),
+          current_restore_snapshot_);
+  if (!files_current.ok()) {
+    QMessageBox::warning(this, "Error loading files",
+                         "Could not load filelist from backup: " +
+                         tr(files_current.status().ToString().c_str()));
+    return;
+  }
+
+  StatusOr<QSet<QString> > files_new =
+      snapshot_manager_.GetFilesForSnapshot(
           ui_->restore_source->text().toStdString(),
           ui_->restore_labels->currentItem()->data(
               1, Qt::DisplayRole).toULongLong(),
           position);
-  if (!files.ok()) {
+  if (!files_new.ok()) {
     QMessageBox::warning(this, "Error loading files",
                          "Could not load filelist from backup: " +
-                         tr(files.status().ToString().c_str()));
+                         tr(files_new.status().ToString().c_str()));
     return;
   }
 
-  RestoreSelectorModel* model = new RestoreSelectorModel(this);
-  restore_model_.reset(new QSortFilterProxyModel(this));
-
-  for (QString file : files.value()) {
-    model->AddPath(file);
+  if (!restore_model_.get()) {
+    restore_model_.reset(new RestoreSelectorModel(this));
+    restore_model_->AddPaths(files_new.value());
+    ui_->restore_fileview->setModel(restore_model_.get());
+    ui_->restore_fileview->sortByColumn(1, Qt::AscendingOrder);
+    ui_->restore_fileview->header()->hide();
+    ui_->restore_fileview->hideColumn(1);
+    ui_->restore_fileview->hideColumn(2);
+  } else {
+    if (position > current_restore_snapshot_) {
+      // This is an older backup.  The "new" file set should be a subset of the
+      // current fileset, so we subtract from the current the new -- the remaining
+      // is removed from the view.
+      QSet<QString> diff = files_current.value().subtract(files_new.value());
+      restore_model_->RemovePaths(diff);
+    } else {
+      // This is a newer backup.  The "new" fileset may contain files not in the
+      // current, so we subtract the new from the current.  What's left we add.
+      QSet<QString> diff = files_new.value().subtract(files_current.value());
+      restore_model_->AddPaths(diff);
+    }
+    ui_->restore_fileview->sortByColumn(1, Qt::AscendingOrder);
   }
-  model->FinalizeModel();
-
-  restore_model_->setSourceModel(model);  // Takes ownership.
-  restore_model_->setSortCaseSensitivity(Qt::CaseInsensitive);
-  restore_model_->setSortLocaleAware(true);
-  restore_model_->sort(1, Qt::AscendingOrder);
-
-  ui_->restore_fileview->setModel(restore_model_.get());
-  ui_->restore_fileview->header()->hide();
-  ui_->restore_fileview->hideColumn(1);
-  ui_->restore_fileview->hideColumn(2);
+  current_restore_snapshot_ = position;
 }
 
 void MainWindow::OnRestoreToBrowse() {
