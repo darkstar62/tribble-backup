@@ -8,15 +8,30 @@
 #include <QPixmapCache>
 #include <QString>
 
+// A simple IconProvider which can translate a filename to a system icon for the
+// various platforms.
 class IconProvider {
  public:
   IconProvider();
-  QIcon FileIcon(const QString &filename);
-  QIcon DirIcon() { return icon_provider_.icon(QFileIconProvider::Folder); }
-  QIcon DriveIcon() { return icon_provider_.icon(QFileIconProvider::Drive); }
+
+  // Return an icon representing the given filename.
+  QIcon FileIcon(const QString &filename) const;
+
+  // Return a generic folder icon.
+  QIcon DirIcon() const {
+    return icon_provider_.icon(QFileIconProvider::Folder);
+  }
+
+  // Return a generic drive icon.
+  QIcon DriveIcon() const {
+    return icon_provider_.icon(QFileIconProvider::Drive);
+  }
 
  private:
-  QPixmapCache icon_cache_;
+  // Cache for icons that have already been looked up.
+  mutable QPixmapCache icon_cache_;
+
+  // Icon provider that can translate file types to icons.
   QFileIconProvider icon_provider_;
 };
 

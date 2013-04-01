@@ -4,7 +4,7 @@
 
 #include <QMovie>
 
-#include "ui_please_wait_dlg.h"
+#include "ui_please_wait_dlg.h"  // NOLINT
 
 PleaseWaitDlg::PleaseWaitDlg(QWidget *parent)
     : QDialog(parent),

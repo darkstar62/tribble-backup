@@ -11,6 +11,7 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 TARGET = backup2
 TEMPLATE = app
 
+CONFIG += release
 
 SOURCES += main.cpp\
         mainwindow.cpp \
@@ -32,7 +33,6 @@ HEADERS  += mainwindow.h \
     dummy_vss_proxy.h \
     restore_selector_model.h \
     icon_provider.h \
-    ../please_wait_dlg.h \
     please_wait_dlg.h \
     backup_snapshot_manager.h
 
@@ -82,6 +82,11 @@ DEPENDPATH += $$PWD/../../../zlib-1.2.3/contrib/vstudio/vc8/x64/ZlibDllReleaseWi
 win32: LIBS += -lvssapi -lshell32 -lole32
 
 win32: QMAKE_CXXFLAGS += /O2 /Zi
-else:unix: QMAKE_CXXFLAGS += -std=gnu++0x -O3 -Wall -Werror -Wextra -Wnon-virtual-dtor
+else:unix:CONFIG(release, debug|release): QMAKE_CXXFLAGS += -std=gnu++0x -O3 -Wall -Werror -Wextra -Wnon-virtual-dtor
+else:unix:CONFIG(debug, debug|release): QMAKE_CXXFLAGS += -std=gnu++0x -Wall -Werror -Wextra -Wnon-virtual-dtor
 
 OTHER_FILES +=
+
+# Uncomment this to enable model testing.
+# include(modeltest/modeltest.pro)
+

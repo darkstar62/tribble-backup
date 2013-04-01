@@ -133,8 +133,8 @@ void ManageLabelsDlg::NewLabel() {
 
 void ManageLabelsDlg::LabelHistory() {
   // Get the history for the current label.
-  bool label_set;
-  uint64_t label_id;
+  bool label_set = false;
+  uint64_t label_id = 0;
   string label_name;
 
   GetCurrentLabelInfo(&label_set, &label_id, &label_name);

@@ -127,7 +127,7 @@ QPixmap convertHIconToPixmap(const HICON icon) {
 IconProvider::IconProvider() {
 }
 
-QIcon IconProvider::FileIcon(const QString &filename) {
+QIcon IconProvider::FileIcon(const QString &filename) const {
   QFileInfo file_info(filename);
   QPixmap pixmap;
 
@@ -136,12 +136,6 @@ QIcon IconProvider::FileIcon(const QString &filename) {
   if (file_info.suffix().isEmpty()) {
     return icon_provider_.icon(QFileIconProvider::File);
   }
-
-  /*
-  if (file_info.suffix() == "exe" && file_info.exists()) {
-    return icon_provider_.icon(file_info);
-  }
-  */
 
   if (!icon_cache_.find(file_info.suffix(), &pixmap)) {
     // We don't use the variable, but by storing it statically, we

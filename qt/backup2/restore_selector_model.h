@@ -3,107 +3,169 @@
 #ifndef BACKUP2_QT_BACKUP2_RESTORE_SELECTOR_MODEL_H_
 #define BACKUP2_QT_BACKUP2_RESTORE_SELECTOR_MODEL_H_
 
+#include <QAbstractItemModel>
+#include <QApplication>
 #include <QMap>
 #include <QModelIndex>
+#include <QMutex>
 #include <QSet>
-#include <QStandardItemModel>
 #include <QString>
 #include <QVariant>
 #include <QVector>
 
+#include <set>
 #include <string>
 #include <unordered_map>
 #include <utility>
+#include <vector>
 
 #include "qt/backup2/icon_provider.h"
 
 class RestoreSelectorModel;
 
+// A PathNode is a node in a tree, adn represents the contents of the restore
+// selector model.
 class PathNode {
  public:
   explicit PathNode(std::string value)
       : parent_(NULL),
         value_(value),
         path_(value),
-        item_(NULL) {}
+        checked_(false),
+        tristate_(false),
+        row_(0) {}
 
   ~PathNode() {
-    for (auto iter : children_) {
-      delete iter.second;
+    for (PathNode* node : children_) {
+      delete node;
     }
   }
 
   // Add a child to the tree.  Returns true if the child was inserted, or false
   // if the child already exists.
-  bool AddChild(PathNode* child, IconProvider* icon_provider);
+  bool AddChild(PathNode* child);
 
-  bool DeleteChild(PathNode* child);
+  // Delete a child from the tree.  Rows are renumbered to correspond correctly
+  // to the new arrangement.
+  bool DeleteChild(int row);
 
   // Find a child node in the tree.  If the child can't be found, this function
   // returns NULL.
   PathNode* FindChild(std::string value) {
-    auto iter = children_.find(value);
-    if (iter == children_.end()) {
+    auto iter = children_map_.find(value);
+    if (iter == children_map_.end()) {
       return NULL;
     }
     return iter->second;
   }
 
+  // Set the checked state of this node.  If parents is true, the parent states
+  // are also updated (but not the child states).  Otherwise, child states (but
+  // not parents) are updated.  To update both, call this twice, once with
+  // parents false and once true.
+  void SetCheckedState(int state, bool parents);
+
   // Accessors for various things.
   std::string value() const { return value_; }
   std::string path() const { return path_; }
 
+  // Return whether this node is checked or not.  The return value is one of
+  // Qt::Checked, Qt::PartiallyChecked, or Qt::Unchecked.
+  int checked() const {
+    if (checked_) {
+      return Qt::Checked;
+    } else if (tristate_) {
+      return Qt::PartiallyChecked;
+    }
+    return Qt::Unchecked;
+  }
+
+  // Get/set the parent node.  Setting the parent node also sets the path
+  // hierarchy of the child.
   void set_parent(PathNode* parent);
   PathNode* parent() { return parent_; }
 
-  void set_item(QStandardItem* item) { item_ = item; }
-  QStandardItem* item() const { return item_; }
-
-  std::unordered_map<std::string, PathNode*> children() const {
+  // Return the children nodes for this one.
+  std::vector<PathNode*> children() const {
     return children_;
   }
 
+  // Set the row number of this node.
+  void set_row(int row) { row_ = row; }
+  int row() const { return row_; }
+
+  // Set the QModelIndex that corresponds to this node.  Used for fast
+  // notifications of changes to the model.
+  void set_index(QModelIndex index) { index_ = index; }
+  QModelIndex index() const { return index_; }
+
  private:
+  // Iterate through the parents and update their checked state depending on how
+  // children are checked.
+  void HandleParentChecks();
+
+  // The parent PathNode.  If NULL, there is no parent.
   PathNode* parent_;
+
+  // The value.  This is the basename of the file path part this node
+  // represents.
   std::string value_;
+
+  // The fully-qualified path including parents, up to this node.
   std::string path_;
-  QStandardItem* item_;
-  std::unordered_map<std::string, PathNode*> children_;
+
+  // Whether the node is checked.
+  bool checked_;
+
+  // Whether the node is tristate.  checked_ and tristate_ cannot both be true.
+  bool tristate_;
+
+  // The row number this node is in its parent's children list.
+  int row_;
+
+  // The QModelIndex associated with this node.  Used for fast notifications of
+  // changes to the model.
+  QModelIndex index_;
+
+  // Ordered list of children.  The row assignments of the child nodes
+  // correspond to the indexes in this vector.
+  std::vector<PathNode*> children_;
+
+  // A fast lookup map to resolve basenames to node children.
+  std::unordered_map<std::string, PathNode*> children_map_;
 };
 
-class RestoreSelectorModel : public QStandardItemModel {
+// The RestoreSelectorModel is a custom model implemented to be able to show a
+// checkable tree view, but using data from a list.  The model doesn't implement
+// sorting, but a QSortFilterProxyModel can be used to provide the sorting.
+class RestoreSelectorModel : public QAbstractItemModel {
     Q_OBJECT
 
  public:
   explicit RestoreSelectorModel(QObject *parent = 0);
 
   // Add a set of paths to the tree, creating children along the way.
-  void AddPaths(const QSet<QString>& path);
+  void AddPaths(const std::set<std::string>& paths);
 
   // Remove paths from the tree.
-  void RemovePaths(const QSet<QString>& paths);
+  void RemovePaths(const std::set<std::string>& paths);
 
-  // QStandardItemModel overrides.
+  // QAbstractItemModel overrides.
   virtual Qt::ItemFlags flags(const QModelIndex& index) const;
   virtual QVariant data(const QModelIndex& index,
                         int role = Qt::DisplayRole) const;
   virtual bool setData(const QModelIndex& index, const QVariant& value,
                        int role = Qt::EditRole);
+  virtual QVariant headerData(int section, Qt::Orientation orientation,
+                              int role = Qt::DisplayRole) const;
+  virtual QModelIndex index(int row, int column,
+                            const QModelIndex& parent = QModelIndex()) const;
+  virtual QModelIndex parent(const QModelIndex& index) const;
+  virtual int rowCount(const QModelIndex& parent = QModelIndex()) const;
+  virtual int columnCount(const QModelIndex& parent = QModelIndex()) const;
+  virtual bool hasChildren(const QModelIndex& parent = QModelIndex()) const;
 
  private:
-  // This version of setData is used to iterate through and update the visuals
-  // in the tree.
-  virtual bool setData(const QModelIndex& index, const QVariant& value,
-                       bool parents, int role = Qt::EditRole);
-
-  // Recursively insert children from a PathNode tree into the model.
-  void InsertChildren(QStandardItem* tree_parent, PathNode* node_parent,
-                      QString path, int depth);
-
-  void HandleParentChecks(QModelIndex parent_index);
-
-  QString filePath(const QModelIndex& index) const;
-
   // These sets indicate the checked state of each path, only for GUI
   // interactions.
   QSet<QString> checked_;
@@ -115,6 +177,9 @@ class RestoreSelectorModel : public QStandardItemModel {
 
   // Set of leaf nodes in the tree.
   std::unordered_map<std::string, PathNode*> leaves_;
+
+  // Map of path segment to PathNode for quick lookups.
+  std::unordered_map<std::string, PathNode*> node_map_;
 
   // Icon provider for the tree view.
   IconProvider icon_provider_;

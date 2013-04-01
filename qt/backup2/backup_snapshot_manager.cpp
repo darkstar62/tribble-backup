@@ -2,12 +2,12 @@
 // Author: Cory Maccarrone <darkstar6262@gmail.com>
 #include "qt/backup2/backup_snapshot_manager.h"
 
-#include <string>
-#include <vector>
-
 #include <QSet>
 #include <QString>
 #include <QVector>
+
+#include <string>
+#include <vector>
 
 #include "glog/logging.h"
 #include "src/common.h"
@@ -31,8 +31,11 @@ using backup2::StatusOr;
 using std::string;
 using std::vector;
 
-BackupSnapshotManager::BackupSnapshotManager()
-    : has_cached_backup_set_(false),
+
+BackupSnapshotManager::BackupSnapshotManager(QObject* parent)
+    : QThread(parent),
+      status_(Status::OK),
+      has_cached_backup_set_(false),
       cached_filename_(""),
       cached_label_(0) {
 }
@@ -40,23 +43,54 @@ BackupSnapshotManager::BackupSnapshotManager()
 BackupSnapshotManager::~BackupSnapshotManager() {
 }
 
-StatusOr<QSet<QString> > BackupSnapshotManager::GetFilesForSnapshot(
-    string filename, uint64_t label, uint64_t snapshot) {
-  Status retval = GetBackupSets(filename, label);
+void BackupSnapshotManager::LoadSnapshotFiles(string filename,
+                                              uint64_t label_id,
+                                              int64_t current_snapshot,
+                                              int64_t new_snapshot) {
+  filename_ = filename;
+  label_ = label_id;
+  current_snapshot_ = current_snapshot;
+  new_snapshot_ = new_snapshot;
+
+  files_current_.clear();
+  files_new_.clear();
+
+  start();
+}
+
+void BackupSnapshotManager::run() {
+  Status retval = GetFilesForSnapshot(&files_current_,
+                                      current_snapshot_);
+  if (!retval.ok()) {
+    status_ = retval;
+    return;
+  }
+
+  retval = GetFilesForSnapshot(&files_new_, new_snapshot_);
+  if (!retval.ok()) {
+    status_ = retval;
+    return;
+  }
+}
+
+Status BackupSnapshotManager::GetFilesForSnapshot(QSet<QString>* out_set,
+                                                  uint64_t snapshot) {
+  Status retval = GetBackupSets();
   if (!retval.ok()) {
     return retval;
   }
 
-  return cached_backup_sets_.at(snapshot);
+  *out_set = cached_backup_sets_.at(snapshot);
+  return Status::OK;
 }
 
-Status BackupSnapshotManager::GetBackupSets(string filename, uint64_t label) {
-  if (has_cached_backup_set_ && cached_filename_ == filename &&
-      cached_label_ == label) {
+Status BackupSnapshotManager::GetBackupSets() {
+  if (has_cached_backup_set_ && cached_filename_ == filename_ &&
+      cached_label_ == label_) {
     return Status::OK;
   }
 
-  File* file = new File(filename);
+  File* file = new File(filename_);
   if (!file->Exists()) {
     delete file;
     return Status(backup2::kStatusNoSuchFile, "");
@@ -73,7 +107,7 @@ Status BackupSnapshotManager::GetBackupSets(string filename, uint64_t label) {
   }
 
   StatusOr<vector<FileSet*> > backup_sets = library.LoadFileSetsFromLabel(
-      true, label);
+      true, label_);
   if (!backup_sets.ok()) {
     LOG(ERROR) << "Could not load sets: " << backup_sets.status().ToString();
     return backup_sets.status();
@@ -88,7 +122,8 @@ Status BackupSnapshotManager::GetBackupSets(string filename, uint64_t label) {
     FileSet* fileset = backup_sets.value().at(index);
     vector<FileEntry*> entries = fileset->GetFiles();
     for (FileEntry* entry : entries) {
-      if (entry->GetBackupFile()->file_type == backup2::BackupFile::kFileTypeDirectory) {
+      if (entry->GetBackupFile()->file_type ==
+              backup2::BackupFile::kFileTypeDirectory) {
         continue;
       }
       files.insert(tr(entry->filename().c_str()));
@@ -97,7 +132,7 @@ Status BackupSnapshotManager::GetBackupSets(string filename, uint64_t label) {
   }
 
   has_cached_backup_set_ = true;
-  cached_filename_ = filename;
-  cached_label_ = label;
+  cached_filename_ = filename_;
+  cached_label_ = label_;
   return Status::OK;
 }

@@ -3,13 +3,14 @@
 #ifndef BACKUP2_QT_BACKUP2_BACKUP_SNAPSHOT_MANAGER_H_
 #define BACKUP2_QT_BACKUP2_BACKUP_SNAPSHOT_MANAGER_H_
 
-#include <string>
-#include <vector>
-
 #include <QObject>
 #include <QSet>
 #include <QString>
+#include <QThread>
 #include <QVector>
+
+#include <string>
+#include <vector>
 
 #include "src/status.h"
 
@@ -17,22 +18,70 @@ namespace backup2 {
 class FileSet;
 }  // namespace backup2
 
-class BackupSnapshotManager : public QObject {
+// The BackupSnapshotManager manages filelists in a various backup label and can
+// return the complete filesystem view as of a snapshot index.
+class BackupSnapshotManager : public QThread {
   Q_OBJECT
 
  public:
-  BackupSnapshotManager();
+  explicit BackupSnapshotManager(QObject* parent);
   virtual ~BackupSnapshotManager();
 
-  // Get the list of files that correspond to the given filename, label,
-  // and snapshot number (with 0 being the most recent backup).
-  backup2::StatusOr<QSet<QString> > GetFilesForSnapshot(
-      std::string filename, uint64_t label, uint64_t snapshot);
+  // Load the file lists for a given snapshot.  This starts off a thread which
+  // will systematically load up all filelists for all backups under the given
+  // label, and populate the class with snapshot data for the requested
+  // snapshot.  Data is cached, so the backup volumes only need to be queried
+  // once, unless the filename or label changes.  current_snapshot and
+  // new_snapshot allow for the specification of diff results -- the
+  // corresponding results are available in files_current() and files_new().
+  void LoadSnapshotFiles(std::string filename, uint64_t label,
+                         int64_t current_snapshot, int64_t new_snapshot);
+
+  // Return whether the load operation was successful.
+  backup2::Status status() const { return status_; }
+
+  // Return the filelists for the requested snapshots.
+  QSet<QString> files_current() const { return files_current_; }
+  QSet<QString> files_new() const { return files_new_; }
+
+  // Return the new snapshot number passed into LoadSnapshotFiles.
+  int64_t new_snapshot() const { return new_snapshot_; }
 
  private:
   typedef std::vector<backup2::FileSet*> FileSetEntry;
 
-  backup2::Status GetBackupSets(std::string filename, uint64_t label);
+  // Run the snapshot loading thread.  This loads both the current and the new
+  // snapshot, signaling when the data is ready.
+  virtual void run();
+
+  // Get the list of files that correspond to the given filename, label,
+  // and snapshot number (with 0 being the most recent backup).
+  backup2::Status GetFilesForSnapshot(QSet<QString>* out_set,
+                                      uint64_t snapshot);
+
+  // Load all the backup sets for the filename and label.
+  backup2::Status GetBackupSets();
+
+  // Filename to load snapshot data from.
+  std::string filename_;
+
+  // Label ID to load snapshots from.
+  uint64_t label_;
+
+  // Current (i.e. previous) snapshot to load.
+  int64_t current_snapshot_;
+
+  // Next snapshot to load.
+  int64_t new_snapshot_;
+
+  // Current filelist.
+  QSet<QString> files_current_;
+
+  // New filelist.
+  QSet<QString> files_new_;
+
+  // Snapshot load status.
+  backup2::Status status_;
 
   // Cached filelist data, so we don't have to keep re-reading the library.
   // This also makes dealing with removable media not completely painful.

@@ -9,9 +9,10 @@ namespace Ui {
 class PleaseWaitDlg;
 }  // namespace Ui
 
+// A simple please-wait dialog.
 class PleaseWaitDlg : public QDialog {
   Q_OBJECT
-    
+
  public:
   explicit PleaseWaitDlg(QWidget* parent = 0);
   ~PleaseWaitDlg();

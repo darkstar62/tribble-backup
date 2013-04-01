@@ -348,12 +348,16 @@ void BackupDriver::PerformBackup() {
 
         qint64 msecs_elapsed = timer.elapsed();
         if (msecs_elapsed / 1000 > 0) {
-          qint64 mb_per_sec = (completed_size / 1048576) / (msecs_elapsed / 1000);
-          qint64 sec_remaining = ((total_size - completed_size) / 1048576) / mb_per_sec;
+          qint64 mb_per_sec =
+              (completed_size / 1048576) / (msecs_elapsed / 1000);
+          qint64 sec_remaining =
+              ((total_size - completed_size) / 1048576) / mb_per_sec;
 
           emit EstimatedTimeUpdated(
-                QString("Elapsed: " + QTime(0, 0, 0).addMSecs(msecs_elapsed).toString() +
-                        ", Remaining: " + QTime(0, 0, 0).addSecs(sec_remaining).toString()));
+                QString("Elapsed: " +
+                        QTime(0, 0, 0).addMSecs(msecs_elapsed).toString() +
+                        ", Remaining: " +
+                        QTime(0, 0, 0).addSecs(sec_remaining).toString()));
         }
       }
     } while (!cancelled_ && status.code() != backup2::kStatusShortRead);

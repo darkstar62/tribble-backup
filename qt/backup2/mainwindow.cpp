@@ -1,23 +1,27 @@
 // Copyright (C) 2013 Cory Maccarrone
 // Author: Cory Maccarrone <darkstar6262@gmail.com>
-#include "glog/logging.h"
-
+#include <QApplication>
 #include <QFileDialog>
+#include <QFuture>
+#include <QFutureWatcher>
 #include <QMessageBox>
 #include <QScrollBar>
 #include <QSortFilterProxyModel>
 #include <QString>
-#include <QtConcurrent/QtConcurrent>
+#include <QtConcurrentRun>
 #include <QThread>
+#include <QTimer>
 #include <QVector>
 
 #include <algorithm>
 #include <memory>
+#include <set>
 #include <string>
 #include <vector>
 
 #include "boost/property_tree/ptree.hpp"
 #include "boost/property_tree/xml_parser.hpp"
+#include "glog/logging.h"
 #include "qt/backup2/backup_driver.h"
 #include "qt/backup2/dummy_vss_proxy.h"
 #include "qt/backup2/mainwindow.h"
@@ -37,9 +41,20 @@
 
 using backup2::File;
 using backup2::StatusOr;
+using std::set;
 using std::string;
 using std::unique_ptr;
 using std::vector;
+
+void HistoryLoader::run() {
+  StatusOr<QVector<BackupItem> > history =
+      BackupDriver::GetHistory(filename_, label_id_);
+  if (!history.ok()) {
+    return;
+  }
+
+  emit HistoryLoaded(history.value());
+}
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent),
@@ -52,6 +67,8 @@ MainWindow::MainWindow(QWidget *parent)
       backup_thread_(NULL),
       restore_page_1_changed_(false),
       restore_model_(),
+      restore_model_sorter_(NULL),
+      snapshot_manager_(this),
       current_restore_snapshot_(0) {
   ui_->setupUi(this);
   please_wait_dlg_.setWindowFlags(Qt::CustomizeWindowHint | Qt::SplashScreen);
@@ -127,6 +144,9 @@ MainWindow::MainWindow(QWidget *parent)
       ui_->restore_labels,
       SIGNAL(currentItemChanged(QTreeWidgetItem*, QTreeWidgetItem*)),
       this, SLOT(LabelViewChanged(QTreeWidgetItem*, QTreeWidgetItem*)));
+  QObject::connect(&snapshot_manager_, SIGNAL(finished()), this,
+                   SLOT(OnHistoryLoaded()));
+  qRegisterMetaType<QVector<BackupItem> >("QVector<BackupItem>");
 }
 
 MainWindow::~MainWindow() {
@@ -613,43 +633,36 @@ void MainWindow::SwitchToRestorePage2() {
   if (restore_page_1_changed_) {
     // Read the backup information out of the file to get all the filesets.
     please_wait_dlg_.show();
-    QtConcurrent::run(this, &MainWindow::ThreadedGetHistoryForRestore);
+
+    HistoryLoader* loader = new HistoryLoader(
+        ui_->restore_source->text().toStdString(),
+        ui_->restore_labels->currentItem()->data(
+            1, Qt::DisplayRole).toULongLong());
+    connect(loader, SIGNAL(HistoryLoaded(QVector<BackupItem>)),
+            this, SLOT(OnHistoryDone(QVector<BackupItem>)));
+    loader->start();
   } else {
     ui_->restore_tabset->setCurrentIndex(1);
   }
-}
-
-void MainWindow::ThreadedGetHistoryForRestore() {
-  LOG(INFO) << "1";
-  StatusOr<QVector<BackupItem> > history =
-      BackupDriver::GetHistory(
-          ui_->restore_source->text().toStdString(),
-          ui_->restore_labels->currentItem()->data(
-              1, Qt::DisplayRole).toULongLong());
-  LOG(INFO) << "2";
-  if (!history.ok()) {
-    QMessageBox::warning(this, "Error loading history",
-                         "This backup set appears to have errors, please "
-                         "choose a different one.");
-    return;
-  }
-
-  restore_history_ = history.value();
-  ui_->restore_fileview->setModel(NULL);
-  restore_model_.reset();
-  ui_->restore_history_slider->setRange(0, restore_history_.size() - 1);
-  ui_->restore_history_slider->setValue(0);
-  OnHistorySliderChanged(0);
-  restore_page_1_changed_ = false;
-  please_wait_dlg_.hide();
-  ui_->restore_tabset->setCurrentIndex(1);
 }
 
 void MainWindow::SwitchToRestorePage3() {
   ui_->restore_tabset->setCurrentIndex(2);
 }
 
+void MainWindow::OnHistoryDone(QVector<BackupItem> history) {
+  restore_history_ = history;
+  ui_->restore_fileview->setModel(NULL);
+  restore_model_.reset();
+  ui_->restore_history_slider->setRange(0, restore_history_.size() - 1);
+  ui_->restore_history_slider->setValue(0);
+  restore_page_1_changed_ = false;
+  OnHistorySliderChanged(0);
+}
+
 void MainWindow::OnHistorySliderChanged(int position) {
+  ui_->restore_history_slider->setEnabled(false);
+
   BackupItem item = restore_history_.at(position);
   ui_->backup_info_date->setText(item.date.toString());
   ui_->backup_info_description->setText(item.description);
@@ -661,56 +674,80 @@ void MainWindow::OnHistorySliderChanged(int position) {
       item.date.toString() + ": " + item.description + " (" + item.type + ")");
 
   // Load up the file list from this date.
-  StatusOr<QSet<QString> > files_current =
-      snapshot_manager_.GetFilesForSnapshot(
-          ui_->restore_source->text().toStdString(),
-          ui_->restore_labels->currentItem()->data(
-              1, Qt::DisplayRole).toULongLong(),
-          current_restore_snapshot_);
-  if (!files_current.ok()) {
-    QMessageBox::warning(this, "Error loading files",
-                         "Could not load filelist from backup: " +
-                         tr(files_current.status().ToString().c_str()));
-    return;
-  }
+  snapshot_manager_.LoadSnapshotFiles(
+      ui_->restore_source->text().toStdString(),
+      ui_->restore_labels->currentItem()->data(
+          1, Qt::DisplayRole).toULongLong(),
+      current_restore_snapshot_,
+      position);
+}
 
-  StatusOr<QSet<QString> > files_new =
-      snapshot_manager_.GetFilesForSnapshot(
-          ui_->restore_source->text().toStdString(),
-          ui_->restore_labels->currentItem()->data(
-              1, Qt::DisplayRole).toULongLong(),
-          position);
-  if (!files_new.ok()) {
+void MainWindow::OnHistoryLoaded() {
+  if (!snapshot_manager_.status().ok()) {
     QMessageBox::warning(this, "Error loading files",
                          "Could not load filelist from backup: " +
-                         tr(files_new.status().ToString().c_str()));
+                         tr(snapshot_manager_.status().ToString().c_str()));
     return;
   }
 
   if (!restore_model_.get()) {
-    restore_model_.reset(new RestoreSelectorModel(this));
-    restore_model_->AddPaths(files_new.value());
-    ui_->restore_fileview->setModel(restore_model_.get());
-    ui_->restore_fileview->sortByColumn(1, Qt::AscendingOrder);
-    ui_->restore_fileview->header()->hide();
-    ui_->restore_fileview->hideColumn(1);
-    ui_->restore_fileview->hideColumn(2);
-  } else {
-    if (position > current_restore_snapshot_) {
-      // This is an older backup.  The "new" file set should be a subset of the
-      // current fileset, so we subtract from the current the new -- the remaining
-      // is removed from the view.
-      QSet<QString> diff = files_current.value().subtract(files_new.value());
-      restore_model_->RemovePaths(diff);
-    } else {
-      // This is a newer backup.  The "new" fileset may contain files not in the
-      // current, so we subtract the new from the current.  What's left we add.
-      QSet<QString> diff = files_new.value().subtract(files_current.value());
-      restore_model_->AddPaths(diff);
+    // First time through -- we need to create the view from scratch.
+    restore_model_.reset(new RestoreSelectorModel(NULL));
+    restore_model_sorter_ = new QSortFilterProxyModel(
+        restore_model_.get());
+    restore_model_sorter_->setSourceModel(restore_model_.get());
+    restore_model_sorter_->setDynamicSortFilter(true);
+    restore_model_sorter_->sort(2, Qt::AscendingOrder);
+
+    set<string> files;
+    for (QString file : snapshot_manager_.files_new()) {
+      files.insert(file.toStdString());
     }
-    ui_->restore_fileview->sortByColumn(1, Qt::AscendingOrder);
+    restore_model_->AddPaths(files);
+    ui_->restore_fileview->setModel(restore_model_sorter_);
+  } else if (snapshot_manager_.new_snapshot() > current_restore_snapshot_) {
+    // This is an older backup.  The "new" file set should be a subset of the
+    // current fileset, so we subtract from the current the new -- the
+    // remaining is removed from the view.
+    ui_->restore_fileview->setSortingEnabled(false);
+    QSet<QString> diff = snapshot_manager_.files_current().subtract(
+        snapshot_manager_.files_new());
+    set<string> files;
+    for (QString file : diff) {
+      files.insert(file.toStdString());
+    }
+    if (files.size() > 1000) {
+      please_wait_dlg_.show();
+    }
+    restore_model_->RemovePaths(files);
+  } else {
+    // This is a newer backup.  The "new" fileset may contain files not in the
+    // current, so we subtract the new from the current.  What's left we add.
+    ui_->restore_fileview->setSortingEnabled(false);
+    QSet<QString> diff = snapshot_manager_.files_new().subtract(
+        snapshot_manager_.files_current());
+    set<string> files;
+    for (QString file : diff) {
+      files.insert(file.toStdString());
+    }
+    if (files.size() > 1000) {
+      please_wait_dlg_.show();
+    }
+    restore_model_->AddPaths(files);
   }
-  current_restore_snapshot_ = position;
+  current_restore_snapshot_ = snapshot_manager_.new_snapshot();
+
+  ui_->restore_fileview->setSortingEnabled(false);
+  ui_->restore_fileview->sortByColumn(2, Qt::AscendingOrder);
+  restore_model_sorter_->invalidate();
+  restore_model_sorter_->sort(2, Qt::AscendingOrder);
+  ui_->restore_fileview->header()->hide();
+  ui_->restore_fileview->hideColumn(1);
+  ui_->restore_fileview->hideColumn(2);
+  ui_->restore_tabset->setCurrentIndex(1);
+
+  please_wait_dlg_.hide();
+  ui_->restore_history_slider->setEnabled(true);
 }
 
 void MainWindow::OnRestoreToBrowse() {

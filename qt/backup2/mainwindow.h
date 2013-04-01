@@ -3,6 +3,7 @@
 #ifndef BACKUP2_QT_BACKUP2_MAINWINDOW_H_
 #define BACKUP2_QT_BACKUP2_MAINWINDOW_H_
 
+#include <QFuture>
 #include <QMainWindow>
 #include <QString>
 #include <QVector>
@@ -28,6 +29,28 @@ class BackupDriver;
 class QTreeWidgetItem;
 class QSortFilterProxyModel;
 class RestoreSelectorModel;
+
+// A simple thread implementation to load history from a backup library.  When
+// finished the HistoryLoaded signal is emitted with the backup information.
+class HistoryLoader : public QThread {
+  Q_OBJECT
+
+ public:
+  HistoryLoader(std::string filename, uint64_t label_id)
+      : filename_(filename),
+        label_id_(label_id) {
+    connect(this, SIGNAL(finished()), this, SLOT(deleteLater()));
+  }
+
+ signals:
+  void HistoryLoaded(QVector<BackupItem> history);
+
+ private:
+  void run();
+
+  std::string filename_;
+  uint64_t label_id_;
+};
 
 class MainWindow : public QMainWindow {
   Q_OBJECT
@@ -117,9 +140,18 @@ class MainWindow : public QMainWindow {
   void SwitchToRestorePage2();
   void SwitchToRestorePage3();
 
+  // Called when backup history from the backup volume is loaded.  This is
+  // called when the user switches from restore page 1 to 2 after having changed
+  // something, so we can load up the history for the view.
+  void OnHistoryDone(QVector<BackupItem> history);
+
   // Load the details of some backup history.  Called when the history slider
   // value changes.
   void OnHistorySliderChanged(int position);
+
+  // Called when loading a snapshot for the history slider is finished.  This
+  // slot begins the population of the restore selector model with files.
+  void OnHistoryLoaded();
 
   // Browse for location to restore to.
   void OnRestoreToBrowse();
@@ -136,7 +168,7 @@ class MainWindow : public QMainWindow {
   // visible and is set to reasonable defaults, and the given message.
   void InitBackupProgress(QString message);
 
-  void ThreadedGetHistoryForRestore();
+  bool ThreadedGetHistoryForRestore();
 
   // UI elements represented by this class.
   Ui::MainWindow* ui_;
@@ -156,21 +188,27 @@ class MainWindow : public QMainWindow {
   QThread* backup_thread_;  // GUARDED_BY(backup_mutex_)
   QMutex backup_mutex_;
 
-  // Restore history.
-  QVector<BackupItem> restore_history_;
-
   // Whether page 1 of the restore tabset has been changed.  Used to refresh
   // tab 2.
   bool restore_page_1_changed_;
 
   // Model for the restore tree view.
   std::unique_ptr<RestoreSelectorModel> restore_model_;
+  QSortFilterProxyModel* restore_model_sorter_;
 
   // Backup snapshot manager for history and whatnot.
   BackupSnapshotManager snapshot_manager_;
 
+  HistoryLoader* history_loader_;
+
+  // Restore history.
+  QVector<BackupItem> restore_history_;
+
+  // The currently selected restore snapshot (selected via slider).
   int current_restore_snapshot_;
 
+  // The PleaseWait dialog box periodically shown when long operations are in
+  // progress.
   PleaseWaitDlg please_wait_dlg_;
 };
 
