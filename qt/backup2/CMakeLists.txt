@@ -14,6 +14,8 @@ LINT_SOURCES(
     dummy_vss_proxy.h
     file_selector_model.cpp
     file_selector_model.h
+    icon_provider.cpp
+    icon_provider.h
     label_history_dlg.cpp
     label_history_dlg.h
     main.cpp

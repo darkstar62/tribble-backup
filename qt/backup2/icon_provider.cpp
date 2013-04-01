@@ -1,6 +1,6 @@
 // Copyright (C) 2013 Cory Maccarrone
 // Author: Cory Maccarrone <darkstar6262@gmail.com>
-#include "icon_provider.h"
+#include "qt/backup2/icon_provider.h"
 
 #include <QIcon>
 #include <QPixmap>
@@ -30,12 +30,12 @@ static QImage qt_fromWinHBITMAP(HDC hdc, HBITMAP bitmap, int w, int h) {
   }
 
   // Get bitmap bits
-  uchar *data = (uchar *)malloc(bmi.bmiHeader.biSizeImage);
+  uchar *data = static_cast<uchar*>(malloc(bmi.bmiHeader.biSizeImage));
 
   if (GetDIBits(hdc, bitmap, 0, h, data, &bmi, DIB_RGB_COLORS)) {
     // Create image and copy data into image.
     for (int y = 0; y < h; ++y) {
-      void *dest = (void *) image.scanLine(y);
+      void *dest = static_cast<void*>(image.scanLine(y));
       void *src = data + y * image.bytesPerLine();
       memcpy(dest, src, image.bytesPerLine());
     }
@@ -79,7 +79,7 @@ QPixmap convertHIconToPixmap(const HICON icon) {
 
   HBITMAP winBitmap = CreateDIBSection(
       hdc, reinterpret_cast<BITMAPINFO*>(&bitmapInfo),
-      DIB_RGB_COLORS, (VOID**)&bits, NULL, 0);
+      DIB_RGB_COLORS, static_cast<VOID**>(&bits), NULL, 0);
   HGDIOBJ oldhdc = static_cast<HBITMAP>(SelectObject(hdc, winBitmap));
   DrawIconEx(hdc, 0, 0, icon, iconinfo.xHotspot * 2,
              iconinfo.yHotspot * 2, 0, 0, DI_NORMAL);
@@ -99,11 +99,11 @@ QPixmap convertHIconToPixmap(const HICON icon) {
     DrawIconEx(hdc, 0, 0, icon, w, h, 0, 0, DI_MASK);
     QImage mask = qt_fromWinHBITMAP(hdc, winBitmap, w, h);
 
-    for (int y = 0; y < h; y++){
+    for (int y = 0; y < h; y++) {
       QRgb *scanlineImage = reinterpret_cast<QRgb*>(image.scanLine(y));
       QRgb *scanlineMask = mask.isNull() ?
                                0 : reinterpret_cast<QRgb*>(mask.scanLine(y));
-      for (int x = 0; x < w; x++){
+      for (int x = 0; x < w; x++) {
         if (scanlineMask && qRed(scanlineMask[x]) != 0) {
           scanlineImage[x] = 0;  // Mask out this pixel
         } else {
@@ -144,7 +144,7 @@ QIcon IconProvider::FileIcon(const QString &filename) const {
     Q_UNUSED(com_init);
 
     SHFILEINFO sh_file_info;
-    unsigned long val = 0;
+    uint32_t val = 0;
 
     val = SHGetFileInfo(
         reinterpret_cast<const wchar_t*>(("foo." + file_info.suffix()).utf16()),

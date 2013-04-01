@@ -1,5 +1,7 @@
 // Copyright (C) 2013 Cory Maccarrone
 // Author: Cory Maccarrone <darkstar6262@gmail.com>
+#define ERROR
+
 #include <QApplication>
 #include <QFileDialog>
 #include <QFuture>
@@ -8,7 +10,7 @@
 #include <QScrollBar>
 #include <QSortFilterProxyModel>
 #include <QString>
-#include <QtConcurrentRun>
+#include <QtCore>
 #include <QThread>
 #include <QTimer>
 #include <QVector>
@@ -18,6 +20,8 @@
 #include <set>
 #include <string>
 #include <vector>
+
+#undef ERROR
 
 #include "boost/property_tree/ptree.hpp"
 #include "boost/property_tree/xml_parser.hpp"
