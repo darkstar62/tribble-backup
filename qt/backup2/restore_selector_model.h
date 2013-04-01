@@ -35,19 +35,20 @@ class PathNode {
         tristate_(false),
         row_(0) {}
 
-  ~PathNode() {
-    for (PathNode* node : children_) {
-      delete node;
-    }
-  }
+  // Delete a PathNode*.  This takes the place of the destructor, and updates
+  // the passed leaf list to remove entries corresponding to this and parent
+  // nodes.
+  void Delete(std::unordered_map<std::string, PathNode*>* leaves);
 
   // Add a child to the tree.  Returns true if the child was inserted, or false
   // if the child already exists.
   bool AddChild(PathNode* child);
 
   // Delete a child from the tree.  Rows are renumbered to correspond correctly
-  // to the new arrangement.
-  bool DeleteChild(int row);
+  // to the new arrangement.  The passed leaf list is updated to remove entries
+  // for deleted children.
+  bool DeleteChild(int row,
+                   std::unordered_map<std::string, PathNode *>* leaves);
 
   // Find a child node in the tree.  If the child can't be found, this function
   // returns NULL.

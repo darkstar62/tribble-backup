@@ -122,10 +122,6 @@ Status BackupSnapshotManager::GetBackupSets() {
     FileSet* fileset = backup_sets.value().at(index);
     vector<FileEntry*> entries = fileset->GetFiles();
     for (FileEntry* entry : entries) {
-      if (entry->GetBackupFile()->file_type ==
-              backup2::BackupFile::kFileTypeDirectory) {
-        continue;
-      }
       files.insert(tr(entry->filename().c_str()));
     }
     cached_backup_sets_.prepend(files);

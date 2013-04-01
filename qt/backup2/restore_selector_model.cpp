@@ -20,6 +20,18 @@
 using std::make_pair;
 using std::set;
 using std::string;
+using std::unordered_map;
+
+void PathNode::Delete(unordered_map<string, PathNode *>* leaves) {
+  auto iter = leaves->find(path_);
+  if (iter != leaves->end()) {
+    leaves->erase(iter);
+  }
+  for (PathNode* node : children_) {
+    node->Delete(leaves);
+  }
+  delete this;
+}
 
 bool PathNode::AddChild(PathNode* child) {
   // If the child is already in the tree, return false -- don't add it twice.
@@ -36,7 +48,7 @@ bool PathNode::AddChild(PathNode* child) {
   return true;
 }
 
-bool PathNode::DeleteChild(int row) {
+bool PathNode::DeleteChild(int row, unordered_map<string, PathNode *>* leaves) {
   if (row < 0 || static_cast<uint32_t>(row) >= children_.size()) {
     return false;
   }
@@ -50,7 +62,7 @@ bool PathNode::DeleteChild(int row) {
     PathNode* new_child = children_.at(row);
     new_child->set_row(row);
   }
-  delete child;
+  child->Delete(leaves);
   HandleParentChecks();
   return true;
 }
@@ -181,25 +193,18 @@ void RestoreSelectorModel::RemovePaths(const set<string>& paths) {
   for (string path : paths) {
     auto iter = leaves_.find(path);
     if (iter == leaves_.end()) {
-      LOG(WARNING) << "Couldn't remove " << path;
       continue;
     }
 
     PathNode* node = iter->second;
     CHECK(node) << "NULL Node!";
-
-    if (node->children().size() > 0) {
-      // Skip directory
-      continue;
-    }
-
     PathNode* parent_node = node->parent();
 
     while (parent_node != &root_node_) {
       QModelIndex parent_index = createIndex(parent_node->row(), 0,
                                              parent_node);
       beginRemoveRows(parent_index, node->row(), node->row());
-      parent_node->DeleteChild(node->row());
+      parent_node->DeleteChild(node->row(), &leaves_);
       endRemoveRows();
 
       if (parent_node->children().size()) {
@@ -209,7 +214,6 @@ void RestoreSelectorModel::RemovePaths(const set<string>& paths) {
       node = parent_node;
       parent_node = node->parent();
     }
-    leaves_.erase(iter);
     counter++;
     if (counter == 1000) {
       QCoreApplication::processEvents(QEventLoop::AllEvents, 1);
