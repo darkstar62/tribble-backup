@@ -12,6 +12,8 @@
 #include <objbase.h>
 #endif
 
+#include "src/common.h"
+
 #ifdef Q_OS_WIN32
 static QImage qt_fromWinHBITMAP(HDC hdc, HBITMAP bitmap, int w, int h) {
   BITMAPINFO bmi;
@@ -79,7 +81,7 @@ QPixmap convertHIconToPixmap(const HICON icon) {
 
   HBITMAP winBitmap = CreateDIBSection(
       hdc, reinterpret_cast<BITMAPINFO*>(&bitmapInfo),
-      DIB_RGB_COLORS, static_cast<VOID**>(&bits), NULL, 0);
+      DIB_RGB_COLORS, reinterpret_cast<VOID**>(&bits), NULL, 0);
   HGDIOBJ oldhdc = static_cast<HBITMAP>(SelectObject(hdc, winBitmap));
   DrawIconEx(hdc, 0, 0, icon, iconinfo.xHotspot * 2,
              iconinfo.yHotspot * 2, 0, 0, DI_NORMAL);
