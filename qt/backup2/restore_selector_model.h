@@ -13,6 +13,7 @@
 #include <QVariant>
 #include <QVector>
 
+#include <list>
 #include <set>
 #include <string>
 #include <unordered_map>
@@ -20,7 +21,9 @@
 #include <vector>
 
 #include "qt/backup2/icon_provider.h"
+#include "src/common.h"
 
+struct FileInfo;
 class RestoreSelectorModel;
 
 // A PathNode is a node in a tree, adn represents the contents of the restore
@@ -31,6 +34,7 @@ class PathNode {
       : parent_(NULL),
         value_(value),
         path_(value),
+        size_(0),
         checked_(false),
         tristate_(false),
         row_(0) {}
@@ -69,6 +73,18 @@ class PathNode {
   // Accessors for various things.
   std::string value() const { return value_; }
   std::string path() const { return path_; }
+
+  // Get/set the size of the file.
+  void set_size(uint64_t size) { size_ = size; }
+  uint64_t size() const { return size_; }
+
+  // Get/set the needed volumes for this file.
+  void set_needed_volumes(std::set<uint64_t> volumes) {
+    needed_volumes_ = volumes;
+  }
+  const std::set<uint64_t>& needed_volumes() const {
+    return needed_volumes_;
+  }
 
   // Return whether this node is checked or not.  The return value is one of
   // Qt::Checked, Qt::PartiallyChecked, or Qt::Unchecked.
@@ -115,6 +131,12 @@ class PathNode {
   // The fully-qualified path including parents, up to this node.
   std::string path_;
 
+  // The size of the file represented by this node.
+  uint64_t size_;
+
+  // List of needed volumes for this file.
+  std::set<uint64_t> needed_volumes_;
+
   // Whether the node is checked.
   bool checked_;
 
@@ -146,10 +168,23 @@ class RestoreSelectorModel : public QAbstractItemModel {
   explicit RestoreSelectorModel(QObject *parent = 0);
 
   // Add a set of paths to the tree, creating children along the way.
-  void AddPaths(const std::set<std::string>& paths);
+  void AddPaths(const std::vector<FileInfo*>& paths);
+
+  // Update the existing paths to fill in new data.  All paths specified must
+  // already exist in the tree.
+  void UpdatePaths(const std::vector<FileInfo*>& paths);
 
   // Remove paths from the tree.
-  void RemovePaths(const std::set<std::string>& paths);
+  void RemovePaths(const QSet<QString>& paths);
+
+  // Return a list of all checked paths, including directories.
+  void GetSelectedPaths(std::set<std::string>* paths_out);
+
+  // Return the size of the selected files.
+  uint64_t GetSelectedPathSizes();
+
+  // Return a sorted vector of volumes needed for the selected files.
+  std::vector<uint64_t> GetNeededVolumes();
 
   // QAbstractItemModel overrides.
   virtual Qt::ItemFlags flags(const QModelIndex& index) const;
@@ -167,20 +202,12 @@ class RestoreSelectorModel : public QAbstractItemModel {
   virtual bool hasChildren(const QModelIndex& parent = QModelIndex()) const;
 
  private:
-  // These sets indicate the checked state of each path, only for GUI
-  // interactions.
-  QSet<QString> checked_;
-  QSet<QString> tristate_;
-
   // Tree of path items.  This is converted to rows in the model upon
   // finalization of the model.
   PathNode root_node_;
 
   // Set of leaf nodes in the tree.
   std::unordered_map<std::string, PathNode*> leaves_;
-
-  // Map of path segment to PathNode for quick lookups.
-  std::unordered_map<std::string, PathNode*> node_map_;
 
   // Icon provider for the tree view.
   IconProvider icon_provider_;

@@ -2,10 +2,12 @@
 // Author: Cory Maccarrone <darkstar6262@gmail.com>
 #include "qt/backup2/backup_snapshot_manager.h"
 
+#include <QMap>
 #include <QSet>
 #include <QString>
 #include <QVector>
 
+#include <set>
 #include <string>
 #include <vector>
 
@@ -22,6 +24,7 @@
 using backup2::BackupLibrary;
 using backup2::BackupVolumeFactory;
 using backup2::File;
+using backup2::FileChunk;
 using backup2::FileEntry;
 using backup2::FileSet;
 using backup2::GzipEncoder;
@@ -31,6 +34,15 @@ using backup2::StatusOr;
 using std::string;
 using std::vector;
 
+FileInfo::FileInfo(FileEntry* entry, string filename) {
+  const backup2::BackupFile* metadata = entry->GetBackupFile();
+  file_size = metadata->file_size;
+  this->filename = filename;
+  vector<FileChunk> chunks = entry->GetChunks();
+  for (FileChunk chunk : chunks) {
+    volumes_needed.insert(chunk.volume_num);
+  }
+}
 
 BackupSnapshotManager::BackupSnapshotManager(QObject* parent)
     : QThread(parent),
@@ -73,7 +85,7 @@ void BackupSnapshotManager::run() {
   }
 }
 
-Status BackupSnapshotManager::GetFilesForSnapshot(QSet<QString>* out_set,
+Status BackupSnapshotManager::GetFilesForSnapshot(QMap<QString, FileInfo*>* out_set,
                                                   uint64_t snapshot) {
   Status retval = GetBackupSets();
   if (!retval.ok()) {
@@ -113,7 +125,7 @@ Status BackupSnapshotManager::GetBackupSets() {
     return backup_sets.status();
   }
 
-  QSet<QString> files;
+  QMap<QString, FileInfo*> files;
 
   // Start at the least recent backup and go forward until we hit the index
   // passed by the user.
@@ -122,7 +134,8 @@ Status BackupSnapshotManager::GetBackupSets() {
     FileSet* fileset = backup_sets.value().at(index);
     vector<FileEntry*> entries = fileset->GetFiles();
     for (FileEntry* entry : entries) {
-      files.insert(tr(entry->filename().c_str()));
+      FileInfo* info = new FileInfo(entry, entry->filename());
+      files.insert(tr(entry->filename().c_str()), info);
     }
     cached_backup_sets_.prepend(files);
   }

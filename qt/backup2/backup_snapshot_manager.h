@@ -3,20 +3,32 @@
 #ifndef BACKUP2_QT_BACKUP2_BACKUP_SNAPSHOT_MANAGER_H_
 #define BACKUP2_QT_BACKUP2_BACKUP_SNAPSHOT_MANAGER_H_
 
+#include <QMap>
 #include <QObject>
 #include <QSet>
 #include <QString>
 #include <QThread>
 #include <QVector>
 
+#include <set>
 #include <string>
 #include <vector>
 
 #include "src/status.h"
 
 namespace backup2 {
+class FileEntry;
 class FileSet;
 }  // namespace backup2
+
+// A simple structure to contain information about files for the UI.
+struct FileInfo {
+  FileInfo(backup2::FileEntry* entry, std::string filename);
+
+  std::string filename;
+  uint64_t file_size;
+  std::set<uint64_t> volumes_needed;
+};
 
 // The BackupSnapshotManager manages filelists in a various backup label and can
 // return the complete filesystem view as of a snapshot index.
@@ -41,8 +53,8 @@ class BackupSnapshotManager : public QThread {
   backup2::Status status() const { return status_; }
 
   // Return the filelists for the requested snapshots.
-  QSet<QString> files_current() const { return files_current_; }
-  QSet<QString> files_new() const { return files_new_; }
+  QMap<QString, FileInfo*> files_current() const { return files_current_; }
+  QMap<QString, FileInfo*> files_new() const { return files_new_; }
 
   // Return the new snapshot number passed into LoadSnapshotFiles.
   int64_t new_snapshot() const { return new_snapshot_; }
@@ -56,7 +68,7 @@ class BackupSnapshotManager : public QThread {
 
   // Get the list of files that correspond to the given filename, label,
   // and snapshot number (with 0 being the most recent backup).
-  backup2::Status GetFilesForSnapshot(QSet<QString>* out_set,
+  backup2::Status GetFilesForSnapshot(QMap<QString, FileInfo*>* out_set,
                                       uint64_t snapshot);
 
   // Load all the backup sets for the filename and label.
@@ -75,10 +87,10 @@ class BackupSnapshotManager : public QThread {
   int64_t new_snapshot_;
 
   // Current filelist.
-  QSet<QString> files_current_;
+  QMap<QString, FileInfo*> files_current_;
 
   // New filelist.
-  QSet<QString> files_new_;
+  QMap<QString, FileInfo*> files_new_;
 
   // Snapshot load status.
   backup2::Status status_;
@@ -91,7 +103,7 @@ class BackupSnapshotManager : public QThread {
 
   // Cached backup sets.  Index 0 is the view from the most recent, while
   // the last one is of the last full backup for the label.
-  QVector<QSet<QString> > cached_backup_sets_;
+  QVector<QMap<QString, FileInfo*> > cached_backup_sets_;
 };
 
 #endif  // BACKUP2_QT_BACKUP2_BACKUP_SNAPSHOT_MANAGER_H_

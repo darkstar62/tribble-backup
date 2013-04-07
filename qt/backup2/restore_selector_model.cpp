@@ -10,17 +10,23 @@
 #include <QString>
 #include <QVariant>
 
+#include <algorithm>
+#include <list>
 #include <set>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "boost/filesystem.hpp"
 #include "glog/logging.h"
+#include "qt/backup2/backup_snapshot_manager.h"
 
+using std::list;
 using std::make_pair;
 using std::set;
 using std::string;
 using std::unordered_map;
+using std::vector;
 
 void PathNode::Delete(unordered_map<string, PathNode *>* leaves) {
   auto iter = leaves->find(path_);
@@ -61,6 +67,7 @@ bool PathNode::DeleteChild(int row, unordered_map<string, PathNode *>* leaves) {
        ++row) {
     PathNode* new_child = children_.at(row);
     new_child->set_row(row);
+    new_child->HandleParentChecks();
   }
   child->Delete(leaves);
   HandleParentChecks();
@@ -148,14 +155,14 @@ RestoreSelectorModel::RestoreSelectorModel(QObject *parent)
       root_node_("") {
 }
 
-void RestoreSelectorModel::AddPaths(const set<string>& paths) {
+void RestoreSelectorModel::AddPaths(const vector<FileInfo*>& paths) {
   LOG(INFO) << "Adding paths";
 
   QElapsedTimer timer;
   timer.start();
-  for (const string& path : paths) {
+  for (const FileInfo* path_info : paths) {
     // Split the path into sections.
-    boost::filesystem::path path_obj(path);
+    boost::filesystem::path path_obj(path_info->filename);
 
     // Add each section to a node in the tree.
     PathNode* current_node = &root_node_;
@@ -173,11 +180,12 @@ void RestoreSelectorModel::AddPaths(const set<string>& paths) {
         child_node = new PathNode(path_part_str);
         current_node->AddChild(child_node);
         child_node->set_index(createIndex(child_node->row(), 0, child_node));
-        node_map_.insert(make_pair(child_node->path(), child_node));
         endInsertRows();
       }
       current_node = child_node;
     }
+    current_node->set_size(path_info->file_size);
+    current_node->set_needed_volumes(path_info->volumes_needed);
     leaves_.insert(make_pair(current_node->path(), current_node));
     if (timer.elapsed() > 100) {
       QCoreApplication::processEvents(QEventLoop::AllEvents, 1);
@@ -188,9 +196,31 @@ void RestoreSelectorModel::AddPaths(const set<string>& paths) {
       this->index(0, 0), this->index(rowCount() - 1, columnCount() - 1));
 }
 
-void RestoreSelectorModel::RemovePaths(const set<string>& paths) {
+void RestoreSelectorModel::UpdatePaths(const vector<FileInfo*>& paths) {
+  QElapsedTimer timer;
+  timer.start();
+  for (const FileInfo* path_info : paths) {
+    if (timer.elapsed() > 100) {
+      QCoreApplication::processEvents(QEventLoop::AllEvents, 1);
+      timer.restart();
+    }
+
+    // Grab the leaf node for this path.
+    auto iter = leaves_.find(path_info->filename);
+    if (iter == leaves_.end()) {
+      LOG(ERROR) << "Could not find path: " << path_info->filename;
+      continue;
+    }
+    PathNode* node = iter->second;
+    node->set_size(path_info->file_size);
+    node->set_needed_volumes(path_info->volumes_needed);
+  }
+}
+
+void RestoreSelectorModel::RemovePaths(const QSet<QString>& paths) {
   int counter = 0;
-  for (string path : paths) {
+  for (QString path_qstr : paths) {
+    string path = path_qstr.toStdString();
     auto iter = leaves_.find(path);
     if (iter == leaves_.end()) {
       continue;
@@ -222,6 +252,47 @@ void RestoreSelectorModel::RemovePaths(const set<string>& paths) {
   }
   emit dataChanged(
       this->index(0, 0), this->index(rowCount() - 1, columnCount() - 1));
+}
+
+void RestoreSelectorModel::GetSelectedPaths(set<string> *paths_out) {
+  for (auto iter : leaves_) {
+    string path = iter.first;
+    PathNode* node = iter.second;
+
+    if (node->checked() == Qt::Checked) {
+      paths_out->insert(path);
+    }
+  }
+}
+
+uint64_t RestoreSelectorModel::GetSelectedPathSizes() {
+  uint64_t sizes = 0;
+  for (auto iter : leaves_) {
+    string path = iter.first;
+    PathNode* node = iter.second;
+
+    if (node->checked() == Qt::Checked) {
+      sizes += node->size();
+    }
+  }
+  return sizes;
+}
+
+vector<uint64_t> RestoreSelectorModel::GetNeededVolumes() {
+  set<uint64_t> needed_volumes;
+  for (auto iter : leaves_) {
+    PathNode* node = iter.second;
+    if (node->checked() == Qt::Checked) {
+      needed_volumes.insert(node->needed_volumes().begin(),
+                            node->needed_volumes().end());
+    }
+  }
+  vector<uint64_t> retval;
+  for (uint64_t vol : needed_volumes) {
+    retval.push_back(vol);
+  }
+  std::sort(retval.begin(), retval.end());
+  return retval;
 }
 
 Qt::ItemFlags RestoreSelectorModel::flags(const QModelIndex& index) const {
@@ -286,6 +357,7 @@ bool RestoreSelectorModel::setData(
     PathNode* node = static_cast<PathNode*>(index.internalPointer());
     node->SetCheckedState(value.toInt(), true);
     node->SetCheckedState(value.toInt(), false);
+
     emit dataChanged(
         this->index(0, 0), this->index(rowCount() - 1, columnCount() - 1));
     return true;

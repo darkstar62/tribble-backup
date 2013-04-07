@@ -6,10 +6,12 @@
 #include <QFileDialog>
 #include <QFuture>
 #include <QFutureWatcher>
+#include <QMap>
 #include <QMessageBox>
 #include <QScrollBar>
 #include <QSortFilterProxyModel>
 #include <QString>
+#include <QStringList>
 #include <QtCore>
 #include <QThread>
 #include <QTimer>
@@ -651,6 +653,28 @@ void MainWindow::SwitchToRestorePage2() {
 }
 
 void MainWindow::SwitchToRestorePage3() {
+  if (ui_->restore_to_location_2->text() == "") {
+    QMessageBox::warning(this, "Must choose a restore location",
+                         "Please choose a location to restore to.");
+    return;
+  }
+
+  set<string> file_list;
+  restore_model_->GetSelectedPaths(&file_list);
+  uint64_t size = restore_model_->GetSelectedPathSizes();
+  vector<uint64_t> needed_volumes = restore_model_->GetNeededVolumes();
+
+  ui_->restore_info_num_files->setText(QLocale().toString(file_list.size()));
+  ui_->restore_info_uncompressed_size->setText(QLocale().toString(size));
+
+  QStringList volume_list;
+  for (uint64_t volume : needed_volumes) {
+    volume_list.append(QLocale().toString(volume));
+  }
+  ui_->restore_info_needed_volumes->setText(
+      QLocale().createSeparatedList(volume_list));
+  ui_->restore_info_restore_location->setText(
+      ui_->restore_to_location_2->text());
   ui_->restore_tabset->setCurrentIndex(2);
 }
 
@@ -703,41 +727,43 @@ void MainWindow::OnHistoryLoaded() {
     restore_model_sorter_->setDynamicSortFilter(true);
     restore_model_sorter_->sort(2, Qt::AscendingOrder);
 
-    set<string> files;
-    for (QString file : snapshot_manager_.files_new()) {
-      files.insert(file.toStdString());
-    }
-    restore_model_->AddPaths(files);
+    restore_model_->AddPaths(
+        snapshot_manager_.files_new().values().toVector().toStdVector());
     ui_->restore_fileview->setModel(restore_model_sorter_);
   } else if (snapshot_manager_.new_snapshot() > current_restore_snapshot_) {
     // This is an older backup.  The "new" file set should be a subset of the
     // current fileset, so we subtract from the current the new -- the
     // remaining is removed from the view.
     ui_->restore_fileview->setSortingEnabled(false);
-    QSet<QString> diff = snapshot_manager_.files_current().subtract(
-        snapshot_manager_.files_new());
-    set<string> files;
-    for (QString file : diff) {
-      files.insert(file.toStdString());
-    }
-    if (files.size() > 1000) {
+
+    QMap<QString, FileInfo*> current_files = snapshot_manager_.files_current();
+    QMap<QString, FileInfo*> new_files = snapshot_manager_.files_new();
+    QSet<QString> diff = current_files.keys().toSet().subtract(
+                             new_files.keys().toSet());
+    if (diff.size() > 1000) {
       please_wait_dlg_.show();
     }
-    restore_model_->RemovePaths(files);
+    restore_model_->RemovePaths(diff);
+    restore_model_->UpdatePaths(new_files.values().toVector().toStdVector());
   } else {
     // This is a newer backup.  The "new" fileset may contain files not in the
     // current, so we subtract the new from the current.  What's left we add.
     ui_->restore_fileview->setSortingEnabled(false);
-    QSet<QString> diff = snapshot_manager_.files_new().subtract(
-        snapshot_manager_.files_current());
-    set<string> files;
+    QMap<QString, FileInfo*> current_files = snapshot_manager_.files_current();
+    QMap<QString, FileInfo*> new_files = snapshot_manager_.files_new();
+    QSet<QString> diff = new_files.keys().toSet().subtract(
+                            current_files.keys().toSet());
+
+    vector<FileInfo*> files;
     for (QString file : diff) {
-      files.insert(file.toStdString());
+      files.push_back(new_files.value(file));
     }
+
     if (files.size() > 1000) {
       please_wait_dlg_.show();
     }
     restore_model_->AddPaths(files);
+    restore_model_->UpdatePaths(new_files.values().toVector().toStdVector());
   }
   current_restore_snapshot_ = snapshot_manager_.new_snapshot();
 
