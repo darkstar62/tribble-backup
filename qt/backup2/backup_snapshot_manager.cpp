@@ -70,6 +70,24 @@ void BackupSnapshotManager::LoadSnapshotFiles(string filename,
   start();
 }
 
+backup2::BackupLibrary* BackupSnapshotManager::ReleaseBackupLibrary() {
+  // We need to invalidate the caches to do this.
+  filename_ = "";
+  label_ = 0;
+  current_snapshot_ = -1;
+  new_snapshot_ = -1;
+  files_current_.clear();
+  files_new_.clear();
+  status_ = backup2::Status::OK;
+  has_cached_backup_set_ = false;
+  cached_filename_ = "";
+  cached_label_ = 0;
+  cached_backup_sets_.clear();
+  filesets_.clear();
+
+  return library_.release();
+}
+
 void BackupSnapshotManager::run() {
   Status retval = GetFilesForSnapshot(&files_current_,
                                       current_snapshot_);
@@ -85,8 +103,9 @@ void BackupSnapshotManager::run() {
   }
 }
 
-Status BackupSnapshotManager::GetFilesForSnapshot(QMap<QString, FileInfo*>* out_set,
-                                                  uint64_t snapshot) {
+Status BackupSnapshotManager::GetFilesForSnapshot(
+    QMap<QString, FileInfo>* out_set,
+    uint64_t snapshot) {
   Status retval = GetBackupSets();
   if (!retval.ok()) {
     return retval;
@@ -102,30 +121,34 @@ Status BackupSnapshotManager::GetBackupSets() {
     return Status::OK;
   }
 
+  // Clear out the old fileset history..
+  cached_backup_sets_.clear();
+  filesets_.clear();
+
   File* file = new File(filename_);
   if (!file->Exists()) {
     delete file;
     return Status(backup2::kStatusNoSuchFile, "");
   }
 
-  BackupLibrary library(
+  library_.reset(new BackupLibrary(
       file, NULL,
       new Md5Generator(), new GzipEncoder(),
-      new BackupVolumeFactory());
-  Status retval = library.Init();
+      new BackupVolumeFactory()));
+  Status retval = library_->Init();
   if (!retval.ok()) {
     LOG(ERROR) << "Could not init library: " << retval.ToString();
     return retval;
   }
 
-  StatusOr<vector<FileSet*> > backup_sets = library.LoadFileSetsFromLabel(
+  StatusOr<vector<FileSet*> > backup_sets = library_->LoadFileSetsFromLabel(
       true, label_);
   if (!backup_sets.ok()) {
     LOG(ERROR) << "Could not load sets: " << backup_sets.status().ToString();
     return backup_sets.status();
   }
 
-  QMap<QString, FileInfo*> files;
+  QMap<QString, FileInfo> files;
 
   // Start at the least recent backup and go forward until we hit the index
   // passed by the user.
@@ -134,7 +157,7 @@ Status BackupSnapshotManager::GetBackupSets() {
     FileSet* fileset = backup_sets.value().at(index);
     vector<FileEntry*> entries = fileset->GetFiles();
     for (FileEntry* entry : entries) {
-      FileInfo* info = new FileInfo(entry, entry->filename());
+      FileInfo info(entry, entry->filename());
       files.insert(tr(entry->filename().c_str()), info);
     }
     cached_backup_sets_.prepend(files);
@@ -143,5 +166,6 @@ Status BackupSnapshotManager::GetBackupSets() {
   has_cached_backup_set_ = true;
   cached_filename_ = filename_;
   cached_label_ = label_;
+  filesets_ = backup_sets.value();
   return Status::OK;
 }

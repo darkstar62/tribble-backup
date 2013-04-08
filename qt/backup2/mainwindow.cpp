@@ -34,11 +34,13 @@
 #include "qt/backup2/manage_labels_dlg.h"
 #include "qt/backup2/file_selector_model.h"
 #include "qt/backup2/please_wait_dlg.h"
+#include "qt/backup2/restore_driver.h"
 #include "qt/backup2/restore_selector_model.h"
 #ifdef _WIN32
 #include "qt/backup2/vss_proxy.h"
 #endif
 #include "qt/backup2/vss_proxy_interface.h"
+#include "src/backup_library.h"
 #include "src/backup_volume_interface.h"
 #include "src/file.h"
 #include "src/status.h"
@@ -152,6 +154,10 @@ MainWindow::MainWindow(QWidget *parent)
       this, SLOT(LabelViewChanged(QTreeWidgetItem*, QTreeWidgetItem*)));
   QObject::connect(&snapshot_manager_, SIGNAL(finished()), this,
                    SLOT(OnHistoryLoaded()));
+  QObject::connect(ui_->restore_cancel_button, SIGNAL(clicked()), this,
+                   SLOT(CancelOrCloseRestore()));
+  QObject::connect(ui_->restore_cancelled_back_button, SIGNAL(clicked()), this,
+                   SLOT(SwitchToRestorePage3()));
   qRegisterMetaType<QVector<BackupItem> >("QVector<BackupItem>");
 }
 
@@ -736,8 +742,8 @@ void MainWindow::OnHistoryLoaded() {
     // remaining is removed from the view.
     ui_->restore_fileview->setSortingEnabled(false);
 
-    QMap<QString, FileInfo*> current_files = snapshot_manager_.files_current();
-    QMap<QString, FileInfo*> new_files = snapshot_manager_.files_new();
+    QMap<QString, FileInfo> current_files = snapshot_manager_.files_current();
+    QMap<QString, FileInfo> new_files = snapshot_manager_.files_new();
     QSet<QString> diff = current_files.keys().toSet().subtract(
                              new_files.keys().toSet());
     if (diff.size() > 1000) {
@@ -749,12 +755,12 @@ void MainWindow::OnHistoryLoaded() {
     // This is a newer backup.  The "new" fileset may contain files not in the
     // current, so we subtract the new from the current.  What's left we add.
     ui_->restore_fileview->setSortingEnabled(false);
-    QMap<QString, FileInfo*> current_files = snapshot_manager_.files_current();
-    QMap<QString, FileInfo*> new_files = snapshot_manager_.files_new();
+    QMap<QString, FileInfo> current_files = snapshot_manager_.files_current();
+    QMap<QString, FileInfo> new_files = snapshot_manager_.files_new();
     QSet<QString> diff = new_files.keys().toSet().subtract(
                             current_files.keys().toSet());
 
-    vector<FileInfo*> files;
+    vector<FileInfo> files;
     for (QString file : diff) {
       files.push_back(new_files.value(file));
     }
@@ -794,4 +800,149 @@ void MainWindow::OnRestoreToBrowse() {
 }
 
 void MainWindow::RunRestore() {
+  InitRestoreProgress("Initializing...");
+  RestoreLogEntry("Initializing...");
+  UpdateRestoreStatus("Scanning files...", 0);
+  OnEstimatedRestoreTimeUpdated("Estimating time remaining...");
+
+  // Grab the selected filelist from the model.
+  set<string> restore_paths;
+  restore_model_->GetSelectedPaths(&restore_paths);
+  QString destination = ui_->restore_to_location_2->text();
+
+  // Create the restore driver and put it in its thread.  For this, we
+  // grab the fileset information the snapshot manager has and release
+  // its library for our use.
+  int64_t snapshot_id = snapshot_manager_.new_snapshot();
+  vector<backup2::FileSet*> filesets = snapshot_manager_.filesets();
+  backup2::BackupLibrary* library = snapshot_manager_.ReleaseBackupLibrary();
+
+  QMutexLocker ml(&restore_mutex_);
+
+  // Transfer ownership of the library and filesets to the restore driver.
+  // It needs to use it from here on out.
+  restore_driver_ = new RestoreDriver(
+      restore_paths, destination, snapshot_id, library, filesets);
+
+  restore_thread_ = new QThread(this);
+  QWidget::connect(restore_thread_, SIGNAL(started()), restore_driver_,
+                   SLOT(PerformRestore()));
+  QWidget::connect(restore_thread_, SIGNAL(finished()), this,
+                   SLOT(RestoreComplete()));
+  QWidget::connect(restore_thread_, SIGNAL(finished()), restore_driver_,
+                   SLOT(deleteLater()));
+
+  // Connect up status signals so we can update our internal views.
+  QWidget::connect(restore_driver_, SIGNAL(StatusUpdated(QString, int)),
+                   this, SLOT(UpdateRestoreStatus(QString, int)));
+  QWidget::connect(restore_driver_, SIGNAL(LogEntry(QString)),
+                   this, SLOT(RestoreLogEntry(QString)));
+  QWidget::connect(restore_driver_, SIGNAL(EstimatedTimeUpdated(QString)),
+                   this, SLOT(OnEstimatedRestoreTimeUpdated(QString)));
+
+  restore_driver_->moveToThread(restore_thread_);
+  restore_thread_->start();
+}
+
+void MainWindow::RestoreComplete() {
+  LOG(INFO) << "Restore complete signalled";
+  {
+    QMutexLocker ml(&restore_mutex_);
+    restore_thread_ = NULL;
+    restore_driver_ = NULL;
+  }
+
+  RestoreLogEntry("Restore complete!");
+  ui_->restore_estimated_time_label->setText("Done!");
+  ui_->restore_cancel_button->setText("Done");
+  ui_->restore_cancel_button->setIcon(
+      QIcon(":/icons/graphics/pstatus_green.png"));
+}
+
+void MainWindow::CancelOrCloseRestore() {
+  if (ui_->restore_progress->value() == 100) {
+    // The restore is done, this is a close button now.  When clicking it,
+    // the interface should reset all values to defaults, and move back to
+    // the home tab.
+
+    // Move to home tab.
+    ui_->sidebar_tab->setCurrentIndex(0);
+    ui_->restore_tabset->setCurrentIndex(0);
+
+    // Reset the restore pages.
+    // Where to restore from.
+    ui_->restore_source->setText("");
+    ui_->restore_labels->clear();
+    restore_model_.reset();
+
+    // What to restore and where to put it.
+    ui_->restore_history_slider->setRange(0, 0);
+    ui_->restore_fileview->setModel(NULL);
+    ui_->restore_to_location_2->setText("");
+  } else {
+    // Cancel the running restore.
+    LOG(INFO) << "Cancelling restore";
+    QMutexLocker ml(&restore_mutex_);
+    if (restore_driver_) {
+      restore_driver_->CancelBackup();
+      restore_thread_->quit();
+      restore_thread_->wait();
+      restore_driver_ = NULL;
+      restore_thread_ = NULL;
+    }
+    LOG(INFO) << "Cancelled";
+
+    RestoreLogEntry("Restore cancelled.");
+    ui_->restore_estimated_time_label->setText("");
+    ui_->restore_cancel_button->setVisible(false);
+    ui_->restore_cancelled_back_button->setVisible(true);
+    ui_->restore_current_op_label->setText("Operation cancelled.");
+  }
+
+  // Clear the general progress section.
+  ui_->general_progress->setVisible(false);
+  ui_->general_progress->setValue(0);
+  ui_->general_info->setText("");
+  ui_->general_info->setVisible(false);
+  ui_->general_separator->setVisible(false);
+}
+
+void MainWindow::InitRestoreProgress(QString message) {
+  ui_->restore_current_op_label->setText(message);
+  ui_->restore_progress->setValue(0);
+  ui_->restore_cancelled_back_button->setVisible(false);
+  ui_->restore_tabset->setCurrentIndex(3);
+  ui_->restore_estimated_time_label->setText("Estimating time remaining...");
+  ui_->restore_log_area->clear();
+  ui_->general_progress->setVisible(true);
+  ui_->general_progress->setValue(0);
+  ui_->general_info->setText("Performing restore...");
+  ui_->general_info->setVisible(true);
+  ui_->general_separator->setVisible(true);
+  ui_->restore_cancelled_back_button->setVisible(false);
+  ui_->restore_cancel_button->setText("Cancel");
+  ui_->restore_cancel_button->setIcon(
+      QIcon(":/icons/graphics/1363245997_stop.png"));
+  ui_->restore_cancel_button->setVisible(true);
+}
+
+void MainWindow::UpdateRestoreStatus(QString message, int progress) {
+  ui_->restore_current_op_label->setText(message);
+  ui_->general_info->setText(message);
+  ui_->general_progress->setValue(progress);
+  ui_->restore_progress->setValue(progress);
+
+  if (progress == 100) {
+    restore_thread_->quit();
+  }
+}
+
+void MainWindow::RestoreLogEntry(QString message) {
+  ui_->restore_log_area->insertPlainText(message + "\n");
+  ui_->restore_log_area->verticalScrollBar()->setSliderPosition(
+      ui_->restore_log_area->verticalScrollBar()->maximum());
+}
+
+void MainWindow::OnEstimatedRestoreTimeUpdated(QString message) {
+  ui_->restore_estimated_time_label->setText(message);
 }

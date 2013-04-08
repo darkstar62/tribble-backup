@@ -168,11 +168,11 @@ class RestoreSelectorModel : public QAbstractItemModel {
   explicit RestoreSelectorModel(QObject *parent = 0);
 
   // Add a set of paths to the tree, creating children along the way.
-  void AddPaths(const std::vector<FileInfo*>& paths);
+  void AddPaths(const std::vector<FileInfo>& paths);
 
   // Update the existing paths to fill in new data.  All paths specified must
   // already exist in the tree.
-  void UpdatePaths(const std::vector<FileInfo*>& paths);
+  void UpdatePaths(const std::vector<FileInfo>& paths);
 
   // Remove paths from the tree.
   void RemovePaths(const QSet<QString>& paths);

@@ -25,6 +25,8 @@ LINT_SOURCES(
     manage_labels_dlg.h
     please_wait_dlg.cpp
     please_wait_dlg.h
+    restore_driver.cpp
+    restore_driver.h
     restore_selector_model.cpp
     restore_selector_model.h
     vss_proxy.cpp

@@ -28,6 +28,7 @@ class Label;
 class BackupDriver;
 class QTreeWidgetItem;
 class QSortFilterProxyModel;
+class RestoreDriver;
 class RestoreSelectorModel;
 
 // A simple thread implementation to load history from a backup library.  When
@@ -159,6 +160,25 @@ class MainWindow : public QMainWindow {
   // Actually run the restore.
   void RunRestore();
 
+  // Called when the restore completes.
+  void RestoreComplete();
+
+  // Cancel or close the running restore.
+  void CancelOrCloseRestore();
+
+  // Called by the restore driver to indicate status back to the UI.  This one
+  // updates the restore tab elements and sidebar.
+  void UpdateRestoreStatus(QString message, int progress);
+
+  // Called by the restore driver to indicate status back to the UI.  This one
+  // updates the restore tab log area.
+  void RestoreLogEntry(QString message);
+
+  // Called by the restore driver to indicate status back to the UI.  This one
+  // updates the estimated time remaining for both the restore tab and the
+  // sidebar.
+  void OnEstimatedRestoreTimeUpdated(QString message);
+
  private:
   // Initialize the backup file list model.  The model is empty and displays
   // the default view.
@@ -168,7 +188,9 @@ class MainWindow : public QMainWindow {
   // visible and is set to reasonable defaults, and the given message.
   void InitBackupProgress(QString message);
 
-  bool ThreadedGetHistoryForRestore();
+  // Initialize the restore progress messaging.  The sidebar progress becomes
+  // visible and is set to reasonable defaults, and the given message.
+  void InitRestoreProgress(QString message);
 
   // UI elements represented by this class.
   Ui::MainWindow* ui_;
@@ -183,7 +205,8 @@ class MainWindow : public QMainWindow {
   bool current_label_set_;
 
   // Backup driver.  This is created anew each time we start a new backup.
-  // We also define the thread for it here.
+  // We also define the thread for it here.  The driver is deleted by the
+  // thread termination signal.
   BackupDriver* backup_driver_;  // GUARDED_BY(backup_mutex_)
   QThread* backup_thread_;  // GUARDED_BY(backup_mutex_)
   QMutex backup_mutex_;
@@ -206,6 +229,13 @@ class MainWindow : public QMainWindow {
 
   // The currently selected restore snapshot (selected via slider).
   int current_restore_snapshot_;
+
+  // Restore driver.  This is created anew each time we start a new restore.
+  // We also define the thread for it here.  The driver is deleted by the
+  // thread termination signal.
+  RestoreDriver* restore_driver_;
+  QThread* restore_thread_;
+  QMutex restore_mutex_;
 
   // The PleaseWait dialog box periodically shown when long operations are in
   // progress.

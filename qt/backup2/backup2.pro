@@ -22,7 +22,8 @@ SOURCES += main.cpp\
     restore_selector_model.cpp \
     icon_provider.cpp \
     please_wait_dlg.cpp \
-    backup_snapshot_manager.cpp
+    backup_snapshot_manager.cpp \
+    restore_driver.cpp
 
 HEADERS  += mainwindow.h \
     file_selector_model.h \
@@ -34,7 +35,8 @@ HEADERS  += mainwindow.h \
     restore_selector_model.h \
     icon_provider.h \
     please_wait_dlg.h \
-    backup_snapshot_manager.h
+    backup_snapshot_manager.h \
+    restore_driver.h
 
 FORMS    += mainwindow.ui \
     manage_labels_dlg.ui \

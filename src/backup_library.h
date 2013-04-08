@@ -104,6 +104,8 @@ class BackupLibrary {
                 EncodingInterface* gzip_encoder,
                 BackupVolumeFactoryInterface* volume_factory);
 
+  ~BackupLibrary();
+
   // Initialize the library.  This does cursory checks, like determining how
   // many backup volumes are in the library.
   Status Init();

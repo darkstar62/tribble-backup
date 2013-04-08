@@ -54,6 +54,9 @@ BackupLibrary::BackupLibrary(
   read_cached_md5sum_.lo = 0;
 }
 
+BackupLibrary::~BackupLibrary() {
+}
+
 Status BackupLibrary::Init() {
   // Try and figure out how many backup volumes we have, based on the filename
   // given.  All backup volumes are of the form "/path/to/backup_file.xxx.bkp"
@@ -435,8 +438,6 @@ Status BackupLibrary::LoadAllChunkData() {
 
 StatusOr<BackupVolumeInterface*> BackupLibrary::GetBackupVolume(
     uint64_t volume_num, bool create_if_not_exist) {
-  LOG_IF(INFO, cached_backup_volume_.get())
-      << cached_backup_volume_->volume_number();
   if (cached_backup_volume_.get() &&
       cached_backup_volume_->volume_number() == volume_num) {
     return cached_backup_volume_.get();

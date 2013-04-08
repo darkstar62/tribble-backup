@@ -155,14 +155,14 @@ RestoreSelectorModel::RestoreSelectorModel(QObject *parent)
       root_node_("") {
 }
 
-void RestoreSelectorModel::AddPaths(const vector<FileInfo*>& paths) {
+void RestoreSelectorModel::AddPaths(const vector<FileInfo>& paths) {
   LOG(INFO) << "Adding paths";
 
   QElapsedTimer timer;
   timer.start();
-  for (const FileInfo* path_info : paths) {
+  for (const FileInfo path_info : paths) {
     // Split the path into sections.
-    boost::filesystem::path path_obj(path_info->filename);
+    boost::filesystem::path path_obj(path_info.filename);
 
     // Add each section to a node in the tree.
     PathNode* current_node = &root_node_;
@@ -184,8 +184,8 @@ void RestoreSelectorModel::AddPaths(const vector<FileInfo*>& paths) {
       }
       current_node = child_node;
     }
-    current_node->set_size(path_info->file_size);
-    current_node->set_needed_volumes(path_info->volumes_needed);
+    current_node->set_size(path_info.file_size);
+    current_node->set_needed_volumes(path_info.volumes_needed);
     leaves_.insert(make_pair(current_node->path(), current_node));
     if (timer.elapsed() > 100) {
       QCoreApplication::processEvents(QEventLoop::AllEvents, 1);
@@ -196,24 +196,24 @@ void RestoreSelectorModel::AddPaths(const vector<FileInfo*>& paths) {
       this->index(0, 0), this->index(rowCount() - 1, columnCount() - 1));
 }
 
-void RestoreSelectorModel::UpdatePaths(const vector<FileInfo*>& paths) {
+void RestoreSelectorModel::UpdatePaths(const vector<FileInfo>& paths) {
   QElapsedTimer timer;
   timer.start();
-  for (const FileInfo* path_info : paths) {
+  for (const FileInfo path_info : paths) {
     if (timer.elapsed() > 100) {
       QCoreApplication::processEvents(QEventLoop::AllEvents, 1);
       timer.restart();
     }
 
     // Grab the leaf node for this path.
-    auto iter = leaves_.find(path_info->filename);
+    auto iter = leaves_.find(path_info.filename);
     if (iter == leaves_.end()) {
-      LOG(ERROR) << "Could not find path: " << path_info->filename;
+      LOG(ERROR) << "Could not find path: " << path_info.filename;
       continue;
     }
     PathNode* node = iter->second;
-    node->set_size(path_info->file_size);
-    node->set_needed_volumes(path_info->volumes_needed);
+    node->set_size(path_info.file_size);
+    node->set_needed_volumes(path_info.volumes_needed);
   }
 }
 

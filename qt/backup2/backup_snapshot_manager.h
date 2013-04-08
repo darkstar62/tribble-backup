@@ -17,12 +17,16 @@
 #include "src/status.h"
 
 namespace backup2 {
+class BackupLibrary;
 class FileEntry;
 class FileSet;
 }  // namespace backup2
 
 // A simple structure to contain information about files for the UI.
 struct FileInfo {
+  FileInfo()
+      : filename(""),
+        file_size(0) {}
   FileInfo(backup2::FileEntry* entry, std::string filename);
 
   std::string filename;
@@ -49,15 +53,27 @@ class BackupSnapshotManager : public QThread {
   void LoadSnapshotFiles(std::string filename, uint64_t label,
                          int64_t current_snapshot, int64_t new_snapshot);
 
+  // Return the library we last used.  This transfers ownership out of this
+  // class, and so invalidates all caches.
+  backup2::BackupLibrary* ReleaseBackupLibrary();
+
   // Return whether the load operation was successful.
   backup2::Status status() const { return status_; }
 
   // Return the filelists for the requested snapshots.
-  QMap<QString, FileInfo*> files_current() const { return files_current_; }
-  QMap<QString, FileInfo*> files_new() const { return files_new_; }
+  QMap<QString, FileInfo> files_current() const { return files_current_; }
+  QMap<QString, FileInfo> files_new() const { return files_new_; }
 
   // Return the new snapshot number passed into LoadSnapshotFiles.
   int64_t new_snapshot() const { return new_snapshot_; }
+
+  // Return the vector of filesets that represent the entire history for the
+  // given filename and label.  This can be used to organize and prepare for
+  // restore without needing another query to the library.
+  // IMPORTANT: This is only valid until the next call to LoadSnapshotFiles(),
+  // beyond which it may or may not be valid, depending on caches.  Only
+  // use this if you also pull the library using ReleaseBackupLibrary().
+  std::vector<backup2::FileSet*> filesets() { return filesets_; }
 
  private:
   typedef std::vector<backup2::FileSet*> FileSetEntry;
@@ -68,7 +84,7 @@ class BackupSnapshotManager : public QThread {
 
   // Get the list of files that correspond to the given filename, label,
   // and snapshot number (with 0 being the most recent backup).
-  backup2::Status GetFilesForSnapshot(QMap<QString, FileInfo*>* out_set,
+  backup2::Status GetFilesForSnapshot(QMap<QString, FileInfo>* out_set,
                                       uint64_t snapshot);
 
   // Load all the backup sets for the filename and label.
@@ -87,10 +103,10 @@ class BackupSnapshotManager : public QThread {
   int64_t new_snapshot_;
 
   // Current filelist.
-  QMap<QString, FileInfo*> files_current_;
+  QMap<QString, FileInfo> files_current_;
 
   // New filelist.
-  QMap<QString, FileInfo*> files_new_;
+  QMap<QString, FileInfo> files_new_;
 
   // Snapshot load status.
   backup2::Status status_;
@@ -103,7 +119,18 @@ class BackupSnapshotManager : public QThread {
 
   // Cached backup sets.  Index 0 is the view from the most recent, while
   // the last one is of the last full backup for the label.
-  QVector<QMap<QString, FileInfo*> > cached_backup_sets_;
+  QVector<QMap<QString, FileInfo> > cached_backup_sets_;
+
+  // Backup library.  This must remain in existence for the below filesets
+  // to remain valid.  This also allows a restore operation to use the
+  // retreived filesets to do a backup without needing to re-query the entire
+  // library.
+  std::unique_ptr<backup2::BackupLibrary> library_;
+
+  // Filesets from last query.  These are only valid between queries, so
+  // if a restore is to use these, there must not be another query in
+  // between.
+  std::vector<backup2::FileSet*> filesets_;
 };
 
 #endif  // BACKUP2_QT_BACKUP2_BACKUP_SNAPSHOT_MANAGER_H_
