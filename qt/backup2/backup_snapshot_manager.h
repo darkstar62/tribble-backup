@@ -10,6 +10,7 @@
 #include <QThread>
 #include <QVector>
 
+#include <memory>
 #include <set>
 #include <string>
 #include <vector>

@@ -34,8 +34,8 @@ void RestoreDriver::PerformRestore() {
   // Determine the files to restore.  We do this in reverse order, starting
   // at the given snapshot ID and going back to the last full backup.
   vector<FileEntry*> files_to_restore;
-  for (int snapshot_id = snapshot_id_; snapshot_id < filesets_.size();
-       ++snapshot_id) {
+  for (int snapshot_id = snapshot_id_;
+       snapshot_id < static_cast<int>(filesets_.size()); ++snapshot_id) {
     FileSet* fileset = filesets_.at(snapshot_id);
     for (FileEntry* entry : fileset->GetFiles()) {
       auto restore_path_iter = restore_paths_.find(entry->filename());
