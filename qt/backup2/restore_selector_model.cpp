@@ -142,7 +142,9 @@ void PathNode::set_parent(PathNode* parent) {
 
   string value = value_;
   if (!parent->parent_) {
-    value += "/";
+    if (value.size() == 0 || value.at(value.size() - 1) != '/') {
+      value += "/";
+    }
   }
   boost::filesystem::path old_path(parent->path());
   boost::filesystem::path new_path(value);
@@ -260,7 +262,8 @@ void RestoreSelectorModel::GetSelectedPaths(set<string> *paths_out) {
     PathNode* node = iter.second;
 
     if (node->checked() == Qt::Checked) {
-      paths_out->insert(path);
+      boost::filesystem::path proper_path(path);
+      paths_out->insert(proper_path.make_preferred().string());
     }
   }
 }
