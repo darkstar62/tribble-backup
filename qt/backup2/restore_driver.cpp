@@ -31,6 +31,28 @@ using std::set;
 using std::string;
 using std::vector;
 
+namespace {
+// Scrub a path of parts with trailing spaces.  The last trailing space
+// is replaced with an underscore.
+//
+// Note, due to bugs in Boost / QT, this can't be included in the header.
+// Fortunately, it turns out not to be necessary.
+boost::filesystem::path ScrubPath(boost::filesystem::path source) {
+  // Iterate through each part of the path, and replace trailing spaces with an
+  // underscore.
+  boost::filesystem::path retval;
+  for (boost::filesystem::path path_part : source) {
+    string path_part_str = path_part.string();
+    if (path_part_str.at(path_part_str.size() - 1) == ' ') {
+      path_part_str[path_part_str.size() - 1] = '_';
+    }
+    boost::filesystem::path new_path_part(path_part_str);
+    retval /= new_path_part;
+  }
+  return retval;
+}
+}  // namespace
+
 void RestoreDriver::PerformRestore() {
   // Determine the files to restore.  We do this in reverse order, starting
   // at the given snapshot ID and going back to the last full backup.
@@ -88,14 +110,37 @@ void RestoreDriver::PerformRestore() {
     // Create the destination directories if they don't exist, and open the
     // destination file.
     File file(dest.string());
+    Status retval = Status::OK;
 
     switch (entry->GetBackupFile()->file_type) {
       case BackupFile::kFileTypeDirectory:
-        CHECK(file.CreateDirectories(false).ok());
+        retval = file.CreateDirectories(false);
+        if (!retval.ok()) {
+          string error_str("Couldn't create directories for " + dest.string() +
+                           ": " + retval.ToString());
+          LOG(ERROR) << error_str;
+          emit LogEntry(error_str.c_str());
+          continue;
+        }
         break;
       case BackupFile::kFileTypeSymlink:
-        CHECK(file.CreateDirectories(true).ok());
-        CHECK(file.CreateSymlink(entry->symlink_target()).ok());
+        retval = file.CreateDirectories(true);
+        if (!retval.ok()) {
+          string error_str("Couldn't create directories for " + dest.string() +
+                           ": " + retval.ToString());
+          LOG(ERROR) << error_str;
+          emit LogEntry(error_str.c_str());
+          continue;
+        }
+
+        retval = file.CreateSymlink(entry->symlink_target());
+        if (!retval.ok()) {
+          string error_str("Couldn't create symlink for " + dest.string() +
+                           ": " + retval.ToString());
+          LOG(ERROR) << error_str;
+          emit LogEntry(error_str.c_str());
+          continue;
+        }
         break;
       default:
         LOG(WARNING) << "Cannot restore file type "
@@ -123,14 +168,40 @@ void RestoreDriver::PerformRestore() {
 
       boost::filesystem::path restore_path(destination_path_.toStdString());
       boost::filesystem::path file_path(entry->filename());
-      boost::filesystem::path dest = restore_path;
-      dest /= file_path.relative_path();
+      boost::filesystem::path unclean_dest = restore_path;
+      unclean_dest /= file_path.relative_path();
+
+      // Replace trailing spaces in each path chunk with an underscore.
+      // Windows doesn't allow the creation of files or directories with
+      // trailing whitespace, and it's non-trivial to do the accounting
+      // in the backup end.  So we do it here just before we attempt to
+      // write.
+      boost::filesystem::path dest = ScrubPath(unclean_dest);
 
       // Create the destination directories if they don't exist, and open the
       // destination file.
       file = new File(dest.string());
-      CHECK(file->CreateDirectories(true).ok());
-      CHECK(file->Open(File::Mode::kModeReadWrite).ok());
+      Status retval = file->CreateDirectories(true);
+      if (!retval.ok()) {
+        string error_str = "Failed to create directories for " + dest.string() +
+                           ": " + retval.ToString();
+        LOG(WARNING) << error_str;
+        emit LogEntry(error_str.c_str());
+        delete file;
+        file = NULL;
+        continue;
+      }
+
+      retval = file->Open(File::Mode::kModeReadWrite);
+      if (!retval.ok()) {
+        string error_str = "Failed to open for write " + dest.string() +
+                           ": " + retval.ToString();
+        LOG(WARNING) << error_str;
+        emit LogEntry(error_str.c_str());
+        delete file;
+        file = NULL;
+        continue;
+      }
 
       last_filename = entry->filename();
     }

@@ -301,10 +301,23 @@ void MainWindow::SwitchToBackupPage1() {
 }
 
 void MainWindow::SwitchToBackupPage2() {
+  if (ui_->backup_type_combo->currentIndex() == 0) {
+    QMessageBox::warning(
+        this, tr("No backup type specified"),
+        tr("You must specify a backup type."));
+    return;
+  }
   ui_->backup_tabset->setCurrentIndex(1);
 }
 
 void MainWindow::SwitchToBackupPage3() {
+  if (ui_->backup_dest->text() == "") {
+    QMessageBox::warning(
+        this, tr("No destination"),
+        tr("You must specify a destination for your backup."));
+    return;
+  }
+
   // This one, unlike the others, will actually calculate the summary details
   // for the view.
   if (!current_label_set_) {

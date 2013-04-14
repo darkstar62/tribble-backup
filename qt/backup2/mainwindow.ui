@@ -2361,7 +2361,7 @@ QTabWidget::pane {
                     <enum>QTabWidget::Rounded</enum>
                    </property>
                    <property name="currentIndex">
-                    <number>3</number>
+                    <number>1</number>
                    </property>
                    <property name="elideMode">
                     <enum>Qt::ElideNone</enum>
@@ -2595,7 +2595,17 @@ QTabWidget::pane {
                               </sizepolicy>
                              </property>
                              <property name="text">
-                              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:10pt; font-weight:600; color:#646464;&quot;&gt;Backup Source:&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:10pt; font-weight:600; color:#646464;&quot;&gt;Restore Source:&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                             </property>
+                            </widget>
+                           </item>
+                           <item>
+                            <widget class="QLabel" name="label_16">
+                             <property name="text">
+                              <string>Select the source for your restore.  This can be any previous backup library you have created.  Filenames end with .bkp.</string>
+                             </property>
+                             <property name="wordWrap">
+                              <bool>true</bool>
                              </property>
                             </widget>
                            </item>
@@ -2626,6 +2636,16 @@ QTabWidget::pane {
                              </property>
                              <property name="text">
                               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:10pt; font-weight:600; color:#646464;&quot;&gt;Labels:&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                             </property>
+                            </widget>
+                           </item>
+                           <item>
+                            <widget class="QLabel" name="label_64">
+                             <property name="text">
+                              <string>Choose the label you want to restore from.  Labels are used to keep distinct sets of backups separate (e.g. for storing backups of documents and pictures separate from one another).  If you're not using this feature, you'll see one label, &quot;Default&quot;, which is where all your files have been kept.</string>
+                             </property>
+                             <property name="wordWrap">
+                              <bool>true</bool>
                              </property>
                             </widget>
                            </item>
@@ -3057,6 +3077,16 @@ QTabWidget::pane {
                             <widget class="QLabel" name="label_73">
                              <property name="text">
                               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:10pt; font-weight:600; color:#646464;&quot;&gt;Restore To:&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                             </property>
+                            </widget>
+                           </item>
+                           <item>
+                            <widget class="QLabel" name="label_67">
+                             <property name="styleSheet">
+                              <string notr="true">background-color: yellow;</string>
+                             </property>
+                             <property name="text">
+                              <string>TODO: Add &quot;Original Locations&quot; button / checkbox</string>
                              </property>
                             </widget>
                            </item>
