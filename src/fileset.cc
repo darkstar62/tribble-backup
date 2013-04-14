@@ -34,7 +34,6 @@ uint64_t FileSet::unencoded_size() const {
 FileEntry::FileEntry(const string& filename, BackupFile* metadata)
     : metadata_(metadata),
       filename_(boost::filesystem::path(filename).make_preferred().string()) {
-  LOG(INFO) << "Filename: " << filename_;
   metadata->filename_size = filename_.size();
 }
 
