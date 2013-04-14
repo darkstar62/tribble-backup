@@ -98,7 +98,7 @@ int BackupDriver::Run() {
     // Create the metadata for the file and stat() it to get the details.
     string relative_filename = file->RelativePath();
     BackupFile metadata;
-    file->FillBackupFile(&metadata);
+    file->FillBackupFile(&metadata, NULL);
 
     FileEntry* entry = library.CreateNewFile(relative_filename, metadata);
 
@@ -202,7 +202,7 @@ void BackupDriver::LoadIncrementalFilelist(
     // Grab the metadata for the file, and compare it with that in our map.
     const BackupFile* backup_metadata = iter->second->GetBackupFile();
     BackupFile disk_metadata;
-    file->FillBackupFile(&disk_metadata);
+    file->FillBackupFile(&disk_metadata, NULL);
 
     // If modification dates or sizes change, we add it.
     if (disk_metadata.modify_date != backup_metadata->modify_date ||

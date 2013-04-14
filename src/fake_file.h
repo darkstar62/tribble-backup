@@ -25,6 +25,10 @@ class FakeFile : public FileInterface {
 
   virtual bool IsDirectory() { return false; }
 
+  virtual bool IsRegularFile() { return true; }
+
+  virtual bool IsSymlink() { return false; }
+
   virtual std::vector<std::string> ListDirectory() {
     return std::vector<std::string>();
   }
@@ -117,14 +121,19 @@ class FakeFile : public FileInterface {
     return Status::OK;
   }
 
+  virtual Status CreateSymlink(std::string target) {
+    return Status::NOT_IMPLEMENTED;
+  }
+
   virtual std::string RelativePath() {
     return "THIS NEEDS TO BE IMPLEMENTED";
   }
 
-  virtual Status FillBackupFile(BackupFile* metadata) {
+  virtual Status FillBackupFile(BackupFile* metadata,
+                                std::string* /* symlink_target */) {
     metadata->file_size = data_.size();
     metadata->file_type = BackupFile::kFileTypeRegularFile;
-    return Status::NOT_IMPLEMENTED;
+    return Status::OK;
   }
 
   virtual Status FindBasenameAndLastVolume(

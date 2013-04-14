@@ -20,6 +20,7 @@
 #include "src/fileset.h"
 #include "src/status.h"
 
+using backup2::BackupFile;
 using backup2::File;
 using backup2::FileChunk;
 using backup2::FileSet;
@@ -33,17 +34,31 @@ using std::vector;
 void RestoreDriver::PerformRestore() {
   // Determine the files to restore.  We do this in reverse order, starting
   // at the given snapshot ID and going back to the last full backup.
-  vector<FileEntry*> files_to_restore;
+  set<FileEntry*> files_to_restore;
   for (int snapshot_id = snapshot_id_;
        snapshot_id < static_cast<int>(filesets_.size()); ++snapshot_id) {
     FileSet* fileset = filesets_.at(snapshot_id);
     for (FileEntry* entry : fileset->GetFiles()) {
       auto restore_path_iter = restore_paths_.find(entry->filename());
       if (restore_path_iter != restore_paths_.end()) {
-        files_to_restore.push_back(entry);
+        files_to_restore.insert(entry);
         restore_paths_.erase(restore_path_iter);
       }
     }
+  }
+
+  // Find all the directories, symlinks, and other special files in the list --
+  // these are created first, and differently from other files (since there's no
+  // chunks to restore).
+  set<FileEntry*> special_files;
+  for (FileEntry* entry : files_to_restore) {
+    if (entry->GetBackupFile()->file_type != BackupFile::kFileTypeRegularFile) {
+      special_files.insert(entry);
+    }
+  }
+
+  for (FileEntry* entry : special_files) {
+    files_to_restore.erase(files_to_restore.find(entry));
   }
 
   // Now that we have the file sets we need to use, sort the chunks by offset
@@ -62,6 +77,32 @@ void RestoreDriver::PerformRestore() {
   emit LogEntry("Restoring files...");
   QElapsedTimer timer;
   timer.start();
+
+  // Start by creating any directories and special files necessary.
+  for (FileEntry* entry : special_files) {
+    boost::filesystem::path restore_path(destination_path_.toStdString());
+    boost::filesystem::path file_path(entry->filename());
+    boost::filesystem::path dest = restore_path;
+    dest /= file_path.relative_path();
+
+    // Create the destination directories if they don't exist, and open the
+    // destination file.
+    File file(dest.string());
+
+    switch (entry->GetBackupFile()->file_type) {
+      case BackupFile::kFileTypeDirectory:
+        CHECK(file.CreateDirectories(false).ok());
+        break;
+      case BackupFile::kFileTypeSymlink:
+        CHECK(file.CreateDirectories(true).ok());
+        CHECK(file.CreateSymlink(entry->symlink_target()).ok());
+        break;
+      default:
+        LOG(WARNING) << "Cannot restore file type "
+                     << entry->GetBackupFile()->file_type;
+        break;
+    }
+  }
 
   string last_filename = "";
   File* file = NULL;

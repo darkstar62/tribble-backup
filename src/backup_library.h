@@ -4,6 +4,7 @@
 #define BACKUP2_SRC_BACKUP_LIBRARY_H_
 
 #include <memory>
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -142,6 +143,10 @@ class BackupLibrary {
   // BackupLibrary.
   FileEntry* CreateNewFile(const std::string& filename, BackupFile metadata);
 
+  // Abort the creation of a file in the current backup.  This is used to back
+  // out when an error reading or accessing the file occurs.
+  void AbortFile(FileEntry* entry);
+
   // Add a chunk to the given FileEntry.  The entry must have been created by
   // CreateNewFile().  Compression and checksumming are done with this function
   // before handing off to the backup volume for storage.
@@ -163,7 +168,7 @@ class BackupLibrary {
   // Given a list of files to restore, optimize the chunk ordering to minimize
   // reads and volume changes.
   std::vector<std::pair<FileChunk, const FileEntry*> >
-      OptimizeChunksForRestore(std::vector<FileEntry*> files);
+      OptimizeChunksForRestore(std::set<FileEntry*> files);
 
  private:
   // Chunk comparison functor.  This comparator is used in sorting file chunks

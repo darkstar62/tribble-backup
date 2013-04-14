@@ -174,8 +174,7 @@ StatusOr<QVector<QString> > BackupDriver::GetFilesForSnapshot(
        index >= static_cast<int64_t>(snapshot); --index) {
     LOG(INFO) << "Loading index: " << index;
     FileSet* fileset = backup_sets.value().at(index);
-    vector<backup2::FileEntry*> entries = fileset->GetFiles();
-    for (FileEntry* entry : entries) {
+    for (FileEntry* entry : fileset->GetFiles()) {
       files.insert(tr(entry->filename().c_str()));
     }
   }
@@ -299,17 +298,34 @@ void BackupDriver::PerformBackup() {
     // Convert the filename
     string converted_filename = vss_->ConvertFilename(filename);
     unique_ptr<File> file(new File(converted_filename));
-    if (!file->Exists()) {
-      LOG(INFO) << "Skipping " << converted_filename;
+    if (!file->Exists() && !file->IsSymlink()) {
+      LOG(WARNING) << "Skipping " << converted_filename;
+      emit LogEntry(
+          string("Skipping file " + converted_filename + ": file not found")
+              .c_str());
       continue;
     }
 
     // Create the metadata for the file and stat() it to get the details.
     BackupFile metadata;
-    file->FillBackupFile(&metadata);
+    string symlink_target = "";
+    retval = file->FillBackupFile(&metadata, &symlink_target);
+    if (!retval.ok()) {
+      LOG(WARNING) << "Error getting data about " << converted_filename
+                   << ": " << retval.ToString();
+      emit LogEntry(
+          string("Skipping file " + converted_filename + ": " +
+                 retval.ToString()).c_str());
+      continue;
+    }
 
-    // If the file type is a directory, we don't store any chunks or try and
-    // read from it.
+    FileEntry* entry = library.CreateNewFile(filename, metadata);
+    if (metadata.file_type == BackupFile::kFileTypeSymlink) {
+      entry->set_symlink_target(symlink_target);
+    }
+
+    // If the file type is not a normal file, we don't store any chunks or try
+    // and read from it.
     if (metadata.file_type != BackupFile::kFileTypeRegularFile) {
       if (cancelled_) {
         break;
@@ -323,11 +339,10 @@ void BackupDriver::PerformBackup() {
       emit LogEntry(
           string("Skipping file " + converted_filename + ": " +
                  status.ToString()).c_str());
+      library.AbortFile(entry);
       continue;
     }
     status = Status::OK;
-
-    FileEntry* entry = library.CreateNewFile(filename, metadata);
 
     do {
       uint64_t current_offset = file->Tell();
@@ -340,6 +355,7 @@ void BackupDriver::PerformBackup() {
                      << status.ToString();
         emit LogEntry(string("Error reading file " + converted_filename +
                              ": " + status.ToString()).c_str());
+        library.AbortFile(entry);
         break;
       }
       data.resize(read);
@@ -447,7 +463,10 @@ bool BackupDriver::LoadIncrementalFilelist(
   // changed.
   for (QString filename : paths_) {
     unique_ptr<File> file(new File(filename.toStdString()));
-    if (!file->Exists()) {
+
+    // If the file is a bad symlink, existance checks will return false, so we
+    // need to evaluate the symlink first.
+    if (!file->IsSymlink() && !file->Exists()) {
       LOG(ERROR) << "File not found: " << filename.toStdString();
       continue;
     }
@@ -458,11 +477,13 @@ bool BackupDriver::LoadIncrementalFilelist(
       // Not found, add it to the final filelist.
       if (!file->IsDirectory()) {
         uint64_t file_size = 0;
-        Status retval = file->size(&file_size);
-        if (!retval.ok()) {
-          LOG(ERROR) << "Could not get size for " << filename.toStdString()
-                     << ": " << retval.ToString();
-          continue;
+        if (file->IsRegularFile()) {
+          Status retval = file->size(&file_size);
+          if (!retval.ok()) {
+            LOG(ERROR) << "Could not get size for " << filename.toStdString()
+                       << ": " << retval.ToString();
+            continue;
+          }
         }
         filelist->push_back(filename.toStdString());
         total_size += file_size;
@@ -470,16 +491,10 @@ bool BackupDriver::LoadIncrementalFilelist(
       continue;
     }
 
-    // Grab the metadata for the file, and compare it with that in our map.
-    const BackupFile* backup_metadata = iter->second->GetBackupFile();
-    BackupFile disk_metadata;
-    file->FillBackupFile(&disk_metadata);
-
     // If modification dates or sizes change, we add it.
-    if (disk_metadata.modify_date != backup_metadata->modify_date ||
-        disk_metadata.file_size != backup_metadata->file_size) {
+    if (FileChanged(file.get(), iter->second)) {
       // File changed, add it.
-      if (!file->IsDirectory()) {
+      if (file->IsRegularFile()) {
         uint64_t file_size = 0;
         Status retval = file->size(&file_size);
         if (!retval.ok()) {
@@ -487,9 +502,9 @@ bool BackupDriver::LoadIncrementalFilelist(
                      << ": " << retval.ToString();
           continue;
         }
-        filelist->push_back(filename.toStdString());
         total_size += file_size;
       }
+      filelist->push_back(filename.toStdString());
       continue;
     }
   }
@@ -506,7 +521,7 @@ uint64_t BackupDriver::LoadFullFilelist(vector<string>* filelist) {
   for (QString file : paths_) {
     filelist->push_back(file.toStdString());
     File file_obj(file.toStdString());
-    if (!file_obj.IsDirectory()) {
+    if (file_obj.IsRegularFile()) {
       uint64_t file_size = 0;
       Status retval = file_obj.size(&file_size);
       if (!retval.ok()) {
@@ -530,4 +545,38 @@ string BackupDriver::GetBackupVolume(string /* orig_filename */) {
     return filenames[0].toStdString();
   }
   return "";
+}
+
+bool BackupDriver::FileChanged(File* file, const FileEntry* backup_file) {
+  // Grab the metadata for the file, and compare it with that in our map.
+  const BackupFile* backup_metadata = backup_file->GetBackupFile();
+  BackupFile disk_metadata;
+  string symlink_target;
+  file->FillBackupFile(&disk_metadata, &symlink_target);
+
+  // Check filetypes.
+  if (disk_metadata.file_type != backup_metadata->file_type) {
+    return true;
+  }
+
+  // Check symlinks
+  if (disk_metadata.file_type == BackupFile::kFileTypeSymlink &&
+      symlink_target != backup_file->symlink_target()) {
+    return true;
+  }
+
+  // Check regular file stats.
+  if (disk_metadata.file_type == BackupFile::kFileTypeRegularFile && (
+          disk_metadata.modify_date != backup_metadata->modify_date ||
+          disk_metadata.file_size != backup_metadata->file_size)) {
+    return true;
+  }
+
+  // Check directory stats.
+  if (disk_metadata.file_type == BackupFile::kFileTypeDirectory &&
+      disk_metadata.modify_date != backup_metadata->modify_date) {
+    return true;
+  }
+
+  return false;
 }

@@ -142,7 +142,7 @@ TEST_F(BackupVolumeTest, SuccessfulInit) {
   BackupDescriptor2 descriptor2;
   descriptor2.unencoded_size = 16;
   descriptor2.encoded_size = 16;
-  descriptor2.num_files = 1;
+  descriptor2.num_files = 2;
   descriptor2.description_size = 6;
   descriptor2.label_id = 0x123;
   file->Write(&descriptor2, sizeof(descriptor2));
@@ -168,6 +168,21 @@ TEST_F(BackupVolumeTest, SuccessfulInit) {
   file_chunk.chunk_offset = 0;
   file_chunk.unencoded_size = 16;
   file->Write(&file_chunk, sizeof(file_chunk));
+  retval = volume.Init();
+  EXPECT_FALSE(retval.ok());
+  EXPECT_EQ(kStatusCorruptBackup, retval.code());
+
+  // Create another BackupFile, this one a symlink.
+  string symlink_filename = "/blah";
+  string symlink_target = "/dfjkhdfkjhsd";
+  BackupFile symlink_file;
+  symlink_file.file_size = 0;
+  symlink_file.num_chunks = 0;
+  symlink_file.filename_size = symlink_filename.size();
+  symlink_file.symlink_target_size = symlink_target.size();
+  file->Write(&symlink_file, sizeof(symlink_file));
+  file->Write(&symlink_filename.at(0), symlink_filename.size());
+  file->Write(&symlink_target.at(0), symlink_target.size());
   retval = volume.Init();
   EXPECT_FALSE(retval.ok());
   EXPECT_EQ(kStatusCorruptBackup, retval.code());
@@ -505,6 +520,126 @@ TEST_F(BackupVolumeTest, CreateAddChunkAndCloseWithFileSet) {
                                 chunk_header.encoding_type,
                                 &volume_offset).ok());
   EXPECT_EQ(descriptor1_chunk.offset, volume_offset);
+  LabelMap label_map;
+  Label new_label(1, "Default");
+  label_map.insert(make_pair(new_label.id(), new_label));
+  EXPECT_TRUE(volume.CloseWithFileSetAndLabels(&file_set, label_map).ok());
+
+  // Validate the contents.
+  EXPECT_TRUE(file->CompareExpected());
+}
+
+TEST_F(BackupVolumeTest, CreateAddChunkAndCloseWithFileSetSymlink) {
+  // This test verifies that a create, and close results in a valid
+  // backup volume with a descriptor 2.  This test adds a symlink.
+  FakeFile* file = new FakeFile;
+
+  // In an empty file, we have the version, backup 1 descriptor, and backup
+  // header only.
+
+  // Version string.
+  file->Write(kGoodVersion, 8);
+
+  // Create backup descriptor 1.
+  uint64_t desc1_offset;
+  EXPECT_TRUE(file->size(&desc1_offset).ok());
+  BackupDescriptor1 descriptor1;
+  descriptor1.total_chunks = 0;
+  descriptor1.total_labels = 2;
+  file->Write(&descriptor1, sizeof(descriptor1));
+
+  // Create a descriptor 1 label.  We're going to specify 0 as the label ID, and
+  // the system should assign it.  Seeing that there are no other labels in the
+  // system (and the default label is reserved), it should assign it 2.
+  string label_name1 = "Default";
+  BackupDescriptor1Label descriptor1_label1;
+  descriptor1_label1.id = 0x1;
+  descriptor1_label1.name_size = label_name1.size();
+  descriptor1_label1.last_backup_offset = 0;
+  descriptor1_label1.last_backup_volume_number = 0;
+  file->Write(&descriptor1_label1, sizeof(descriptor1_label1));
+  file->Write(&label_name1.at(0), label_name1.size());
+
+  // Create a descriptor 1 label.  We're going to specify 0 as the label ID, and
+  // the system should assign it.  Seeing that there are no other labels in the
+  // system (and the default label is reserved), it should assign it 2.
+  string label_name2 = "foo bar yo";
+  BackupDescriptor1Label descriptor1_label2;
+  descriptor1_label2.id = 0x2;
+  descriptor1_label2.name_size = label_name2.size();
+  uint64_t file_size = 0;
+  EXPECT_TRUE(file->size(&file_size).ok());
+  descriptor1_label2.last_backup_offset =
+      file_size + sizeof(descriptor1_label2) + label_name2.size();
+  descriptor1_label2.last_backup_volume_number = 0;
+  file->Write(&descriptor1_label2, sizeof(descriptor1_label2));
+  file->Write(&label_name2.at(0), label_name2.size());
+
+  // Create the descriptor 2.
+  string description = "backup";
+  BackupDescriptor2 descriptor2;
+  descriptor2.previous_backup_offset = 0;
+  descriptor2.previous_backup_volume_number = 0;
+  descriptor2.parent_backup_offset = 0;
+  descriptor2.parent_backup_volume_number = 0;
+  descriptor2.backup_type = kBackupTypeFull;
+  descriptor2.num_files = 1;
+  descriptor2.description_size = 6;
+  descriptor2.label_id = descriptor1_label2.id;
+  descriptor2.backup_date = 1234567;
+  descriptor2.unencoded_size = 0;
+  file->Write(&descriptor2, sizeof(descriptor2));
+  file->Write(&description.at(0), description.size());
+
+  // Create a BackupFile, and a chunk to go with it.
+  string filename = kTestFilename;
+  string symlink = "/foo/bar/yo";
+  BackupFile backup_file;
+  backup_file.file_size = 0;
+  backup_file.file_type = BackupFile::kFileTypeSymlink;
+  backup_file.num_chunks = 0;
+  backup_file.filename_size = filename.size();
+  backup_file.symlink_target_size = symlink.size();
+  file->Write(&backup_file, sizeof(backup_file));
+  file->Write(&filename.at(0), filename.size());
+  file->Write(&symlink.at(0), symlink.size());
+
+  // Create the backup header.
+  BackupDescriptorHeader header;
+  header.backup_descriptor_1_offset = desc1_offset;
+  header.backup_descriptor_2_present = true;
+  header.cancelled = false;
+  header.volume_number = 0;
+  file->Write(&header, sizeof(BackupDescriptorHeader));
+
+  // Reset for the test.
+  file->MakeCurrentDataExpectedResult();
+
+  // Create it as a backup would -- Init first, then on failure, Create.
+  BackupVolume volume(file);
+  ConfigOptions options;
+
+  EXPECT_FALSE(volume.Init().ok());
+  EXPECT_TRUE(volume.Create(options).ok());
+
+  BackupFile* entry_metadata = new BackupFile;
+  entry_metadata->file_size = 0;
+  entry_metadata->file_type = BackupFile::kFileTypeSymlink;
+
+  FileEntry* file_entry = new FileEntry(kTestFilename, entry_metadata);
+  file_entry->set_symlink_target(symlink);
+  FileSet file_set;
+
+  file_set.AddFile(file_entry);
+  file_set.set_description(description);
+  file_set.set_backup_type(kBackupTypeFull);
+  file_set.set_previous_backup_volume(0);
+  file_set.set_previous_backup_offset(0);
+  file_set.set_use_default_label(false);
+  file_set.set_label_id(0);
+  file_set.set_label_name(label_name2);
+  file_set.set_date(descriptor2.backup_date);
+
   LabelMap label_map;
   Label new_label(1, "Default");
   label_map.insert(make_pair(new_label.id(), new_label));
@@ -1030,7 +1165,7 @@ TEST_F(BackupVolumeTest, ReadBackupSets) {
   ASSERT_THAT(file_set, NotNull());
   EXPECT_EQ("backup", file_set->description());
   EXPECT_EQ(1, file_set->num_files());
-  EXPECT_EQ(kTestFilename, file_set->GetFiles()[0]->filename());
+  EXPECT_EQ(kTestFilename, (*(file_set->GetFiles().begin()))->filename());
   EXPECT_EQ(label1_id, file_set->label_id());
   EXPECT_EQ(label1_name, file_set->label_name());
   EXPECT_EQ(12345, file_set->date());
@@ -1144,7 +1279,7 @@ TEST_F(BackupVolumeTest, ReadBackupSetsMultiFile) {
   ASSERT_THAT(file_set, NotNull());
   EXPECT_EQ("backup", file_set->description());
   EXPECT_EQ(1, file_set->num_files());
-  EXPECT_EQ(kTestFilename, file_set->GetFiles()[0]->filename());
+  EXPECT_EQ(kTestFilename, (*(file_set->GetFiles().begin()))->filename());
   EXPECT_EQ(12345, file_set->date());
 
   // Clean up.

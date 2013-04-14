@@ -607,7 +607,7 @@ TEST_F(BackupLibraryTest, ReadFilesAndChunks) {
 
   // Grab the first fileset and file, and find a chunk to read.
   FileSet* fileset = fileset_retval.value()[0];
-  FileEntry* entry = fileset->GetFiles()[0];
+  FileEntry* entry = *(fileset->GetFiles().begin());
   FileChunk chunk = entry->GetChunks()[0];
 
   // When we do this, the backup volume will be interrogated for the chunk,
@@ -673,7 +673,7 @@ TEST_F(BackupLibraryTest, ReadFilesAndChunksWithCompression) {
 
   // Grab the first fileset and file, and find a chunk to read.
   FileSet* fileset = fileset_retval.value()[0];
-  FileEntry* entry = fileset->GetFiles()[0];
+  FileEntry* entry = *(fileset->GetFiles().begin());
   FileChunk chunk = entry->GetChunks()[0];
 
   // When we do this, the backup volume will be interrogated for the chunk,

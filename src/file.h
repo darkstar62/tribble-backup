@@ -20,6 +20,8 @@ class File : public FileInterface {
   // FileOperationsInterface methods.
   virtual bool Exists();
   virtual bool IsDirectory();
+  virtual bool IsRegularFile();
+  virtual bool IsSymlink();
   virtual std::vector<std::string> ListDirectory();
   virtual std::string RootName();
   virtual std::string ProperName();
@@ -33,8 +35,10 @@ class File : public FileInterface {
   virtual Status ReadLines(std::vector<std::string>* strings);
   virtual Status Write(const void* buffer, size_t length);
   virtual Status CreateDirectories(bool strip_leaf);
+  virtual Status CreateSymlink(std::string target);
   virtual std::string RelativePath();
-  virtual Status FillBackupFile(BackupFile* metadata);
+  virtual Status FillBackupFile(BackupFile* metadata,
+                                std::string* symlink_target);
   virtual Status FindBasenameAndLastVolume(
       std::string* basename_out, uint64_t* last_vol_out,
       uint64_t* num_vols_out);

@@ -23,6 +23,14 @@ FileSet::~FileSet() {
   }
 }
 
+void FileSet::RemoveFile(FileEntry* entry) {
+  auto iter = files_.find(entry);
+  if (iter != files_.end()) {
+    files_.erase(iter);
+    delete entry;
+  }
+}
+
 uint64_t FileSet::unencoded_size() const {
   uint64_t size = 0;
   for (FileEntry* entry : files_) {

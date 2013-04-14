@@ -28,6 +28,13 @@ class FileInterface {
   // Test whether the file is a directory.  Returns true if so, false otherwise.
   virtual bool IsDirectory() = 0;
 
+  // Test whether the file is a regular file.  Returns true if so, false
+  // otherwise.
+  virtual bool IsRegularFile() = 0;
+
+  // Test whether the file is a symlink.  Returns true if so, false otherwise.
+  virtual bool IsSymlink() = 0;
+
   // List directory contents.
   virtual std::vector<std::string> ListDirectory() = 0;
 
@@ -79,11 +86,17 @@ class FileInterface {
   // taken to be a directory as well, and it is not stripped.
   virtual Status CreateDirectories(bool strip_leaf) = 0;
 
+  // Turn the current file into a symlink pointing at the given target.  The
+  // file must not already exist.
+  virtual Status CreateSymlink(std::string target) = 0;
+
   // Return the relative path of the given filename.
   virtual std::string RelativePath() = 0;
 
-  // Fill a BackupFile entry with metadata from the file.
-  virtual Status FillBackupFile(BackupFile* metadata) = 0;
+  // Fill a BackupFile entry with metadata from the file.  If the file is a
+  // symlink, the passed string is filled with the symlink target filename.
+  virtual Status FillBackupFile(BackupFile* metadata,
+                                std::string* symlink_target) = 0;
 
   // Find the basename, last volume number, and number of volumes corresponding
   // to this File.  This is used with backup volume names to determine the

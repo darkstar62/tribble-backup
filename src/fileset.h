@@ -4,6 +4,7 @@
 #define BACKUP2_SRC_FILESET_H_
 
 #include <memory>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -24,12 +25,15 @@ class FileSet {
 
   // Add a FileEntry to this file set.  Ownership is transferred to FileSet.
   void AddFile(FileEntry* file) {
-    files_.push_back(file);
+    files_.insert(file);
   }
+
+  // Remove a FileEntry from the set.
+  void RemoveFile(FileEntry* entry);
 
   // Return access to the vector of FileEntry objects.  This is used primarily
   // by BackupVolume to enumerate and create descriptor 2.
-  const std::vector<FileEntry*> GetFiles() const {
+  const std::set<FileEntry*> GetFiles() const {
     return files_;
   }
 
@@ -102,8 +106,8 @@ class FileSet {
   uint64_t date() const { return date_; }
 
  private:
-  // Vector of files in the file set.
-  std::vector<FileEntry*> files_;
+  // Set of files in the file set.
+  std::set<FileEntry*> files_;
 
   // Description of the backup fileset.
   std::string description_;
@@ -166,12 +170,22 @@ class FileEntry {
 
   const std::string& filename() const { return filename_; }
 
+  // Set the symlink target.
+  void set_symlink_target(const std::string target) {
+    symlink_target_ = target;
+    metadata_->symlink_target_size = target.size();
+  }
+  std::string symlink_target() const { return symlink_target_; }
+
  private:
   // File metadata, ultimately saved into the backup volume.
   std::unique_ptr<BackupFile> metadata_;
 
   // Filename for this file.
   const std::string filename_;
+
+  // The target of the symlink for this file (if any).
+  std::string symlink_target_;
 
   // List of chunks
   std::vector<struct FileChunk> chunks_;

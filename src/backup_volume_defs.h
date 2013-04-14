@@ -236,7 +236,8 @@ struct BackupFile {
   enum FileType {
     kFileTypeInvalid = 0,
     kFileTypeRegularFile,
-    kFileTypeDirectory
+    kFileTypeDirectory,
+    kFileTypeSymlink,
   };
 
   // Type of header.
@@ -265,7 +266,14 @@ struct BackupFile {
   // Length of the filename string.
   uint64_t filename_size;
 
+  // Size of the symlink target filename of the file.  Only filled out and used
+  // if file_type is kFileTypeSymlink.
+  uint64_t symlink_target_size;
+
   // Filename string, including the entire source path, follows.
+
+  // If file_type = kFileTypeSymlink, the symlink target filename follows the
+  // filename.
 };
 
 // A checksummed chunk belonging to a file.  These come one after another

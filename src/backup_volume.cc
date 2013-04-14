@@ -454,6 +454,13 @@ Status BackupVolume::WriteBackupDescriptor2(const FileSet& fileset) {
                           backup_file->filename().size());
     LOG_RETURN_IF_ERROR(retval, "Couldn't write FileEntry filename");
 
+    if (metadata->file_type == BackupFile::kFileTypeSymlink) {
+      // Write the symlink target too.
+      retval = file_->Write(&backup_file->symlink_target().at(0),
+                            backup_file->symlink_target().size());
+      LOG_RETURN_IF_ERROR(retval, "Couldn't write FileEntry symlink target");
+    }
+
     for (const FileChunk chunk : backup_file->GetChunks()) {
       VLOG(5) << "Writing chunk " << std::hex
               << chunk.md5sum.hi << chunk.md5sum.lo;
@@ -663,6 +670,14 @@ StatusOr<FileEntry*> BackupVolume::ReadFileEntry() {
   retval = file_->Read(&filename.at(0), filename.size(), NULL);
   LOG_RETURN_IF_ERROR(retval, "Couldn't read BackupFile filename");
 
+  string symlink = "";
+  if (backup_file->file_type == BackupFile::kFileTypeSymlink) {
+    // Also read the symlink target.
+    symlink.resize(backup_file->symlink_target_size);
+    retval = file_->Read(&symlink.at(0), symlink.size(), NULL);
+    LOG_RETURN_IF_ERROR(retval, "Couldn't read BackupFile symlink");
+  }
+
   // Store away and reset the file size in the metadata.  As we read chunks,
   // this should fill up to its original value (which we check to ensure the
   // backup is good).
@@ -672,6 +687,7 @@ StatusOr<FileEntry*> BackupVolume::ReadFileEntry() {
 
   VLOG(5) << "Found " << filename;
   unique_ptr<FileEntry> entry(new FileEntry(filename, backup_file.release()));
+  entry->set_symlink_target(symlink);
   retval = ReadFileChunks(num_chunks, entry.get());
   LOG_RETURN_IF_ERROR(retval, "Couldn't read file chunks");
 

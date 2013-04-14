@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "boost/filesystem.hpp"
+#include "src/backup_volume_defs.h"
 #include "src/file.h"
 #include "src/status.h"
 #include "glog/logging.h"
@@ -305,4 +306,25 @@ TEST_F(FileTest, RootAndProperName) {
 }
 #endif  // _WIN32
 
+TEST_F(FileTest, SymlinkMetadata) {
+  // This test verifies that the File class can correctly fill in BackupFile
+  // metadata for symlinks.
+  boost::filesystem::path to_path("some/location");
+  boost::filesystem::path symlink_path(kTestFilename);
+  boost::filesystem::create_symlink(to_path, symlink_path);
+
+  File file(kTestFilename);
+  BackupFile metadata;
+  string symlink_name;
+  file.FillBackupFile(&metadata, &symlink_name);
+
+  EXPECT_EQ(BackupFile::kFileTypeSymlink, metadata.file_type);
+  EXPECT_EQ(0, metadata.file_size);
+  EXPECT_EQ(0, metadata.modify_date);
+  EXPECT_EQ(to_path.make_preferred().string(),
+            symlink_name);
+
+  boost::filesystem::path path(kTestFilename);
+  boost::filesystem::remove(path);
+}
 }  // namespace backup2

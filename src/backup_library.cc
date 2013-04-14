@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <map>
 #include <memory>
+#include <set>
 #include <sstream>
 #include <string>
 #include <utility>
@@ -23,6 +24,7 @@
 using std::make_pair;
 using std::ostringstream;
 using std::pair;
+using std::set;
 using std::stoull;
 using std::string;
 using std::unique_ptr;
@@ -236,6 +238,10 @@ FileEntry* BackupLibrary::CreateNewFile(
   return entry;
 }
 
+void BackupLibrary::AbortFile(FileEntry* entry) {
+  file_set_->RemoveFile(entry);
+}
+
 Status BackupLibrary::AddChunk(const string& data, const uint64_t chunk_offset,
                                FileEntry* file) {
   // Create the chunk checksum.
@@ -391,7 +397,7 @@ Status BackupLibrary::CancelBackup() {
 }
 
 vector<pair<FileChunk, const FileEntry*> >
-    BackupLibrary::OptimizeChunksForRestore(vector<FileEntry*> files) {
+    BackupLibrary::OptimizeChunksForRestore(set<FileEntry*> files) {
   // Construct a vector containing every chunk in the FileEntry vector given.
   vector<pair<FileChunk, const FileEntry*> > chunk_list;
   for (FileEntry* entry : files) {

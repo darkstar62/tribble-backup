@@ -17,6 +17,8 @@ class MockFile : public FileInterface {
  public:
   MOCK_METHOD0(Exists, bool());
   MOCK_METHOD0(IsDirectory, bool());
+  MOCK_METHOD0(IsRegularFile, bool());
+  MOCK_METHOD0(IsSymlink, bool());
   MOCK_METHOD0(ListDirectory, std::vector<std::string>());
   MOCK_METHOD0(RootName, std::string());
   MOCK_METHOD0(ProperName, std::string());
@@ -30,8 +32,10 @@ class MockFile : public FileInterface {
   MOCK_METHOD1(ReadLines, Status(std::vector<std::string>* lines));
   MOCK_METHOD2(Write, Status(const void* buffer, size_t length));
   MOCK_METHOD1(CreateDirectories, Status(bool strip_leaf));
+  MOCK_METHOD1(CreateSymlink, Status(std::string target));
   MOCK_METHOD0(RelativePath, std::string());
-  MOCK_METHOD1(FillBackupFile, Status(BackupFile* metadata));
+  MOCK_METHOD2(FillBackupFile, Status(BackupFile* metadata,
+                                      std::string* symlink_target));
   MOCK_METHOD3(FindBasenameAndLastVolume,
                Status(std::string* basename_out, uint64_t* last_vol_out,
                       uint64_t* num_vols_out));

@@ -50,6 +50,14 @@ bool File::IsDirectory() {
   return boost::filesystem::is_directory(boost::filesystem::path(filename_));
 }
 
+bool File::IsRegularFile() {
+  return boost::filesystem::is_regular_file(boost::filesystem::path(filename_));
+}
+
+bool File::IsSymlink() {
+  return boost::filesystem::is_symlink(boost::filesystem::path(filename_));
+}
+
 vector<string> File::ListDirectory() {
   vector<string> files;
   for (boost::filesystem::directory_iterator iter =
@@ -57,11 +65,12 @@ vector<string> File::ListDirectory() {
        iter != boost::filesystem::directory_iterator(); ++iter) {
     boost::system::error_code error_code;
     boost::filesystem::path filepath((*iter).path().string());
-    boost::filesystem::file_status status = boost::filesystem::status(
+    boost::filesystem::file_status status = boost::filesystem::symlink_status(
         filepath, error_code);
     if (!boost::filesystem::status_known(status) || (
             status.type() != boost::filesystem::directory_file &&
-            status.type() != boost::filesystem::regular_file)) {
+            status.type() != boost::filesystem::regular_file &&
+            status.type() != boost::filesystem::symlink_file)) {
       LOG(WARNING) << "Skipping unknown file: " << (*iter).path().string()
                    << ", error_code: " << error_code.message();
       continue;
@@ -269,18 +278,36 @@ Status File::CreateDirectories(bool strip_leaf) {
   return Status::OK;
 }
 
+Status File::CreateSymlink(string target) {
+  boost::filesystem::path orig_path(filename_);
+  boost::filesystem::path target_path(target);
+
+  boost::system::error_code error_code;
+  boost::filesystem::create_symlink(target_path, orig_path, error_code);
+
+  if (error_code.value() != 0) {
+    LOG(ERROR) << "Error creating symlink: " << error_code.message();
+    return Status(kStatusFileError,
+                  "Error creating symlink: " + error_code.message());
+  }
+  return Status::OK;
+}
+
 string File::RelativePath() {
   boost::filesystem::path orig_path(filename_);
   return orig_path.relative_path().string();
 }
 
-Status File::FillBackupFile(BackupFile* metadata) {
+Status File::FillBackupFile(BackupFile* metadata, string* symlink_target) {
   boost::filesystem::path filepath(filename_);
-  boost::filesystem::file_status status = boost::filesystem::status(filepath);
+  boost::filesystem::file_status status =
+      boost::filesystem::symlink_status(filepath);
   switch (status.type()) {
     case boost::filesystem::regular_file: {
       Status retval = size(&metadata->file_size);
-      CHECK(retval.ok()) << retval.ToString();
+      if (!retval.ok()) {
+        return retval;
+      }
       metadata->file_type = BackupFile::kFileTypeRegularFile;
       metadata->modify_date = boost::filesystem::last_write_time(filepath);
       break;
@@ -290,8 +317,23 @@ Status File::FillBackupFile(BackupFile* metadata) {
       metadata->file_size = 0;
       metadata->modify_date = 0;
       break;
+    case boost::filesystem::symlink_file:
+      metadata->file_type = BackupFile::kFileTypeSymlink;
+      metadata->file_size = 0;
+
+      // Getting modification date of a symlink is not currently possibe with
+      // Boost (it tries to dereference the link) -- so we don't set a time for
+      // it.
+      metadata->modify_date = 0;
+      if (symlink_target) {
+        *symlink_target = boost::filesystem::read_symlink(filepath)
+            .make_preferred().string();
+      }
+      break;
     default:
-      LOG(FATAL) << "Cannot handle files of type " << status.type();
+      LOG(ERROR) << "Cannot handle files of type " << status.type();
+      return Status(kStatusFileError,
+                    "Cannot handle file type for " + filename_);
       break;
   }
   return Status::OK;

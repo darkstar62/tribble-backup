@@ -280,8 +280,9 @@ vector<string> FilesystemScanner::ProcessPathsRecursive(
     // Check if this scannable is a file or directory.
     File file(scannable);
     string proper_name = file.ProperName();
-    if (!file.IsDirectory()) {
-      // Regular file.  If it's not in the negative selections, add it in.
+    if (!file.IsDirectory() || file.IsSymlink()) {
+      // Regular file or symlink.  If it's not in the negative selections, add
+      // it in.
       if (negative_selections.find(proper_name) == negative_selections.end()) {
         result.push_back(proper_name);
       }

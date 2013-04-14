@@ -18,6 +18,8 @@
 
 namespace backup2 {
 class BackupLibrary;
+class File;
+class FileEntry;
 }  // namespace backup2
 
 enum BackupType {
@@ -90,6 +92,10 @@ class BackupDriver : public QObject {
 
   // Callback in case the backup library needs to load a volume it can't find.
   std::string GetBackupVolume(std::string orig_filename);
+
+  // Return whether the File object is different from the entry from the backup
+  // set.
+  bool FileChanged(backup2::File* file, const backup2::FileEntry* backup_file);
 
   VssProxyInterface* vss_;
   PathList paths_;

@@ -155,8 +155,7 @@ Status BackupSnapshotManager::GetBackupSets() {
   for (int64_t index = backup_sets.value().size() - 1; index >= 0; --index) {
     LOG(INFO) << "Loading index: " << index;
     FileSet* fileset = backup_sets.value().at(index);
-    vector<FileEntry*> entries = fileset->GetFiles();
-    for (FileEntry* entry : entries) {
+    for (FileEntry* entry : fileset->GetFiles()) {
       FileInfo info(entry, entry->filename());
       files.insert(tr(entry->filename().c_str()), info);
     }
