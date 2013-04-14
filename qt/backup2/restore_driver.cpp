@@ -120,14 +120,16 @@ void RestoreDriver::PerformRestore() {
       if (msecs_elapsed / 1000 > 0) {
         qint64 mb_per_sec =
             (completed_size / 1048576) / (msecs_elapsed / 1000);
-        qint64 sec_remaining =
-            ((restore_size - completed_size) / 1048576) / mb_per_sec;
+        if (mb_per_sec > 0) {
+          qint64 sec_remaining =
+              ((restore_size - completed_size) / 1048576) / mb_per_sec;
 
-        emit EstimatedTimeUpdated(
-              QString("Elapsed: " +
-                      QTime(0, 0, 0).addMSecs(msecs_elapsed).toString() +
-                      ", Remaining: " +
-                      QTime(0, 0, 0).addSecs(sec_remaining).toString()));
+          emit EstimatedTimeUpdated(
+                QString("Elapsed: " +
+                        QTime(0, 0, 0).addMSecs(msecs_elapsed).toString() +
+                        ", Remaining: " +
+                        QTime(0, 0, 0).addSecs(sec_remaining).toString()));
+        }
       }
     }
   }

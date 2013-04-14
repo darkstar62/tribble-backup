@@ -19,6 +19,7 @@
 #include "boost/algorithm/string/classification.hpp"
 #include "boost/algorithm/string/split.hpp"
 #include "boost/filesystem.hpp"
+#include "boost/system/error_code.hpp"
 #include "glog/logging.h"
 #include "src/backup_volume_defs.h"
 #include "src/file.h"
@@ -54,10 +55,15 @@ vector<string> File::ListDirectory() {
   for (boost::filesystem::directory_iterator iter =
            boost::filesystem::directory_iterator(filename_);
        iter != boost::filesystem::directory_iterator(); ++iter) {
+    boost::system::error_code error_code;
     boost::filesystem::path filepath((*iter).path().string());
-    boost::filesystem::file_status status = boost::filesystem::status(filepath);
-    if (status.type() != boost::filesystem::directory_file &&
-        status.type() != boost::filesystem::regular_file) {
+    boost::filesystem::file_status status = boost::filesystem::status(
+        filepath, error_code);
+    if (!boost::filesystem::status_known(status) || (
+            status.type() != boost::filesystem::directory_file &&
+            status.type() != boost::filesystem::regular_file)) {
+      LOG(WARNING) << "Skipping unknown file: " << (*iter).path().string()
+                   << ", error_code: " << error_code.message();
       continue;
     }
     files.push_back((*iter).path().string());
@@ -272,11 +278,13 @@ Status File::FillBackupFile(BackupFile* metadata) {
   boost::filesystem::path filepath(filename_);
   boost::filesystem::file_status status = boost::filesystem::status(filepath);
   switch (status.type()) {
-    case boost::filesystem::regular_file:
+    case boost::filesystem::regular_file: {
+      Status retval = size(&metadata->file_size);
+      CHECK(retval.ok()) << retval.ToString();
       metadata->file_type = BackupFile::kFileTypeRegularFile;
-      metadata->file_size = size();
       metadata->modify_date = boost::filesystem::last_write_time(filepath);
       break;
+    }
     case boost::filesystem::directory_file:
       metadata->file_type = BackupFile::kFileTypeDirectory;
       metadata->file_size = 0;
@@ -341,9 +349,17 @@ Status File::FindBasenameAndLastVolume(string* basename_out,
   return Status::OK;
 }
 
-uint64_t File::size() const {
-  return boost::filesystem::file_size(
-      boost::filesystem::path(filename_));
+Status File::size(uint64_t* size_out) const {
+  boost::system::error_code error_code;
+  uint64_t retval = boost::filesystem::file_size(
+      boost::filesystem::path(filename_), error_code);
+  if (error_code.value() != 0) {
+    LOG(ERROR) << "Error getting size: " << error_code.message();
+    return Status(kStatusFileError,
+                  "Error getting size: " + error_code.message());
+  }
+  *size_out = retval;
+  return Status::OK;
 }
 
 Status File::FilenameToVolumeNumber(

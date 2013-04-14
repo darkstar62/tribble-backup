@@ -6,7 +6,10 @@
 #include <string>
 #include <vector>
 
+#include "boost/filesystem.hpp"
 #include "glog/logging.h"
+
+using std::string;
 
 namespace backup2 {
 
@@ -26,6 +29,13 @@ uint64_t FileSet::unencoded_size() const {
     size += entry->GetBackupFile()->file_size;
   }
   return size;
+}
+
+FileEntry::FileEntry(const string& filename, BackupFile* metadata)
+    : metadata_(metadata),
+      filename_(boost::filesystem::path(filename).make_preferred().string()) {
+  LOG(INFO) << "Filename: " << filename_;
+  metadata->filename_size = filename_.size();
 }
 
 }  // namespace backup2

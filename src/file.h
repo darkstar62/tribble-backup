@@ -38,7 +38,7 @@ class File : public FileInterface {
   virtual Status FindBasenameAndLastVolume(
       std::string* basename_out, uint64_t* last_vol_out,
       uint64_t* num_vols_out);
-  virtual uint64_t size() const;
+  virtual Status size(uint64_t* size_out) const;
 
  private:
   // Given a path, decode from it the base path and the volume number it

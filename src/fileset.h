@@ -7,7 +7,6 @@
 #include <string>
 #include <vector>
 
-#include "boost/filesystem.hpp"
 #include "glog/logging.h"
 #include "src/common.h"
 #include "src/backup_volume_defs.h"
@@ -143,11 +142,7 @@ class FileSet {
 class FileEntry {
  public:
   // FileEntry takes ownership of the metadata.
-  explicit FileEntry(const std::string& filename, BackupFile* metadata)
-      : metadata_(metadata),
-        filename_(boost::filesystem::path(filename).make_preferred().string()) {
-    metadata->filename_size = filename_.size();
-  }
+  explicit FileEntry(const std::string& filename, BackupFile* metadata);
 
   // Add a chunk of data to the file entry.  The header describes the chunk and
   // is used when writing backup descriptor 2.

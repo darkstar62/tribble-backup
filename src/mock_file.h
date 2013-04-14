@@ -35,7 +35,7 @@ class MockFile : public FileInterface {
   MOCK_METHOD3(FindBasenameAndLastVolume,
                Status(std::string* basename_out, uint64_t* last_vol_out,
                       uint64_t* num_vols_out));
-  MOCK_CONST_METHOD0(size, uint64_t());
+  MOCK_CONST_METHOD1(size, Status(uint64_t* size_out));
 };
 
 }  // namespace backup2

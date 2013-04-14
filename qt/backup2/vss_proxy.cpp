@@ -37,9 +37,11 @@ VssProxy::~VssProxy() {
   if (components_) {
     components_->Release();
   }
+  CoUninitialize();
 }
 
 Status VssProxy::CreateShadowCopies(const vector<string>& filelist) {
+  CoInitialize(NULL);
   HRESULT result = CreateVssBackupComponents(&components_);
   if (result != S_OK) {
     if (result == E_ACCESSDENIED) {

@@ -122,7 +122,7 @@ class FakeFile : public FileInterface {
   }
 
   virtual Status FillBackupFile(BackupFile* metadata) {
-    metadata->file_size = size();
+    metadata->file_size = data_.size();
     metadata->file_type = BackupFile::kFileTypeRegularFile;
     return Status::NOT_IMPLEMENTED;
   }
@@ -133,8 +133,9 @@ class FakeFile : public FileInterface {
     return Status::NOT_IMPLEMENTED;
   }
 
-  virtual uint64_t size() const {
-    return data_.size();
+  virtual Status size(uint64_t* size_out) const {
+    *size_out = data_.size();
+    return Status::OK;
   }
 
   //////////////////

@@ -92,3 +92,5 @@ OTHER_FILES +=
 # Uncomment this to enable model testing.
 # include(modeltest/modeltest.pro)
 
+# Uncomment this to enable debugging in Windows.
+# win32: QMAKE_LFLAGS += /DEBUG

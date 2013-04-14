@@ -94,7 +94,7 @@ class FileInterface {
       uint64_t* num_vols_out) = 0;
 
   // Return the current size of the file.
-  virtual uint64_t size() const = 0;
+  virtual Status size(uint64_t* size_out) const = 0;
 };
 
 }  // namespace backup2

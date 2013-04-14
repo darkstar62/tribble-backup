@@ -245,11 +245,17 @@ Status BackupVolume::Cancel() {
 }
 
 uint64_t BackupVolume::EstimatedSize() const {
-  return file_->size() + chunks_.disk_size();
+  uint64_t file_size = 0;
+  Status retval = file_->size(&file_size);
+  CHECK(retval.ok()) << retval.ToString();
+  return file_size + chunks_.disk_size();
 }
 
 uint64_t BackupVolume::DiskSize() const {
-  return file_->size();
+  uint64_t file_size = 0;
+  Status retval = file_->size(&file_size);
+  CHECK(retval.ok()) << retval.ToString();
+  return file_size;
 }
 
 Status BackupVolume::WriteChunk(

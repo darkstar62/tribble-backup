@@ -22,6 +22,7 @@ enum ErrorCode {
   kStatusNotLastVolume,
   kStatusInvalidArgument,
   kStatusNoSuccessfulBackups,
+  kStatusFileError,
 };
 
 // Descriptions of the error codes.  These must be in the same order as the enum
@@ -40,6 +41,7 @@ static struct Errordescriptions {
   { kStatusNotLastVolume, "Backup volume is not the last in the set" },
   { kStatusInvalidArgument, "Invalid argument" },
   { kStatusNoSuccessfulBackups, "No successful backups have been performed" },
+  { kStatusFileError, "File error" },
 };
 
 // A generic object that can be used to return detailed status about an

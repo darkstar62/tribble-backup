@@ -35,6 +35,12 @@ using testing::SetArgPointee;
 
 namespace backup2 {
 
+#ifdef _WIN32
+static const char kTestFilename[] = "C:\\foo\\bar";
+#else
+static const char kTestFilename[] = "/foo/bar";
+#endif  // _WIN32
+
 // Action to copy bytes into a void* field.
 ACTION_P2(SetCharStringValue, val, length) {
   memcpy(arg0, val, length);
@@ -104,7 +110,8 @@ TEST_F(BackupVolumeTest, SuccessfulInit) {
   EXPECT_EQ(kStatusCorruptBackup, retval.code());
 
   // Create backup descriptor 1.
-  uint64_t desc1_offset = file->size();
+  uint64_t desc1_offset;
+  EXPECT_TRUE(file->size(&desc1_offset).ok());
 
   BackupDescriptor1 descriptor1;
   descriptor1.total_chunks = 1;
@@ -190,7 +197,8 @@ TEST_F(BackupVolumeTest, CreateAndClose) {
   file->Write(kGoodVersion, 8);
 
   // Create backup descriptor 1.
-  uint64_t desc1_offset = file->size();
+  uint64_t desc1_offset;
+  EXPECT_TRUE(file->size(&desc1_offset).ok());
   BackupDescriptor1 descriptor1;
   descriptor1.total_chunks = 0;
   descriptor1.total_labels = 0;
@@ -242,7 +250,8 @@ TEST_F(BackupVolumeTest, CreateAddChunkAndClose) {
   file->Write(&chunk_data.at(0), chunk_data.size());
 
   // Create backup descriptor 1.
-  uint64_t desc1_offset = file->size();
+  uint64_t desc1_offset;
+  EXPECT_TRUE(file->size(&desc1_offset).ok());
   BackupDescriptor1 descriptor1;
   descriptor1.total_chunks = 1;
   descriptor1.total_labels = 0;
@@ -310,7 +319,8 @@ TEST_F(BackupVolumeTest, CreateAddChunkAndCancel) {
   file->Write(&chunk_data.at(0), chunk_data.size());
 
   // Create backup descriptor 1.
-  uint64_t desc1_offset = file->size();
+  uint64_t desc1_offset;
+  EXPECT_TRUE(file->size(&desc1_offset).ok());
   BackupDescriptor1 descriptor1;
   descriptor1.total_chunks = 1;
   descriptor1.total_labels = 0;
@@ -378,7 +388,8 @@ TEST_F(BackupVolumeTest, CreateAddChunkAndCloseWithFileSet) {
   file->Write(&chunk_data.at(0), chunk_data.size());
 
   // Create backup descriptor 1.
-  uint64_t desc1_offset = file->size();
+  uint64_t desc1_offset;
+  EXPECT_TRUE(file->size(&desc1_offset).ok());
   BackupDescriptor1 descriptor1;
   descriptor1.total_chunks = 1;
   descriptor1.total_labels = 2;
@@ -409,8 +420,10 @@ TEST_F(BackupVolumeTest, CreateAddChunkAndCloseWithFileSet) {
   BackupDescriptor1Label descriptor1_label2;
   descriptor1_label2.id = 0x2;
   descriptor1_label2.name_size = label_name2.size();
+  uint64_t file_size = 0;
+  EXPECT_TRUE(file->size(&file_size).ok());
   descriptor1_label2.last_backup_offset =
-      file->size() + sizeof(descriptor1_label2) + label_name2.size();
+      file_size + sizeof(descriptor1_label2) + label_name2.size();
   descriptor1_label2.last_backup_volume_number = 0;
   file->Write(&descriptor1_label2, sizeof(descriptor1_label2));
   file->Write(&label_name2.at(0), label_name2.size());
@@ -432,7 +445,7 @@ TEST_F(BackupVolumeTest, CreateAddChunkAndCloseWithFileSet) {
   file->Write(&description.at(0), description.size());
 
   // Create a BackupFile, and a chunk to go with it.
-  string filename = "/foo/bar";
+  string filename = kTestFilename;
   BackupFile backup_file;
   backup_file.file_size = chunk_data.size();
   backup_file.file_type = BackupFile::kFileTypeRegularFile;
@@ -471,7 +484,7 @@ TEST_F(BackupVolumeTest, CreateAddChunkAndCloseWithFileSet) {
   entry_metadata->file_size = chunk_data.size();
   entry_metadata->file_type = BackupFile::kFileTypeRegularFile;
 
-  FileEntry* file_entry = new FileEntry("/foo/bar", entry_metadata);
+  FileEntry* file_entry = new FileEntry(kTestFilename, entry_metadata);
   file_entry->AddChunk(file_chunk);
   FileSet file_set;
 
@@ -525,7 +538,8 @@ TEST_F(BackupVolumeTest, CreateAddChunkAndCloseWithFileSetRenameLabel1) {
   file->Write(&chunk_data.at(0), chunk_data.size());
 
   // Create backup descriptor 1.
-  uint64_t desc1_offset = file->size();
+  uint64_t desc1_offset;
+  EXPECT_TRUE(file->size(&desc1_offset).ok());
   BackupDescriptor1 descriptor1;
   descriptor1.total_chunks = 1;
   descriptor1.total_labels = 1;
@@ -543,8 +557,10 @@ TEST_F(BackupVolumeTest, CreateAddChunkAndCloseWithFileSetRenameLabel1) {
   BackupDescriptor1Label descriptor1_label1;
   descriptor1_label1.id = 0x1;
   descriptor1_label1.name_size = label_name1.size();
+  uint64_t file_size = 0;
+  EXPECT_TRUE(file->size(&file_size).ok());
   descriptor1_label1.last_backup_offset =
-      file->size() + sizeof(descriptor1_label1) + label_name1.size();
+      file_size + sizeof(descriptor1_label1) + label_name1.size();
   descriptor1_label1.last_backup_volume_number = 0;
   file->Write(&descriptor1_label1, sizeof(descriptor1_label1));
   file->Write(&label_name1.at(0), label_name1.size());
@@ -566,7 +582,7 @@ TEST_F(BackupVolumeTest, CreateAddChunkAndCloseWithFileSetRenameLabel1) {
   file->Write(&description.at(0), description.size());
 
   // Create a BackupFile, and a chunk to go with it.
-  string filename = "/foo/bar";
+  string filename = kTestFilename;
   BackupFile backup_file;
   backup_file.file_size = chunk_data.size();
   backup_file.file_type = BackupFile::kFileTypeRegularFile;
@@ -605,7 +621,7 @@ TEST_F(BackupVolumeTest, CreateAddChunkAndCloseWithFileSetRenameLabel1) {
   entry_metadata->file_size = chunk_data.size();
   entry_metadata->file_type = BackupFile::kFileTypeRegularFile;
 
-  FileEntry* file_entry = new FileEntry("/foo/bar", entry_metadata);
+  FileEntry* file_entry = new FileEntry(kTestFilename, entry_metadata);
   file_entry->AddChunk(file_chunk);
   FileSet file_set;
 
@@ -659,7 +675,8 @@ TEST_F(BackupVolumeTest, CreateAddChunkAndCloseWithFileSetAndLabels) {
   file->Write(&chunk_data.at(0), chunk_data.size());
 
   // Create backup descriptor 1.
-  uint64_t desc1_offset = file->size();
+  uint64_t desc1_offset = 0;
+  EXPECT_TRUE(file->size(&desc1_offset).ok());
   BackupDescriptor1 descriptor1;
   descriptor1.total_chunks = 1;
   descriptor1.total_labels = 2;
@@ -679,8 +696,10 @@ TEST_F(BackupVolumeTest, CreateAddChunkAndCloseWithFileSetAndLabels) {
   BackupDescriptor1Label descriptor1_label1;
   descriptor1_label1.id = 0x1;
   descriptor1_label1.name_size = label_name1.size();
+  uint64_t file_size = 0;
+  EXPECT_TRUE(file->size(&file_size).ok());
   descriptor1_label1.last_backup_offset =
-      file->size() + sizeof(descriptor1_label1) * 2 + label_name1.size() +
+      file_size + sizeof(descriptor1_label1) * 2 + label_name1.size() +
       label_name2.size();
   descriptor1_label1.last_backup_volume_number = 0;
   file->Write(&descriptor1_label1, sizeof(descriptor1_label1));
@@ -714,7 +733,7 @@ TEST_F(BackupVolumeTest, CreateAddChunkAndCloseWithFileSetAndLabels) {
   file->Write(&description.at(0), description.size());
 
   // Create a BackupFile, and a chunk to go with it.
-  string filename = "/foo/bar";
+  string filename = kTestFilename;
   BackupFile backup_file;
   backup_file.file_size = chunk_data.size();
   backup_file.file_type = BackupFile::kFileTypeRegularFile;
@@ -753,7 +772,7 @@ TEST_F(BackupVolumeTest, CreateAddChunkAndCloseWithFileSetAndLabels) {
   entry_metadata->file_size = chunk_data.size();
   entry_metadata->file_type = BackupFile::kFileTypeRegularFile;
 
-  FileEntry* file_entry = new FileEntry("/foo/bar", entry_metadata);
+  FileEntry* file_entry = new FileEntry(kTestFilename, entry_metadata);
   file_entry->AddChunk(file_chunk);
   FileSet file_set;
 
@@ -804,7 +823,8 @@ TEST_F(BackupVolumeTest, ReadChunks) {
   file->Write(kGoodVersion, 8);
 
   // Create a ChunkHeader and chunk.  This one is not compressed.
-  uint64_t chunk1_offset = file->size();
+  uint64_t chunk1_offset = 0;
+  EXPECT_TRUE(file->size(&chunk1_offset).ok());
   string chunk_data = "1234567890123456";
   ChunkHeader chunk_header;
   chunk_header.encoded_size = chunk_data.size();
@@ -816,7 +836,8 @@ TEST_F(BackupVolumeTest, ReadChunks) {
   file->Write(&chunk_data.at(0), chunk_data.size());
 
   // Create a ChunkHeader and chunk.  This one is compressed.
-  uint64_t chunk2_offset = file->size();
+  uint64_t chunk2_offset = 0;
+  EXPECT_TRUE(file->size(&chunk2_offset).ok());
   string chunk_data2 = "1234567890123456";
   string encoded_data2 = "ABC123";
   ChunkHeader chunk_header2;
@@ -829,7 +850,8 @@ TEST_F(BackupVolumeTest, ReadChunks) {
   file->Write(&encoded_data2.at(0), encoded_data2.size());
 
   // Create backup descriptor 1.
-  uint64_t desc1_offset = file->size();
+  uint64_t desc1_offset = 0;
+  EXPECT_TRUE(file->size(&desc1_offset).ok());
   BackupDescriptor1 descriptor1;
   descriptor1.total_chunks = 2;
   descriptor1.total_labels = 1;
@@ -920,7 +942,8 @@ TEST_F(BackupVolumeTest, ReadBackupSets) {
   file->Write(kGoodVersion, 8);
 
   // Create a ChunkHeader and chunk.  This one is not compressed.
-  uint64_t chunk1_offset = file->size();
+  uint64_t chunk1_offset = 0;
+  EXPECT_TRUE(file->size(&chunk1_offset).ok());
   string chunk_data = "1234567890123456";
   ChunkHeader chunk_header;
   chunk_header.encoded_size = chunk_data.size();
@@ -932,7 +955,8 @@ TEST_F(BackupVolumeTest, ReadBackupSets) {
   file->Write(&chunk_data.at(0), chunk_data.size());
 
   // Create backup descriptor 1.
-  uint64_t desc1_offset = file->size();
+  uint64_t desc1_offset = 0;
+  EXPECT_TRUE(file->size(&desc1_offset).ok());
   BackupDescriptor1 descriptor1;
   descriptor1.total_chunks = 1;
   descriptor1.total_labels = 1;
@@ -966,7 +990,7 @@ TEST_F(BackupVolumeTest, ReadBackupSets) {
   file->Write(&description.at(0), description.size());
 
   // Create a BackupFile, and a chunk to go with it.
-  string filename = "/foo/bar";
+  string filename = kTestFilename;
   BackupFile backup_file;
   backup_file.file_size = chunk_data.size();
   backup_file.num_chunks = 1;
@@ -1006,7 +1030,7 @@ TEST_F(BackupVolumeTest, ReadBackupSets) {
   ASSERT_THAT(file_set, NotNull());
   EXPECT_EQ("backup", file_set->description());
   EXPECT_EQ(1, file_set->num_files());
-  EXPECT_EQ("/foo/bar", file_set->GetFiles()[0]->filename());
+  EXPECT_EQ(kTestFilename, file_set->GetFiles()[0]->filename());
   EXPECT_EQ(label1_id, file_set->label_id());
   EXPECT_EQ(label1_name, file_set->label_name());
   EXPECT_EQ(12345, file_set->date());
@@ -1028,7 +1052,8 @@ TEST_F(BackupVolumeTest, ReadBackupSetsMultiFile) {
   {
     // Create a ChunkHeader and chunk.  This one is not compressed, and is in
     // volume 0.
-    uint64_t chunk1_offset = vol0->size();
+    uint64_t chunk1_offset = 0;
+    EXPECT_TRUE(vol0->size(&chunk1_offset).ok());
     string chunk_data = "1234567890123456";
     ChunkHeader chunk_header;
     chunk_header.encoded_size = chunk_data.size();
@@ -1040,7 +1065,8 @@ TEST_F(BackupVolumeTest, ReadBackupSetsMultiFile) {
     vol0->Write(&chunk_data.at(0), chunk_data.size());
 
     // Create backup descriptor 1.
-    uint64_t desc1_offset = vol0->size();
+    uint64_t desc1_offset = 0;
+    EXPECT_TRUE(vol0->size(&desc1_offset).ok());
     BackupDescriptor1 descriptor1;
     descriptor1.total_chunks = 1;
     descriptor1.total_labels = 1;
@@ -1077,7 +1103,7 @@ TEST_F(BackupVolumeTest, ReadBackupSetsMultiFile) {
     vol0->Write(&description.at(0), description.size());
 
     // Create a BackupFile, and a chunk to go with it.
-    string filename = "/foo/bar";
+    string filename = kTestFilename;
     BackupFile backup_file;
     backup_file.file_size = chunk_data.size();
     backup_file.num_chunks = 1;
@@ -1118,7 +1144,7 @@ TEST_F(BackupVolumeTest, ReadBackupSetsMultiFile) {
   ASSERT_THAT(file_set, NotNull());
   EXPECT_EQ("backup", file_set->description());
   EXPECT_EQ(1, file_set->num_files());
-  EXPECT_EQ("/foo/bar", file_set->GetFiles()[0]->filename());
+  EXPECT_EQ(kTestFilename, file_set->GetFiles()[0]->filename());
   EXPECT_EQ(12345, file_set->date());
 
   // Clean up.

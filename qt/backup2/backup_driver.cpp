@@ -295,7 +295,6 @@ void BackupDriver::PerformBackup() {
   for (string filename : filelist) {
     VLOG(3) << "Processing " << filename;
     filename = File(filename).ProperName();
-    emit LogEntry("Backing up: " + tr(filename.c_str()));
 
     // Convert the filename
     string converted_filename = vss_->ConvertFilename(filename);
@@ -309,8 +308,6 @@ void BackupDriver::PerformBackup() {
     BackupFile metadata;
     file->FillBackupFile(&metadata);
 
-    FileEntry* entry = library.CreateNewFile(filename, metadata);
-
     // If the file type is a directory, we don't store any chunks or try and
     // read from it.
     if (metadata.file_type != BackupFile::kFileTypeRegularFile) {
@@ -323,8 +320,14 @@ void BackupDriver::PerformBackup() {
     Status status = file->Open(File::Mode::kModeRead);
     if (!status.ok()) {
       LOG(ERROR) << "Open " << converted_filename << ": " << status.ToString();
+      emit LogEntry(
+          string("Skipping file " + converted_filename + ": " +
+                 status.ToString()).c_str());
+      continue;
     }
     status = Status::OK;
+
+    FileEntry* entry = library.CreateNewFile(filename, metadata);
 
     do {
       uint64_t current_offset = file->Tell();
@@ -332,6 +335,13 @@ void BackupDriver::PerformBackup() {
       string data;
       data.resize(64*1024);
       status = file->Read(&data.at(0), data.size(), &read);
+      if (!status.ok() && status.code() != backup2::kStatusShortRead) {
+        LOG(WARNING) << "Error reading file " << converted_filename << ": "
+                     << status.ToString();
+        emit LogEntry(string("Error reading file " + converted_filename +
+                             ": " + status.ToString()).c_str());
+        break;
+      }
       data.resize(read);
       Status retval = library.AddChunk(data, current_offset, entry);
       LOG_IF(FATAL, !retval.ok())
@@ -437,14 +447,25 @@ bool BackupDriver::LoadIncrementalFilelist(
   // changed.
   for (QString filename : paths_) {
     unique_ptr<File> file(new File(filename.toStdString()));
+    if (!file->Exists()) {
+      LOG(ERROR) << "File not found: " << filename.toStdString();
+      continue;
+    }
 
     // Look for the file in our map.
     auto iter = combined_files.find(filename.toStdString());
     if (iter == combined_files.end()) {
       // Not found, add it to the final filelist.
-      filelist->push_back(filename.toStdString());
       if (!file->IsDirectory()) {
-        total_size += file->size();
+        uint64_t file_size = 0;
+        Status retval = file->size(&file_size);
+        if (!retval.ok()) {
+          LOG(ERROR) << "Could not get size for " << filename.toStdString()
+                     << ": " << retval.ToString();
+          continue;
+        }
+        filelist->push_back(filename.toStdString());
+        total_size += file_size;
       }
       continue;
     }
@@ -458,9 +479,16 @@ bool BackupDriver::LoadIncrementalFilelist(
     if (disk_metadata.modify_date != backup_metadata->modify_date ||
         disk_metadata.file_size != backup_metadata->file_size) {
       // File changed, add it.
-      filelist->push_back(filename.toStdString());
       if (!file->IsDirectory()) {
-        total_size += file->size();
+        uint64_t file_size = 0;
+        Status retval = file->size(&file_size);
+        if (!retval.ok()) {
+          LOG(ERROR) << "Could not get size for " << filename.toStdString()
+                     << ": " << retval.ToString();
+          continue;
+        }
+        filelist->push_back(filename.toStdString());
+        total_size += file_size;
       }
       continue;
     }
@@ -479,7 +507,13 @@ uint64_t BackupDriver::LoadFullFilelist(vector<string>* filelist) {
     filelist->push_back(file.toStdString());
     File file_obj(file.toStdString());
     if (!file_obj.IsDirectory()) {
-      total_size += file_obj.size();
+      uint64_t file_size = 0;
+      Status retval = file_obj.size(&file_size);
+      if (!retval.ok()) {
+        LOG(ERROR) << "Could not get size for file: " << file.toStdString();
+        continue;
+      }
+      total_size += file_size;
     }
   }
   return total_size;
