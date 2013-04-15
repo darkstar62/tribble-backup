@@ -11,6 +11,7 @@
 #include "src/status.h"
 
 namespace backup2 {
+class FileEntry;
 
 class File : public FileInterface {
  public:
@@ -37,6 +38,7 @@ class File : public FileInterface {
   virtual Status CreateDirectories(bool strip_leaf);
   virtual Status CreateSymlink(std::string target);
   virtual std::string RelativePath();
+  virtual Status RestoreAttributes(const FileEntry& entry);
   virtual Status FillBackupFile(BackupFile* metadata,
                                 std::string* symlink_target);
   virtual Status FindBasenameAndLastVolume(

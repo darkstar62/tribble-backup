@@ -14,6 +14,7 @@
 #include "src/status.h"
 
 namespace backup2 {
+class FileEntry;
 
 class FakeFile : public FileInterface {
  public:
@@ -127,6 +128,10 @@ class FakeFile : public FileInterface {
 
   virtual std::string RelativePath() {
     return "THIS NEEDS TO BE IMPLEMENTED";
+  }
+
+  virtual Status RestoreAttributes(const FileEntry& /* entry */) {
+    return Status::OK;
   }
 
   virtual Status FillBackupFile(BackupFile* metadata,

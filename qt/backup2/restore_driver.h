@@ -15,6 +15,7 @@
 #include "src/common.h"
 
 namespace backup2 {
+class FileEntry;
 class FileSet;
 }  // namespace backup2
 
@@ -49,6 +50,9 @@ class RestoreDriver : public QObject {
   void PerformRestore();
 
  private:
+  // Construct a restore path.
+  std::string CreateRestorePath(const backup2::FileEntry& entry);
+
   std::set<std::string> restore_paths_;
   QString destination_path_;
   int64_t snapshot_id_;

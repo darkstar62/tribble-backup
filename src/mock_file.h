@@ -12,6 +12,7 @@
 #include "src/status.h"
 
 namespace backup2 {
+class FileEntry;
 
 class MockFile : public FileInterface {
  public:
@@ -34,6 +35,7 @@ class MockFile : public FileInterface {
   MOCK_METHOD1(CreateDirectories, Status(bool strip_leaf));
   MOCK_METHOD1(CreateSymlink, Status(std::string target));
   MOCK_METHOD0(RelativePath, std::string());
+  MOCK_METHOD1(RestoreAttributes, Status(const FileEntry& entry));
   MOCK_METHOD2(FillBackupFile, Status(BackupFile* metadata,
                                       std::string* symlink_target));
   MOCK_METHOD3(FindBasenameAndLastVolume,

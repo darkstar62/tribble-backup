@@ -166,24 +166,14 @@ void RestoreDriver::PerformRestore() {
         file = NULL;
       }
 
-      boost::filesystem::path restore_path(destination_path_.toStdString());
-      boost::filesystem::path file_path(entry->filename());
-      boost::filesystem::path unclean_dest = restore_path;
-      unclean_dest /= file_path.relative_path();
-
-      // Replace trailing spaces in each path chunk with an underscore.
-      // Windows doesn't allow the creation of files or directories with
-      // trailing whitespace, and it's non-trivial to do the accounting
-      // in the backup end.  So we do it here just before we attempt to
-      // write.
-      boost::filesystem::path dest = ScrubPath(unclean_dest);
+      string dest = CreateRestorePath(*entry);
 
       // Create the destination directories if they don't exist, and open the
       // destination file.
-      file = new File(dest.string());
+      file = new File(dest);
       Status retval = file->CreateDirectories(true);
       if (!retval.ok()) {
-        string error_str = "Failed to create directories for " + dest.string() +
+        string error_str = "Failed to create directories for " + dest +
                            ": " + retval.ToString();
         LOG(WARNING) << error_str;
         emit LogEntry(error_str.c_str());
@@ -194,7 +184,7 @@ void RestoreDriver::PerformRestore() {
 
       retval = file->Open(File::Mode::kModeReadWrite);
       if (!retval.ok()) {
-        string error_str = "Failed to open for write " + dest.string() +
+        string error_str = "Failed to open for write " + dest +
                            ": " + retval.ToString();
         LOG(WARNING) << error_str;
         emit LogEntry(error_str.c_str());
@@ -249,7 +239,31 @@ void RestoreDriver::PerformRestore() {
     file->Close();
     delete file;
   }
+
+  // Go back through all the restored files and restore their modification
+  // dates, permissions, attributes, etc.
+  for (FileEntry* entry : files_to_restore) {
+    string dest = CreateRestorePath(*entry);
+    File file(dest);
+    file.RestoreAttributes(*entry);
+  }
+
   if (!cancelled_) {
     emit StatusUpdated("Restore complete.", 100);
   }
+}
+
+string RestoreDriver::CreateRestorePath(const FileEntry& entry) {
+  boost::filesystem::path restore_path(destination_path_.toStdString());
+  boost::filesystem::path file_path(entry.filename());
+  boost::filesystem::path unclean_dest = restore_path;
+  unclean_dest /= file_path.relative_path();
+
+  // Replace trailing spaces in each path chunk with an underscore.
+  // Windows doesn't allow the creation of files or directories with
+  // trailing whitespace, and it's non-trivial to do the accounting
+  // in the backup end.  So we do it here just before we attempt to
+  // write.
+  boost::filesystem::path dest = ScrubPath(unclean_dest);
+  return dest.string();
 }

@@ -23,6 +23,7 @@
 #include "glog/logging.h"
 #include "src/backup_volume_defs.h"
 #include "src/file.h"
+#include "src/fileset.h"
 #include "src/status.h"
 
 using std::string;
@@ -296,6 +297,23 @@ Status File::CreateSymlink(string target) {
 string File::RelativePath() {
   boost::filesystem::path orig_path(filename_);
   return orig_path.relative_path().string();
+}
+
+Status File::RestoreAttributes(const FileEntry& entry) {
+  boost::filesystem::path file_path(filename_);
+  boost::system::error_code error_code;
+
+  boost::filesystem::last_write_time(file_path,
+                                     entry.GetBackupFile()->modify_date,
+                                     error_code);
+  if (error_code.value() != 0) {
+    string err = "Error setting modification time: " + error_code.message();
+    LOG(ERROR) << err;
+    return Status(kStatusFileError, err);
+  }
+
+  // TODO(darkstar62): Restore permissions and attributes.
+  return Status::OK;
 }
 
 Status File::FillBackupFile(BackupFile* metadata, string* symlink_target) {

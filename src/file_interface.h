@@ -10,6 +10,7 @@
 
 namespace backup2 {
 struct BackupFile;
+class FileEntry;
 
 class FileInterface {
  public:
@@ -92,6 +93,9 @@ class FileInterface {
 
   // Return the relative path of the given filename.
   virtual std::string RelativePath() = 0;
+
+  // Restore file attributes and modification time to the on-disk file.
+  virtual Status RestoreAttributes(const FileEntry& entry) = 0;
 
   // Fill a BackupFile entry with metadata from the file.  If the file is a
   // symlink, the passed string is filled with the symlink target filename.
