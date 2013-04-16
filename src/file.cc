@@ -312,7 +312,16 @@ Status File::RestoreAttributes(const FileEntry& entry) {
     return Status(kStatusFileError, err);
   }
 
-  // TODO(darkstar62): Restore permissions and attributes.
+  // TODO(darkstar62): Restore owner and groups.
+  boost::filesystem::permissions(
+      file_path,
+      static_cast<boost::filesystem::perms>(entry.GetBackupFile()->attributes),
+      error_code);
+  if (error_code.value() != 0) {
+    string err = "Error setting attributes: " + error_code.message();
+    LOG(ERROR) << err;
+    return Status(kStatusFileError, err);
+  }
   return Status::OK;
 }
 
@@ -328,12 +337,14 @@ Status File::FillBackupFile(BackupFile* metadata, string* symlink_target) {
       }
       metadata->file_type = BackupFile::kFileTypeRegularFile;
       metadata->modify_date = boost::filesystem::last_write_time(filepath);
+      metadata->attributes = static_cast<uint64_t>(status.permissions());
       break;
     }
     case boost::filesystem::directory_file:
       metadata->file_type = BackupFile::kFileTypeDirectory;
       metadata->file_size = 0;
-      metadata->modify_date = 0;
+      metadata->modify_date = boost::filesystem::last_write_time(filepath);
+      metadata->attributes = static_cast<uint64_t>(status.permissions());
       break;
     case boost::filesystem::symlink_file:
       metadata->file_type = BackupFile::kFileTypeSymlink;

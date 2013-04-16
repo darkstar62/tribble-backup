@@ -248,6 +248,17 @@ void RestoreDriver::PerformRestore() {
     file.RestoreAttributes(*entry);
   }
 
+  for (FileEntry* entry : special_files) {
+    if (entry->GetBackupFile()->file_type ==
+            backup2::BackupFile::kFileTypeSymlink) {
+      // Skip symlinks, they inherit permissions, etc. from their target.
+      continue;
+    }
+    string dest = CreateRestorePath(*entry);
+    File file(dest);
+    file.RestoreAttributes(*entry);
+  }
+
   if (!cancelled_) {
     emit StatusUpdated("Restore complete.", 100);
   }
