@@ -72,6 +72,8 @@ void RestoreDriver::PerformRestore() {
       if (restore_path_iter != restore_paths_.end()) {
         files_to_restore.insert(entry);
         restore_paths_.erase(restore_path_iter);
+      } else {
+        LOG(INFO) << "Skipped " << entry->filename();
       }
     }
   }

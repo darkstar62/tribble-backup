@@ -520,6 +520,8 @@ void File::SetAttributes(uint64_t attributes) {
                  << GetLastError();
   }
 #endif  // _WIN32
+  // Use the attributes, to get around the compiler.
+  attributes = attributes;
 }
 
 }  // namespace backup2

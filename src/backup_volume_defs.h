@@ -12,6 +12,8 @@
 
 namespace backup2 {
 
+#pragma pack(push, 4)
+
 // Type of chunk encoding.  Each chunk can be encoded differently to save space,
 // or even for encryption.  Doing so does not affect the checksum of the chunk
 // itself.
@@ -367,6 +369,8 @@ struct BackupDescriptorHeader {
   // Volume number in the set.
   uint64_t volume_number;
 };
+
+#pragma pack(pop)
 
 }  // namespace backup2
 

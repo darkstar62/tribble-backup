@@ -142,7 +142,8 @@ void PathNode::set_parent(PathNode* parent) {
 
   string value = value_;
   if (!parent->parent_) {
-    if (value.size() == 0 || value.at(value.size() - 1) != '/') {
+    if (value.size() == 0 || (value.at(value.size() - 1) != '/' &&
+        value.at(value.size() - 1) != '\\')) {
       value += "/";
     }
   }
@@ -171,8 +172,10 @@ void RestoreSelectorModel::AddPaths(const vector<FileInfo>& paths) {
     for (boost::filesystem::path path_part : path_obj.make_preferred()) {
       string path_part_str = path_part.make_preferred().string();
       if (path_part_str == "\\") {
-        // Skip empty separators.
-        continue;
+        // Skip empty separators, unless this is the root.
+        if (current_node != &root_node_) {
+          continue;
+        }
       }
 
       PathNode* child_node = current_node->FindChild(path_part_str);
