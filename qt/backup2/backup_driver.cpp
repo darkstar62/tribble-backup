@@ -119,6 +119,8 @@ StatusOr<QVector<BackupItem> > BackupDriver::GetHistory(
     item.description = tr(fileset->description().c_str());
     item.label = tr(fileset->label_name().c_str());
     item.size = fileset->unencoded_size();
+    item.unique_size = item.size - fileset->dedup_count();
+    item.compressed_size = fileset->encoded_size();
     item.date.setMSecsSinceEpoch(fileset->date() * 1000);
 
     switch (fileset->backup_type()) {

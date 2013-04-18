@@ -427,6 +427,8 @@ Status BackupVolume::WriteBackupDescriptor2(const FileSet& fileset) {
   descriptor2_.description_size = fileset.description().size();
   descriptor2_.backup_date = fileset.date();
   descriptor2_.unencoded_size = fileset.unencoded_size();
+  descriptor2_.encoded_size = fileset.encoded_size();
+  descriptor2_.deduplicated_size = fileset.dedup_count();
   descriptor2_.previous_backup_offset = fileset.previous_backup_offset();
   descriptor2_.previous_backup_volume_number = fileset.previous_backup_volume();
   descriptor2_.parent_backup_offset = parent_offset_;
@@ -603,6 +605,8 @@ StatusOr<FileSet*> BackupVolume::LoadFileSet(int64_t* next_volume) {
   fileset->set_parent_backup_volume(descriptor2.parent_backup_volume_number);
   fileset->set_parent_backup_offset(descriptor2.parent_backup_offset);
   fileset->set_backup_type(descriptor2.backup_type);
+  fileset->IncrementDedupCount(descriptor2.deduplicated_size);
+  fileset->IncrementEncodedSize(descriptor2.encoded_size);
 
   // Read in all the files, and the file chunks.
   for (uint64_t file_num = 0; file_num < descriptor2.num_files; ++file_num) {

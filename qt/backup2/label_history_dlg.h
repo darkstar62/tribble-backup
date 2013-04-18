@@ -14,10 +14,26 @@ class LabelHistoryDlg;
 }  // namespace Ui
 
 struct BackupItem {
+  // Date and time the backup was performed.
   QDateTime date;
+
+  // Type of backup performed, as a string.
   QString type;
+
+  // Unencoded, raw size of the content stored in the backup.
   uint64_t size;
+
+  // Unencoded, raw size of the content after deduplication.
+  uint64_t unique_size;
+
+  // Compressed content stored in the backup after deduplication.  This is the
+  // actual on-disk size of the backup.
+  uint64_t compressed_size;
+
+  // Label the backup corresponds to.
   QString label;
+
+  // Description of the backup.
   QString description;
 };
 

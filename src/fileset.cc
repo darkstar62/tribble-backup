@@ -14,7 +14,9 @@ using std::string;
 namespace backup2 {
 
 FileSet::FileSet()
-    : description_("") {
+    : description_(""),
+      dedup_count_(0),
+      encoded_size_(0) {
 }
 
 FileSet::~FileSet() {

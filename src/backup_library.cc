@@ -260,6 +260,7 @@ Status BackupLibrary::AddChunk(const string& data, const uint64_t chunk_offset,
     chunk.volume_num = chunk_data.volume_number;
     chunk.volume_offset = chunk_data.offset;
     file->AddChunk(chunk);
+    file_set_->IncrementDedupCount(data.size());
     return Status::OK;
   } else if (current_backup_volume_->HasChunk(chunk.md5sum)) {
     BackupDescriptor1Chunk chunk_data;
@@ -267,6 +268,7 @@ Status BackupLibrary::AddChunk(const string& data, const uint64_t chunk_offset,
     chunk.volume_num = chunk_data.volume_number;
     chunk.volume_offset = chunk_data.offset;
     file->AddChunk(chunk);
+    file_set_->IncrementDedupCount(data.size());
     return Status::OK;
   }
 
@@ -288,14 +290,17 @@ Status BackupLibrary::AddChunk(const string& data, const uint64_t chunk_offset,
           << "chunk";
       current_backup_volume_->WriteChunk(
           chunk.md5sum, data, data.size(), kEncodingTypeRaw, &volume_offset);
+      file_set_->IncrementEncodedSize(data.size());
     } else {
       current_backup_volume_->WriteChunk(
           chunk.md5sum, compressed_data, data.size(), kEncodingTypeZlib,
           &volume_offset);
+      file_set_->IncrementEncodedSize(compressed_data.size());
     }
   } else {
     current_backup_volume_->WriteChunk(
         chunk.md5sum, data, data.size(), kEncodingTypeRaw, &volume_offset);
+    file_set_->IncrementEncodedSize(data.size());
   }
   chunk.volume_offset = volume_offset;
   file->AddChunk(chunk);

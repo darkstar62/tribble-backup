@@ -717,6 +717,9 @@ void MainWindow::OnHistorySliderChanged(int position) {
                                       0, Qt::DisplayRole).toString());
   ui_->backup_info_type->setText(item.type);
   ui_->backup_info_size_uncompressed->setText(QLocale().toString(item.size));
+  ui_->backup_info_unique_size->setText(QLocale().toString(item.unique_size));
+  ui_->backup_info_size_compressed->setText(QLocale().toString(
+      item.compressed_size));
   ui_->restore_date_description->setText(
       item.date.toString() + ": " + item.description + " (" + item.type + ")");
 

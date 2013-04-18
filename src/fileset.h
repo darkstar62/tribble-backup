@@ -37,6 +37,12 @@ class FileSet {
     return files_;
   }
 
+  // Increment the count of deduplicated bytes for statistical accounting.
+  void IncrementDedupCount(uint64_t size) { dedup_count_ += size; }
+
+  // Increment the encoded size of the backup.
+  void IncrementEncodedSize(uint64_t size) { encoded_size_ += size; }
+
   // Return the number of files in this file set.
   uint64_t num_files() const {
     return files_.size();
@@ -105,6 +111,12 @@ class FileSet {
   void set_date(uint64_t date) { date_ = date; }
   uint64_t date() const { return date_; }
 
+  // Get the dedup count in bytes.
+  uint64_t dedup_count() const { return dedup_count_; }
+
+  // Get the encoded size of the backup in bytes.
+  uint64_t encoded_size() const { return encoded_size_; }
+
  private:
   // Set of files in the file set.
   std::set<FileEntry*> files_;
@@ -137,6 +149,12 @@ class FileSet {
 
   // The date of the backup in seconds since the UNIX epoch.
   uint64_t date_;
+
+  // The number of bytes deduplicated in this backup set.
+  uint64_t dedup_count_;
+
+  // The encoded size of the backup (after compression).
+  uint64_t encoded_size_;
 
   DISALLOW_COPY_AND_ASSIGN(FileSet);
 };

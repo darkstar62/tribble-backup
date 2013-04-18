@@ -249,9 +249,6 @@ struct BackupFile {
   // Type of the file.
   FileType file_type;
 
-  // Creation date of the file in seconds since the epoch.
-  uint64_t create_date;
-
   // Modification date of the file in seconds since the epoch.
   uint64_t modify_date;
 
