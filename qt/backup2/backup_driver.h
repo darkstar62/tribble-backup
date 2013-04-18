@@ -13,11 +13,11 @@
 #include "qt/backup2/label_history_dlg.h"
 #include "qt/backup2/manage_labels_dlg.h"
 #include "qt/backup2/vss_proxy_interface.h"
+#include "src/backup_library.h"
 #include "src/backup_volume_interface.h"
 #include "src/status.h"
 
 namespace backup2 {
-class BackupLibrary;
 class File;
 class FileEntry;
 }  // namespace backup2
@@ -57,7 +57,8 @@ class BackupDriver : public QObject {
 
   // Return the history of the given label.
   static backup2::StatusOr<QVector<BackupItem> > GetHistory(
-      std::string filename, uint64_t label);
+      std::string filename, uint64_t label,
+      backup2::BackupLibrary::VolumeChangeCallback* volume_change_cb);
 
   // Return the files contained for the label and snapshot (where snapshot zero
   // is the most recent, and n is least recent of n snapshots).

@@ -2,16 +2,21 @@
 // Author: Cory Maccarrone <darkstar6262@gmail.com>
 #include "qt/backup2/backup_snapshot_manager.h"
 
+#include <QFileDialog>
 #include <QMap>
+#include <QMessageBox>
+#include <QMutex>
 #include <QSet>
 #include <QString>
 #include <QVector>
+#include <QWaitCondition>
 
 #include <set>
 #include <string>
 #include <vector>
 
 #include "glog/logging.h"
+#include "src/callback.h"
 #include "src/common.h"
 #include "src/backup_library.h"
 #include "src/backup_volume.h"
@@ -29,6 +34,7 @@ using backup2::FileEntry;
 using backup2::FileSet;
 using backup2::GzipEncoder;
 using backup2::Md5Generator;
+using backup2::NewPermanentCallback;
 using backup2::Status;
 using backup2::StatusOr;
 using std::string;
@@ -49,7 +55,9 @@ BackupSnapshotManager::BackupSnapshotManager(QObject* parent)
       status_(Status::OK),
       has_cached_backup_set_(false),
       cached_filename_(""),
-      cached_label_(0) {
+      cached_label_(0),
+      vol_change_cb_(NewPermanentCallback(
+          this, &BackupSnapshotManager::OnVolumeChange)) {
 }
 
 BackupSnapshotManager::~BackupSnapshotManager() {
@@ -86,6 +94,33 @@ backup2::BackupLibrary* BackupSnapshotManager::ReleaseBackupLibrary() {
   filesets_.clear();
 
   return library_.release();
+}
+
+BackupItem BackupSnapshotManager::GetBackupItem(uint64_t snapshot) {
+  FileSet* fileset = filesets_.at(snapshot);
+  BackupItem item;
+  item.description = tr(fileset->description().c_str());
+  item.label = tr(fileset->label_name().c_str());
+  item.size = fileset->unencoded_size();
+  item.unique_size = item.size - fileset->dedup_count();
+  item.compressed_size = fileset->encoded_size();
+  item.date.setMSecsSinceEpoch(fileset->date() * 1000);
+
+  switch (fileset->backup_type()) {
+    case backup2::kBackupTypeFull:
+      item.type = "Full";
+      break;
+    case backup2::kBackupTypeIncremental:
+      item.type = "Incremental";
+      break;
+    case backup2::kBackupTypeDifferential:
+      item.type = "Differential";
+      break;
+    default:
+      item.type = "** Invalid **";
+      break;
+  }
+  return item;
 }
 
 void BackupSnapshotManager::run() {
@@ -132,7 +167,7 @@ Status BackupSnapshotManager::GetBackupSets() {
   }
 
   library_.reset(new BackupLibrary(
-      file, NULL,
+      file, vol_change_cb_.get(),
       new Md5Generator(), new GzipEncoder(),
       new BackupVolumeFactory()));
   Status retval = library_->Init();
@@ -168,3 +203,26 @@ Status BackupSnapshotManager::GetBackupSets() {
   filesets_ = backup_sets.value();
   return Status::OK;
 }
+
+void BackupSnapshotManager::VolumeChanged(QString new_path) {
+  LOG(INFO) << "Volume changed: " << new_path.toStdString();
+  mutex_.lock();
+  volume_change_filename_ = new_path;
+  mutex_.unlock();
+  volume_changed_.wakeAll();
+  LOG(INFO) << "Done";
+}
+
+string BackupSnapshotManager::OnVolumeChange(string orig_path) {
+  LOG(INFO) << "Volume change!";
+
+  QString retval = "";
+  mutex_.lock();
+  emit GetVolume(QString(orig_path.c_str()));
+  volume_changed_.wait(&mutex_);
+  retval = volume_change_filename_;
+  mutex_.unlock();
+  LOG(INFO) << "Got " << retval.toStdString();
+  return retval.toStdString();
+}
+

@@ -4,17 +4,21 @@
 #define BACKUP2_QT_BACKUP2_BACKUP_SNAPSHOT_MANAGER_H_
 
 #include <QMap>
+#include <QMutex>
 #include <QObject>
 #include <QSet>
 #include <QString>
 #include <QThread>
 #include <QVector>
+#include <QWaitCondition>
 
 #include <memory>
 #include <set>
 #include <string>
 #include <vector>
 
+#include "qt/backup2/label_history_dlg.h"
+#include "src/backup_library.h"
 #include "src/status.h"
 
 namespace backup2 {
@@ -58,6 +62,13 @@ class BackupSnapshotManager : public QThread {
   // class, and so invalidates all caches.
   backup2::BackupLibrary* ReleaseBackupLibrary();
 
+  // Return a BackupItem representing the given snapshot number.
+  BackupItem GetBackupItem(uint64_t snapshot);
+
+  // When a volume change occurs, this function is used to notify the snapshot
+  // manager what the new path for the volume is.
+  void VolumeChanged(QString new_path);
+
   // Return whether the load operation was successful.
   backup2::Status status() const { return status_; }
 
@@ -76,6 +87,13 @@ class BackupSnapshotManager : public QThread {
   // use this if you also pull the library using ReleaseBackupLibrary().
   std::vector<backup2::FileSet*> filesets() { return filesets_; }
 
+  // Return the number of snapshots we have.
+  uint64_t num_snapshots() const { return filesets_.size(); }
+
+ signals:
+  // Called when we need to get the path to a volume.
+  void GetVolume(QString orig_path);
+
  private:
   typedef std::vector<backup2::FileSet*> FileSetEntry;
 
@@ -90,6 +108,9 @@ class BackupSnapshotManager : public QThread {
 
   // Load all the backup sets for the filename and label.
   backup2::Status GetBackupSets();
+
+  // Prompt the user for the path of the given volume.
+  std::string OnVolumeChange(std::string orig_path);
 
   // Filename to load snapshot data from.
   std::string filename_;
@@ -132,6 +153,18 @@ class BackupSnapshotManager : public QThread {
   // if a restore is to use these, there must not be another query in
   // between.
   std::vector<backup2::FileSet*> filesets_;
+
+  // Volume change callback.
+  std::unique_ptr<backup2::BackupLibrary::VolumeChangeCallback> vol_change_cb_;
+
+  // Mutex to wait on during volume changes.
+  QMutex mutex_;
+
+  // Condition variable for waiting on volume changes.
+  QWaitCondition volume_changed_;
+
+  // The filename obtained for the volume change.
+  QString volume_change_filename_;
 };
 
 #endif  // BACKUP2_QT_BACKUP2_BACKUP_SNAPSHOT_MANAGER_H_

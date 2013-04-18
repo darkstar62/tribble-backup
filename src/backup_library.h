@@ -170,6 +170,10 @@ class BackupLibrary {
   std::vector<std::pair<FileChunk, const FileEntry*> >
       OptimizeChunksForRestore(std::set<FileEntry*> files);
 
+  void set_volume_change_callback(VolumeChangeCallback* cb) {
+    volume_change_callback_ = cb;
+  }
+
  private:
   // Chunk comparison functor.  This comparator is used in sorting file chunks
   // for optimal performance, and sorts by volume first, then by offset within

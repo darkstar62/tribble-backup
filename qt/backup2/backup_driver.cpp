@@ -89,7 +89,8 @@ StatusOr<vector<Label> > BackupDriver::GetLabels(string filename) {
 }
 
 StatusOr<QVector<BackupItem> > BackupDriver::GetHistory(
-    string filename, uint64_t label) {
+    string filename, uint64_t label,
+    BackupLibrary::VolumeChangeCallback* vol_change_cb) {
   File* file = new File(filename);
   if (!file->Exists()) {
     delete file;
@@ -97,7 +98,7 @@ StatusOr<QVector<BackupItem> > BackupDriver::GetHistory(
   }
 
   BackupLibrary library(
-      file, NULL,
+      file, vol_change_cb,
       new Md5Generator(), new GzipEncoder(),
       new BackupVolumeFactory());
   Status retval = library.Init();

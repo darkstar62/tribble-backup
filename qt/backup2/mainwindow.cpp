@@ -8,6 +8,7 @@
 #include <QFutureWatcher>
 #include <QMap>
 #include <QMessageBox>
+#include <QMutex>
 #include <QScrollBar>
 #include <QSortFilterProxyModel>
 #include <QString>
@@ -16,6 +17,7 @@
 #include <QThread>
 #include <QTimer>
 #include <QVector>
+#include <QWaitCondition>
 
 #include <algorithm>
 #include <memory>
@@ -53,16 +55,6 @@ using std::set;
 using std::string;
 using std::unique_ptr;
 using std::vector;
-
-void HistoryLoader::run() {
-  StatusOr<QVector<BackupItem> > history =
-      BackupDriver::GetHistory(filename_, label_id_);
-  if (!history.ok()) {
-    return;
-  }
-
-  emit HistoryLoaded(history.value());
-}
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent),
@@ -154,6 +146,8 @@ MainWindow::MainWindow(QWidget *parent)
       this, SLOT(LabelViewChanged(QTreeWidgetItem*, QTreeWidgetItem*)));
   QObject::connect(&snapshot_manager_, SIGNAL(finished()), this,
                    SLOT(OnHistoryLoaded()));
+  QObject::connect(&snapshot_manager_, SIGNAL(GetVolume(QString)), this,
+                   SLOT(GetVolumeForSnapshotManager(QString)));
   QObject::connect(ui_->restore_cancel_button, SIGNAL(clicked()), this,
                    SLOT(CancelOrCloseRestore()));
   QObject::connect(ui_->restore_cancelled_back_button, SIGNAL(clicked()), this,
@@ -588,9 +582,9 @@ void MainWindow::OnEstimatedTimeUpdated(QString message) {
 
 void MainWindow::RestoreSourceBrowse() {
   QFileDialog dialog(this);
-  dialog.setNameFilter(tr("Backup volumes (*.0.bkp)"));
+  dialog.setNameFilter(tr("Backup volumes (*.bkp)"));
   dialog.setAcceptMode(QFileDialog::AcceptOpen);
-  dialog.setDefaultSuffix(".0.bkp");
+  dialog.setDefaultSuffix(".bkp");
   dialog.setConfirmOverwrite(false);
 
   QStringList filenames;
@@ -659,13 +653,10 @@ void MainWindow::SwitchToRestorePage2() {
     // Read the backup information out of the file to get all the filesets.
     please_wait_dlg_.show();
 
-    HistoryLoader* loader = new HistoryLoader(
-        ui_->restore_source->text().toStdString(),
-        ui_->restore_labels->currentItem()->data(
-            1, Qt::DisplayRole).toULongLong());
-    connect(loader, SIGNAL(HistoryLoaded(QVector<BackupItem>)),
-            this, SLOT(OnHistoryDone(QVector<BackupItem>)));
-    loader->start();
+    ui_->restore_fileview->setModel(NULL);
+    restore_model_.reset();
+    restore_page_1_changed_ = false;
+    OnHistorySliderChanged(0);
   } else {
     ui_->restore_tabset->setCurrentIndex(1);
   }
@@ -697,31 +688,9 @@ void MainWindow::SwitchToRestorePage3() {
   ui_->restore_tabset->setCurrentIndex(2);
 }
 
-void MainWindow::OnHistoryDone(QVector<BackupItem> history) {
-  restore_history_ = history;
-  ui_->restore_fileview->setModel(NULL);
-  restore_model_.reset();
-  ui_->restore_history_slider->setRange(0, restore_history_.size() - 1);
-  ui_->restore_history_slider->setValue(0);
-  restore_page_1_changed_ = false;
-  OnHistorySliderChanged(0);
-}
-
 void MainWindow::OnHistorySliderChanged(int position) {
   ui_->restore_history_slider->setEnabled(false);
-
-  BackupItem item = restore_history_.at(position);
-  ui_->backup_info_date->setText(item.date.toString());
-  ui_->backup_info_description->setText(item.description);
-  ui_->backup_info_label->setText(ui_->restore_labels->currentItem()->data(
-                                      0, Qt::DisplayRole).toString());
-  ui_->backup_info_type->setText(item.type);
-  ui_->backup_info_size_uncompressed->setText(QLocale().toString(item.size));
-  ui_->backup_info_unique_size->setText(QLocale().toString(item.unique_size));
-  ui_->backup_info_size_compressed->setText(QLocale().toString(
-      item.compressed_size));
-  ui_->restore_date_description->setText(
-      item.date.toString() + ": " + item.description + " (" + item.type + ")");
+  ui_->restore_history_slider->setValue(position);
 
   // Load up the file list from this date.
   snapshot_manager_.LoadSnapshotFiles(
@@ -739,6 +708,24 @@ void MainWindow::OnHistoryLoaded() {
                          tr(snapshot_manager_.status().ToString().c_str()));
     return;
   }
+
+  current_restore_snapshot_ = snapshot_manager_.new_snapshot();
+
+  ui_->restore_history_slider->setRange(
+      0, snapshot_manager_.num_snapshots() - 1);
+  BackupItem item = snapshot_manager_.GetBackupItem(current_restore_snapshot_);
+
+  ui_->backup_info_date->setText(item.date.toString());
+  ui_->backup_info_description->setText(item.description);
+  ui_->backup_info_label->setText(ui_->restore_labels->currentItem()->data(
+                                      0, Qt::DisplayRole).toString());
+  ui_->backup_info_type->setText(item.type);
+  ui_->backup_info_size_uncompressed->setText(QLocale().toString(item.size));
+  ui_->backup_info_unique_size->setText(QLocale().toString(item.unique_size));
+  ui_->backup_info_size_compressed->setText(QLocale().toString(
+      item.compressed_size));
+  ui_->restore_date_description->setText(
+      item.date.toString() + ": " + item.description + " (" + item.type + ")");
 
   if (!restore_model_.get()) {
     // First time through -- we need to create the view from scratch.
@@ -787,7 +774,6 @@ void MainWindow::OnHistoryLoaded() {
     restore_model_->AddPaths(files);
     restore_model_->UpdatePaths(new_files.values().toVector().toStdVector());
   }
-  current_restore_snapshot_ = snapshot_manager_.new_snapshot();
 
   ui_->restore_fileview->setSortingEnabled(false);
   ui_->restore_fileview->sortByColumn(2, Qt::AscendingOrder);
@@ -855,6 +841,8 @@ void MainWindow::RunRestore() {
                    this, SLOT(RestoreLogEntry(QString)));
   QWidget::connect(restore_driver_, SIGNAL(EstimatedTimeUpdated(QString)),
                    this, SLOT(OnEstimatedRestoreTimeUpdated(QString)));
+  QWidget::connect(restore_driver_, SIGNAL(GetVolume(QString)),
+                   this, SLOT(GetVolume(QString)));
 
   restore_driver_->moveToThread(restore_thread_);
   restore_thread_->start();
@@ -961,4 +949,46 @@ void MainWindow::RestoreLogEntry(QString message) {
 
 void MainWindow::OnEstimatedRestoreTimeUpdated(QString message) {
   ui_->restore_estimated_time_label->setText(message);
+}
+
+void MainWindow::GetVolumeForSnapshotManager(QString orig_path) {
+  QMessageBox::warning(
+      this, "Cannot Find Volume",
+      string("Please locate the next volume: \n" + orig_path.toStdString())
+          .c_str());
+
+  QFileDialog dialog(this);
+  dialog.setNameFilter(tr("Backup volumes (*.bkp)"));
+  dialog.setAcceptMode(QFileDialog::AcceptOpen);
+  dialog.setDefaultSuffix(".bkp");
+  dialog.setConfirmOverwrite(false);
+
+  QStringList filenames;
+  if (dialog.exec()) {
+    filenames = dialog.selectedFiles();
+    snapshot_manager_.VolumeChanged(filenames[0]);
+    return;
+  }
+  snapshot_manager_.VolumeChanged("");
+}
+
+void MainWindow::GetVolume(QString orig_path) {
+  QMessageBox::warning(
+      this, "Cannot Find Volume",
+      string("Please locate the next volume: \n" + orig_path.toStdString())
+          .c_str());
+
+  QFileDialog dialog(this);
+  dialog.setNameFilter(tr("Backup volumes (*.bkp)"));
+  dialog.setAcceptMode(QFileDialog::AcceptOpen);
+  dialog.setDefaultSuffix(".bkp");
+  dialog.setConfirmOverwrite(false);
+
+  QStringList filenames;
+  if (dialog.exec()) {
+    filenames = dialog.selectedFiles();
+    restore_driver_->VolumeChanged(filenames[0]);
+    return;
+  }
+  restore_driver_->VolumeChanged("");
 }

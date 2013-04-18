@@ -139,7 +139,7 @@ void ManageLabelsDlg::LabelHistory() {
 
   GetCurrentLabelInfo(&label_set, &label_id, &label_name);
   StatusOr<QVector<BackupItem> > history =
-      BackupDriver::GetHistory(filename_.toStdString(), label_id);
+      BackupDriver::GetHistory(filename_.toStdString(), label_id, NULL);
   if (!history.ok()) {
     QMessageBox::warning(
           this, "Error loading history",

@@ -53,6 +53,13 @@ boost::filesystem::path ScrubPath(boost::filesystem::path source) {
 }
 }  // namespace
 
+void RestoreDriver::VolumeChanged(QString new_volume) {
+  mutex_.lock();
+  volume_change_filename_ = new_volume;
+  mutex_.unlock();
+  volume_changed_.wakeAll();
+}
+
 void RestoreDriver::PerformRestore() {
   // Determine the files to restore.  We do this in reverse order, starting
   // at the given snapshot ID and going back to the last full backup.
@@ -97,6 +104,7 @@ void RestoreDriver::PerformRestore() {
 
   // Start the restore process by iterating through the restore sets.
   emit LogEntry("Restoring files...");
+  library_->set_volume_change_callback(vol_change_cb_.get());
   QElapsedTimer timer;
   timer.start();
 
@@ -277,4 +285,17 @@ string RestoreDriver::CreateRestorePath(const FileEntry& entry) {
   // write.
   boost::filesystem::path dest = ScrubPath(unclean_dest);
   return dest.string();
+}
+
+string RestoreDriver::OnVolumeChange(string orig_path) {
+  LOG(INFO) << "Volume change!";
+
+  QString retval = "";
+  mutex_.lock();
+  emit GetVolume(QString(orig_path.c_str()));
+  volume_changed_.wait(&mutex_);
+  retval = volume_change_filename_;
+  mutex_.unlock();
+  LOG(INFO) << "Got " << retval.toStdString();
+  return retval.toStdString();
 }

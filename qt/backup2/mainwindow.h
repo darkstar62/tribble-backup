@@ -31,28 +31,6 @@ class QSortFilterProxyModel;
 class RestoreDriver;
 class RestoreSelectorModel;
 
-// A simple thread implementation to load history from a backup library.  When
-// finished the HistoryLoaded signal is emitted with the backup information.
-class HistoryLoader : public QThread {
-  Q_OBJECT
-
- public:
-  HistoryLoader(std::string filename, uint64_t label_id)
-      : filename_(filename),
-        label_id_(label_id) {
-    connect(this, SIGNAL(finished()), this, SLOT(deleteLater()));
-  }
-
- signals:
-  void HistoryLoaded(QVector<BackupItem> history);
-
- private:
-  void run();
-
-  std::string filename_;
-  uint64_t label_id_;
-};
-
 class MainWindow : public QMainWindow {
   Q_OBJECT
 
@@ -141,11 +119,6 @@ class MainWindow : public QMainWindow {
   void SwitchToRestorePage2();
   void SwitchToRestorePage3();
 
-  // Called when backup history from the backup volume is loaded.  This is
-  // called when the user switches from restore page 1 to 2 after having changed
-  // something, so we can load up the history for the view.
-  void OnHistoryDone(QVector<BackupItem> history);
-
   // Load the details of some backup history.  Called when the history slider
   // value changes.
   void OnHistorySliderChanged(int position);
@@ -178,6 +151,11 @@ class MainWindow : public QMainWindow {
   // updates the estimated time remaining for both the restore tab and the
   // sidebar.
   void OnEstimatedRestoreTimeUpdated(QString message);
+
+  // Slots used for getting the filename for the next volume (used if the next
+  // volume couldn't be automatically found).
+  void GetVolumeForSnapshotManager(QString orig_path);
+  void GetVolume(QString orig_path);
 
  private:
   // Initialize the backup file list model.  The model is empty and displays
@@ -221,11 +199,6 @@ class MainWindow : public QMainWindow {
 
   // Backup snapshot manager for history and whatnot.
   BackupSnapshotManager snapshot_manager_;
-
-  HistoryLoader* history_loader_;
-
-  // Restore history.
-  QVector<BackupItem> restore_history_;
 
   // The currently selected restore snapshot (selected via slider).
   int current_restore_snapshot_;

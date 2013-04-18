@@ -465,8 +465,38 @@ StatusOr<BackupVolumeInterface*> BackupLibrary::GetBackupVolume(
       LOG(ERROR) << "Error initializing backup volume: " << retval.ToString();
       return retval;
     } else if (!create_if_not_exist) {
-      LOG(ERROR) << "Must specify an existing file.";
-      return retval;
+      // Call the volume change callback and try and get a path.
+      if (!volume_change_callback_) {
+        return retval;
+      }
+
+      string new_filename = volume_change_callback_->Run(filename);
+      if (new_filename == "") {
+        // Cancelled, abort the operation.
+        LOG(ERROR) << "Must specify an existing file.";
+        return retval;
+      }
+
+      string basename = "";
+      uint64_t last_vol = 0;
+      uint64_t num_vols = 0;
+
+      user_file_ = new File(new_filename);
+      Status retval = user_file_->FindBasenameAndLastVolume(
+          &basename, &last_vol, &num_vols);
+      delete user_file_;
+      user_file_ = NULL;
+
+      if (!retval.ok()) {
+        return retval;
+      }
+
+      // All we're really interested in is the basename -- the last volume and
+      // number of volumes should already be determined.
+      basename_ = basename;
+
+      // Attempt to load the backup again.
+      return GetBackupVolume(volume_num, create_if_not_exist);
     }
 
     // Initialize the file.
