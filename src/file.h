@@ -53,6 +53,10 @@ class File : public FileInterface {
     const boost::filesystem::path filename,
     uint64_t* vol_num, boost::filesystem::path* base_name);
 
+  // Get and set file attributes.  These differ from platform to platform.
+  uint64_t GetAttributes();
+  void SetAttributes(uint64_t attributes);
+
   const std::string filename_;
   FILE* file_;
   FileInterface::Mode mode_;

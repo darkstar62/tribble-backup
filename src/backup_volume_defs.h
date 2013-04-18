@@ -240,6 +240,11 @@ struct BackupFile {
     kFileTypeSymlink,
   };
 
+  enum OperatingSystemType {
+    kOsTypeUnix = 0,
+    kOsTypeWindows,
+  };
+
   // Type of header.
   HeaderType header_type;
 
@@ -252,9 +257,24 @@ struct BackupFile {
   // Modification date of the file in seconds since the epoch.
   uint64_t modify_date;
 
-  // Attributes of the file.  This is filesystem-dependent.
-  // TODO(darkstar62): How are these encoded?
+  // Originating OS type (Windows or Unix).  This helps determine which set of
+  // permissions / attributes to operate on, and allows restores on different OS
+  // types to do largely the right thing.
+  OperatingSystemType os_type;
+
+  // Windows file attributes of the file.  This value is not used when os_type
+  // is kOsTypeUnix.
   uint64_t attributes;
+
+  // Permissions of the file.  For Windows, this has less effect, but is still
+  // used.
+  uint64_t permissions;
+
+  // Owner of the file.  Only valid when os_type is kOsTypeUnix.
+  uint64_t owner_id;
+
+  // Group of the file.  Only valid when os_type is kOsTypeUnix.
+  uint64_t group_id;
 
   // Number of chunks belonging to the file.  This is also the number of
   // BackupChunk headers following this BackupFile header.

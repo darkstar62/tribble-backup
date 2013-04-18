@@ -13,8 +13,10 @@ ENABLE_TESTING()
 # meta files.
 SET(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/meta)
 SET(BACKUP_ROOT_PATH ${PROJECT_SOURCE_DIR})
-SET(Boost_ADDITIONAL_VERSIONS "1.53")
-SET(Boost_USE_MULTITHREADED OFF)
+SET(Boost_ADDITIONAL_VERSIONS "1.53" "1.53.0")
+IF(NOT MSVC)
+    SET(Boost_USE_MULTITHREADED OFF)
+ENDIF(NOT MSVC)
 
 # These predefines will only work on my laptop, but since I'm the only one
 # working on this for the moment, that's ok.

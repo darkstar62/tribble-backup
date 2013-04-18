@@ -709,11 +709,10 @@ void MainWindow::OnHistoryLoaded() {
     return;
   }
 
-  current_restore_snapshot_ = snapshot_manager_.new_snapshot();
-
   ui_->restore_history_slider->setRange(
       0, snapshot_manager_.num_snapshots() - 1);
-  BackupItem item = snapshot_manager_.GetBackupItem(current_restore_snapshot_);
+  BackupItem item = snapshot_manager_.GetBackupItem(
+      snapshot_manager_.new_snapshot());
 
   ui_->backup_info_date->setText(item.date.toString());
   ui_->backup_info_description->setText(item.description);
@@ -774,6 +773,8 @@ void MainWindow::OnHistoryLoaded() {
     restore_model_->AddPaths(files);
     restore_model_->UpdatePaths(new_files.values().toVector().toStdVector());
   }
+
+  current_restore_snapshot_ = snapshot_manager_.new_snapshot();
 
   ui_->restore_fileview->setSortingEnabled(false);
   ui_->restore_fileview->sortByColumn(2, Qt::AscendingOrder);

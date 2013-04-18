@@ -7,6 +7,9 @@
 #define _CRT_SECURE_NO_WARNINGS 1
 #define FSEEK64 _fseeki64
 #define FTELL64 _ftelli64
+#define ERROR
+#include <windows.h>
+#undef ERROR
 #else
 #define FSEEK64 fseeko
 #define FTELL64 ftello
@@ -315,13 +318,15 @@ Status File::RestoreAttributes(const FileEntry& entry) {
   // TODO(darkstar62): Restore owner and groups.
   boost::filesystem::permissions(
       file_path,
-      static_cast<boost::filesystem::perms>(entry.GetBackupFile()->attributes),
+      static_cast<boost::filesystem::perms>(entry.GetBackupFile()->permissions),
       error_code);
   if (error_code.value() != 0) {
     string err = "Error setting attributes: " + error_code.message();
     LOG(ERROR) << err;
     return Status(kStatusFileError, err);
   }
+
+  SetAttributes(entry.GetBackupFile()->attributes);
   return Status::OK;
 }
 
@@ -337,20 +342,22 @@ Status File::FillBackupFile(BackupFile* metadata, string* symlink_target) {
       }
       metadata->file_type = BackupFile::kFileTypeRegularFile;
       metadata->modify_date = boost::filesystem::last_write_time(filepath);
-      metadata->attributes = static_cast<uint64_t>(status.permissions());
+      metadata->permissions = static_cast<uint64_t>(status.permissions());
+      metadata->attributes = GetAttributes();
       break;
     }
     case boost::filesystem::directory_file:
       metadata->file_type = BackupFile::kFileTypeDirectory;
       metadata->file_size = 0;
       metadata->modify_date = boost::filesystem::last_write_time(filepath);
-      metadata->attributes = static_cast<uint64_t>(status.permissions());
+      metadata->permissions = static_cast<uint64_t>(status.permissions());
+      metadata->attributes = GetAttributes();
       break;
     case boost::filesystem::symlink_file:
       metadata->file_type = BackupFile::kFileTypeSymlink;
       metadata->file_size = 0;
 
-      // Getting modification date of a symlink is not currently possibe with
+      // Getting modification date of a symlink is not currently possible with
       // Boost (it tries to dereference the link) -- so we don't set a time for
       // it.
       metadata->modify_date = 0;
@@ -476,6 +483,43 @@ Status File::FilenameToVolumeNumber(
     *base_name = base_path;
   }
   return Status::OK;
+}
+
+uint64_t File::GetAttributes() {
+#ifdef _WIN32
+  DWORD attributes;
+  TCHAR win_file_path[MAX_PATH];
+
+  string filename_plus_zero = filename_ + '\0';
+  std::copy(filename_plus_zero.begin(), filename_plus_zero.end(),
+            win_file_path);
+
+  attributes = GetFileAttributes(win_file_path);
+  if (attributes == INVALID_FILE_ATTRIBUTES) {
+    LOG(WARNING) << "Could not get attributes for " << filename_;
+    return 0;
+  }
+  return static_cast<uint64_t>(attributes);
+#else  // _WIN32
+  return 0;
+#endif  // _WIN32
+}
+
+void File::SetAttributes(uint64_t attributes) {
+#ifdef _WIN32
+  DWORD win_attributes = static_cast<DWORD>(attributes);
+  TCHAR win_file_path[MAX_PATH];
+
+  string filename_plus_zero = filename_ + '\0';
+  std::copy(filename_plus_zero.begin(), filename_plus_zero.end(),
+            win_file_path);
+
+  BOOL retval = SetFileAttributes(win_file_path, win_attributes);
+  if (!retval) {
+    LOG(WARNING) << "Could not set attributes for " << filename_ << ": "
+                 << GetLastError();
+  }
+#endif  // _WIN32
 }
 
 }  // namespace backup2
