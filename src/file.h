@@ -26,6 +26,7 @@ class File : public FileInterface {
   virtual std::vector<std::string> ListDirectory();
   virtual std::string RootName();
   virtual std::string ProperName();
+  virtual std::string GenericName();
   virtual Status Open(const Mode mode);
   virtual Status Close();
   virtual Status Unlink();

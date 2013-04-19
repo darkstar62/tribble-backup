@@ -233,6 +233,11 @@ struct BackupFile {
   BackupFile() {
     memset(this, 0, sizeof(BackupFile));
     header_type = kHeaderTypeBackupFile;
+#ifdef _WIN32
+    os_type = kOsTypeWindows;
+#else
+    os_type = kOsTypeUnix;
+#endif  // _WIN32
   }
 
   enum FileType {

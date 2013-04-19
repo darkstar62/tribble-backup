@@ -191,8 +191,8 @@ Status BackupSnapshotManager::GetBackupSets() {
     LOG(INFO) << "Loading index: " << index;
     FileSet* fileset = backup_sets.value().at(index);
     for (FileEntry* entry : fileset->GetFiles()) {
-      FileInfo info(entry, entry->filename());
-      files.insert(tr(entry->filename().c_str()), info);
+      FileInfo info(entry, entry->proper_filename());
+      files.insert(tr(entry->proper_filename().c_str()), info);
     }
     cached_backup_sets_.prepend(files);
   }

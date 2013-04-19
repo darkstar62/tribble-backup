@@ -48,6 +48,9 @@ class FileInterface {
   // preferred for the system.
   virtual std::string ProperName() = 0;
 
+  // Return a generic name that should work with any operating system.
+  virtual std::string GenericName() = 0;
+
   // Open the given file with the given mode.  Args are the same as fopen().
   // Returns status of the operation.
   virtual Status Open(const FileInterface::Mode mode) = 0;

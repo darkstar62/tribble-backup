@@ -447,13 +447,13 @@ Status BackupVolume::WriteBackupDescriptor2(const FileSet& fileset) {
   // Write the BackupFile and BackupChunk headers.
   for (const FileEntry* backup_file : fileset.GetFiles()) {
     const BackupFile* metadata = backup_file->GetBackupFile();
-    VLOG(4) << "Data for " << backup_file->filename()
+    VLOG(4) << "Data for " << backup_file->proper_filename()
             << "(size = " << metadata->file_size << ")";
     retval = file_->Write(metadata, sizeof(*metadata));
     LOG_RETURN_IF_ERROR(retval, "Couldn't write FileEntry data");
 
-    retval = file_->Write(&backup_file->filename().at(0),
-                          backup_file->filename().size());
+    retval = file_->Write(&backup_file->generic_filename().at(0),
+                          backup_file->generic_filename().size());
     LOG_RETURN_IF_ERROR(retval, "Couldn't write FileEntry filename");
 
     if (metadata->file_type == BackupFile::kFileTypeSymlink) {

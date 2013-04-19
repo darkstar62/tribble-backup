@@ -42,6 +42,10 @@ class FakeFile : public FileInterface {
     return "";
   }
 
+  virtual std::string GenericName() {
+    return "";
+  }
+
   virtual Status Open(FileInterface::Mode mode) {
     open_ = true;
     return Status::OK;

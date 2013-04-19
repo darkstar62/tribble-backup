@@ -8,6 +8,7 @@
 
 #include "boost/filesystem.hpp"
 #include "glog/logging.h"
+#include "src/file.h"
 
 using std::string;
 
@@ -43,8 +44,9 @@ uint64_t FileSet::unencoded_size() const {
 
 FileEntry::FileEntry(const string& filename, BackupFile* metadata)
     : metadata_(metadata),
-      filename_(boost::filesystem::path(filename).make_preferred().string()) {
-  metadata->filename_size = filename_.size();
+      generic_filename_(File(filename).GenericName()),
+      proper_filename_(File(filename).ProperName()) {
+  metadata->filename_size = generic_filename_.size();
 }
 
 }  // namespace backup2

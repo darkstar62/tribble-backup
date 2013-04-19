@@ -71,7 +71,7 @@ int RestoreDriver::Restore() {
   for (FileEntry* entry : fileset->GetFiles()) {
     if (entry->GetBackupFile()->file_type == BackupFile::kFileTypeDirectory) {
       boost::filesystem::path restore_path(restore_path_);
-      boost::filesystem::path file_path(entry->filename());
+      boost::filesystem::path file_path(entry->proper_filename());
       boost::filesystem::path dest = restore_path;
       dest /= file_path;
 
@@ -94,7 +94,7 @@ int RestoreDriver::Restore() {
     FileChunk chunk = chunk_pair.first;
     const FileEntry* entry = chunk_pair.second;
 
-    if (entry->filename() != last_filename) {
+    if (entry->proper_filename() != last_filename) {
       if (file) {
         file->Close();
         delete file;
@@ -102,7 +102,7 @@ int RestoreDriver::Restore() {
       }
 
       boost::filesystem::path restore_path(restore_path_);
-      boost::filesystem::path file_path(entry->filename());
+      boost::filesystem::path file_path(entry->proper_filename());
       boost::filesystem::path dest = restore_path;
       dest /= file_path;
 
@@ -112,7 +112,7 @@ int RestoreDriver::Restore() {
       CHECK(file->CreateDirectories(true).ok());
       CHECK(file->Open(File::Mode::kModeReadWrite).ok());
 
-      last_filename = entry->filename();
+      last_filename = entry->proper_filename();
     }
 
     string data;

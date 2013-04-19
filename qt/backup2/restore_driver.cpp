@@ -68,12 +68,12 @@ void RestoreDriver::PerformRestore() {
        snapshot_id < static_cast<int>(filesets_.size()); ++snapshot_id) {
     FileSet* fileset = filesets_.at(snapshot_id);
     for (FileEntry* entry : fileset->GetFiles()) {
-      auto restore_path_iter = restore_paths_.find(entry->filename());
+      auto restore_path_iter = restore_paths_.find(entry->proper_filename());
       if (restore_path_iter != restore_paths_.end()) {
         files_to_restore.insert(entry);
         restore_paths_.erase(restore_path_iter);
       } else {
-        LOG(INFO) << "Skipped " << entry->filename();
+        LOG(INFO) << "Skipped " << entry->proper_filename();
       }
     }
   }
@@ -113,7 +113,7 @@ void RestoreDriver::PerformRestore() {
   // Start by creating any directories and special files necessary.
   for (FileEntry* entry : special_files) {
     boost::filesystem::path restore_path(destination_path_.toStdString());
-    boost::filesystem::path file_path(entry->filename());
+    boost::filesystem::path file_path(entry->proper_filename());
     boost::filesystem::path dest = restore_path;
     dest /= file_path.relative_path();
 
@@ -169,7 +169,7 @@ void RestoreDriver::PerformRestore() {
     }
     FileChunk chunk = chunk_pair.first;
     const FileEntry* entry = chunk_pair.second;
-    if (entry->filename() != last_filename) {
+    if (entry->proper_filename() != last_filename) {
       if (file) {
         file->Close();
         delete file;
@@ -203,7 +203,7 @@ void RestoreDriver::PerformRestore() {
         continue;
       }
 
-      last_filename = entry->filename();
+      last_filename = entry->proper_filename();
     }
 
     string data;
@@ -276,7 +276,7 @@ void RestoreDriver::PerformRestore() {
 
 string RestoreDriver::CreateRestorePath(const FileEntry& entry) {
   boost::filesystem::path restore_path(destination_path_.toStdString());
-  boost::filesystem::path file_path(entry.filename());
+  boost::filesystem::path file_path(entry.proper_filename());
   boost::filesystem::path unclean_dest = restore_path;
   unclean_dest /= file_path.relative_path();
 

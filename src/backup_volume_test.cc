@@ -1165,7 +1165,8 @@ TEST_F(BackupVolumeTest, ReadBackupSets) {
   ASSERT_THAT(file_set, NotNull());
   EXPECT_EQ("backup", file_set->description());
   EXPECT_EQ(1, file_set->num_files());
-  EXPECT_EQ(kTestFilename, (*(file_set->GetFiles().begin()))->filename());
+  EXPECT_EQ(kTestFilename,
+            (*(file_set->GetFiles().begin()))->proper_filename());
   EXPECT_EQ(label1_id, file_set->label_id());
   EXPECT_EQ(label1_name, file_set->label_name());
   EXPECT_EQ(12345, file_set->date());
@@ -1279,7 +1280,8 @@ TEST_F(BackupVolumeTest, ReadBackupSetsMultiFile) {
   ASSERT_THAT(file_set, NotNull());
   EXPECT_EQ("backup", file_set->description());
   EXPECT_EQ(1, file_set->num_files());
-  EXPECT_EQ(kTestFilename, (*(file_set->GetFiles().begin()))->filename());
+  EXPECT_EQ(kTestFilename,
+            (*(file_set->GetFiles().begin()))->proper_filename());
   EXPECT_EQ(12345, file_set->date());
 
   // Clean up.

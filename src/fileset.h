@@ -186,7 +186,14 @@ class FileEntry {
     return chunks_;
   }
 
-  const std::string& filename() const { return filename_; }
+  // Return the generic filename for this entry.  This filename is stored in the
+  // backup files, and allows the paths to be translated between different OS's.
+  const std::string& generic_filename() const { return generic_filename_; }
+
+  // Return the proper filename for the platform.  This is used for
+  // pretty-printing to the user and for restoring files to the native
+  // filesystem.
+  const std::string& proper_filename() const { return proper_filename_; }
 
   // Set the symlink target.
   void set_symlink_target(const std::string target) {
@@ -199,8 +206,10 @@ class FileEntry {
   // File metadata, ultimately saved into the backup volume.
   std::unique_ptr<BackupFile> metadata_;
 
-  // Filename for this file.
-  const std::string filename_;
+  // Filename for this file, both a generic (platform-agnostic) and native
+  // format.
+  const std::string generic_filename_;
+  const std::string proper_filename_;
 
   // The target of the symlink for this file (if any).
   std::string symlink_target_;

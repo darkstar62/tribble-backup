@@ -93,6 +93,10 @@ string File::ProperName() {
   return boost::filesystem::path(filename_).make_preferred().string();
 }
 
+string File::GenericName() {
+  return boost::filesystem::path(filename_).generic_string();
+}
+
 Status File::Open(const Mode mode) {
   CHECK(!file_) << "File already open";
 

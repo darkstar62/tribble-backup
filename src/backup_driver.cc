@@ -167,17 +167,17 @@ void BackupDriver::LoadIncrementalFilelist(
   if (differential) {
     for (const FileEntry* entry :
          filesets.value()[filesets.value().size() - 1]->GetFiles()) {
-      auto iter = combined_files.find(entry->filename());
+      auto iter = combined_files.find(entry->proper_filename());
       if (iter == combined_files.end()) {
-        combined_files.insert(make_pair(entry->filename(), entry));
+        combined_files.insert(make_pair(entry->proper_filename(), entry));
       }
     }
   } else {
     for (FileSet* fileset : filesets.value()) {
       for (const FileEntry* entry : fileset->GetFiles()) {
-        auto iter = combined_files.find(entry->filename());
+        auto iter = combined_files.find(entry->proper_filename());
         if (iter == combined_files.end()) {
-          combined_files.insert(make_pair(entry->filename(), entry));
+          combined_files.insert(make_pair(entry->proper_filename(), entry));
         }
       }
     }
