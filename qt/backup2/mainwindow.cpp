@@ -581,18 +581,9 @@ void MainWindow::OnEstimatedTimeUpdated(QString message) {
 }
 
 void MainWindow::RestoreSourceBrowse() {
-  QFileDialog dialog(this);
-  dialog.setNameFilter(tr("Backup volumes (*.bkp)"));
-  dialog.setAcceptMode(QFileDialog::AcceptOpen);
-  dialog.setDefaultSuffix(".bkp");
-  dialog.setConfirmOverwrite(false);
-
-  QStringList filenames;
-  if (dialog.exec()) {
-    filenames = dialog.selectedFiles();
-    ui_->restore_source->setText(
-        tr(File(filenames[0].toStdString()).ProperName().c_str()));
-  }
+  QString filename = QFileDialog::getOpenFileName(
+      this, "Select a restore source", QString(), "Backup volumes (*.bkp)");
+  ui_->restore_source->setText(filename);
 }
 
 void MainWindow::RestoreSourceChanged(QString text) {
@@ -957,20 +948,9 @@ void MainWindow::GetVolumeForSnapshotManager(QString orig_path) {
       this, "Cannot Find Volume",
       string("Please locate the next volume: \n" + orig_path.toStdString())
           .c_str());
-
-  QFileDialog dialog(this);
-  dialog.setNameFilter(tr("Backup volumes (*.bkp)"));
-  dialog.setAcceptMode(QFileDialog::AcceptOpen);
-  dialog.setDefaultSuffix(".bkp");
-  dialog.setConfirmOverwrite(false);
-
-  QStringList filenames;
-  if (dialog.exec()) {
-    filenames = dialog.selectedFiles();
-    snapshot_manager_.VolumeChanged(filenames[0]);
-    return;
-  }
-  snapshot_manager_.VolumeChanged("");
+  QString filename = QFileDialog::getOpenFileName(
+      this, "Select the next volume", orig_path, "Backup volumes (*.bkp)");
+  snapshot_manager_.VolumeChanged(filename);
 }
 
 void MainWindow::GetVolume(QString orig_path) {
@@ -978,18 +958,7 @@ void MainWindow::GetVolume(QString orig_path) {
       this, "Cannot Find Volume",
       string("Please locate the next volume: \n" + orig_path.toStdString())
           .c_str());
-
-  QFileDialog dialog(this);
-  dialog.setNameFilter(tr("Backup volumes (*.bkp)"));
-  dialog.setAcceptMode(QFileDialog::AcceptOpen);
-  dialog.setDefaultSuffix(".bkp");
-  dialog.setConfirmOverwrite(false);
-
-  QStringList filenames;
-  if (dialog.exec()) {
-    filenames = dialog.selectedFiles();
-    restore_driver_->VolumeChanged(filenames[0]);
-    return;
-  }
-  restore_driver_->VolumeChanged("");
+  QString filename = QFileDialog::getOpenFileName(
+      this, "Select the next volume", orig_path, "Backup volumes (*.bkp)");
+  restore_driver_->VolumeChanged(filename);
 }
