@@ -23,7 +23,9 @@ SOURCES += main.cpp\
     icon_provider.cpp \
     please_wait_dlg.cpp \
     backup_snapshot_manager.cpp \
-    restore_driver.cpp
+    restore_driver.cpp \
+    restore_helper.cpp \
+    backup_helper.cpp
 
 HEADERS  += mainwindow.h \
     file_selector_model.h \
@@ -36,7 +38,9 @@ HEADERS  += mainwindow.h \
     icon_provider.h \
     please_wait_dlg.h \
     backup_snapshot_manager.h \
-    restore_driver.h
+    restore_driver.h \
+    restore_helper.h \
+    backup_helper.h
 
 FORMS    += mainwindow.ui \
     manage_labels_dlg.ui \
@@ -93,4 +97,4 @@ OTHER_FILES +=
 # include(modeltest/modeltest.pro)
 
 # Uncomment this to enable debugging in Windows.
-# win32: QMAKE_LFLAGS += /DEBUG
+win32: QMAKE_LFLAGS += /DEBUG
