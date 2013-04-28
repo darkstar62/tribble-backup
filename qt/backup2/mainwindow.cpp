@@ -6,6 +6,7 @@
 #include "qt/backup2/backup_helper.h"
 #include "qt/backup2/mainwindow.h"
 #include "qt/backup2/restore_helper.h"
+#include "qt/backup2/verify_helper.h"
 
 #include "ui_mainwindow.h"  // NOLINT
 
@@ -18,6 +19,8 @@ MainWindow::MainWindow(QWidget *parent)
   ui_->main_tabset->setCurrentIndex(0);
   ui_->backup_tabset->setCurrentIndex(0);
   ui_->restore_tabset->setCurrentIndex(0);
+  ui_->verify_tabset->setCurrentIndex(0);
+  ui_->manage_tabset->setCurrentIndex(0);
 
   ui_->general_separator->setVisible(false);
   ui_->general_progress->setVisible(false);
@@ -27,6 +30,7 @@ MainWindow::MainWindow(QWidget *parent)
 
   backup_helper_.reset(new BackupHelper(this, ui_));
   restore_helper_.reset(new RestoreHelper(this, ui_));
+  verify_helper_.reset(new VerifyHelper(this, ui_));
 }
 
 MainWindow::~MainWindow() {

@@ -25,7 +25,9 @@ SOURCES += main.cpp\
     backup_snapshot_manager.cpp \
     restore_driver.cpp \
     restore_helper.cpp \
-    backup_helper.cpp
+    backup_helper.cpp \
+    verify_helper.cpp \
+    verify_driver.cpp
 
 HEADERS  += mainwindow.h \
     file_selector_model.h \
@@ -40,7 +42,9 @@ HEADERS  += mainwindow.h \
     backup_snapshot_manager.h \
     restore_driver.h \
     restore_helper.h \
-    backup_helper.h
+    backup_helper.h \
+    verify_helper.h \
+    verify_driver.h
 
 FORMS    += mainwindow.ui \
     manage_labels_dlg.ui \

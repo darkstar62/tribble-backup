@@ -18,6 +18,7 @@ class MainWindow;
 class BackupHelper;
 class QWidget;
 class RestoreHelper;
+class VerifyHelper;
 
 class MainWindow : public QMainWindow {
   Q_OBJECT
@@ -30,6 +31,7 @@ class MainWindow : public QMainWindow {
   Ui::MainWindow* ui_;
   std::unique_ptr<BackupHelper> backup_helper_;
   std::unique_ptr<RestoreHelper> restore_helper_;
+  std::unique_ptr<VerifyHelper> verify_helper_;
 };
 
 #endif  // BACKUP2_QT_BACKUP2_MAINWINDOW_H_
