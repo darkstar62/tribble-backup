@@ -41,11 +41,11 @@ VerifyHelper::VerifyHelper(MainWindow* main_window, Ui::MainWindow* ui)
     : main_window_(main_window),
       ui_(ui),
       please_wait_dlg_(new PleaseWaitDlg(NULL)),
+      verify_update_timer_(new QTimer(this)),
       restore_model_(),
       restore_model_sorter_(NULL),
       snapshot_manager_(new BackupSnapshotManager(NULL)),
-      current_snapshot_(0),
-      verify_update_timer_(new QTimer(this)) {
+      current_snapshot_(0) {
   please_wait_dlg_->setWindowFlags(Qt::CustomizeWindowHint | Qt::SplashScreen);
   verify_update_timer_->setInterval(250);
 

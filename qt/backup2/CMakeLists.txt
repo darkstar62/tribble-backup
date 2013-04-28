@@ -33,6 +33,10 @@ LINT_SOURCES(
     restore_helper.h
     restore_selector_model.cpp
     restore_selector_model.h
+    verify_driver.cpp
+    verify_driver.h
+    verify_helper.cpp
+    verify_helper.h
     vss_proxy.cpp
     vss_proxy.h
     vss_proxy_interface.h
