@@ -179,7 +179,6 @@ void VerifyDriver::PerformFilesystemVerify() {
     }
     FileChunk chunk = chunk_pair.first;
     const FileEntry* entry = chunk_pair.second;
-    string dest = "";
     if (different_files.find(entry->proper_filename()) !=
             different_files.end()) {
       // File has already been marked as different, just skip it.
@@ -214,17 +213,25 @@ void VerifyDriver::PerformFilesystemVerify() {
 
     if (!retval.ok()) {
       if (retval.code() != backup2::kStatusShortRead) {
-        LOG(WARNING) << "Error reading file " << dest << ": "
+        LOG(WARNING) << "Error reading file " << ": "
                      << retval.ToString();
-        emit LogEntry(string("Error reading file " + dest +
+        emit LogEntry(string("Error reading file " + entry->proper_filename() +
                              ": " + retval.ToString()).c_str());
         different_files.insert(entry->proper_filename());
         continue;
       } else {
-        emit LogEntry(string("Files different: " + dest).c_str());
+        emit LogEntry(
+            string("Files different: " + entry->proper_filename()).c_str());
         different_files.insert(entry->proper_filename());
         continue;
       }
+    }
+
+    if (data != read_data) {
+      emit LogEntry(
+          string("Files different: " + entry->proper_filename()).c_str());
+      different_files.insert(entry->proper_filename());
+      continue;
     }
   }
 
