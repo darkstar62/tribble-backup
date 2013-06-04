@@ -75,6 +75,9 @@ VerifyHelper::VerifyHelper(MainWindow* main_window, Ui::MainWindow* ui)
                    this, SLOT(SwitchToPage2()));
   QObject::connect(ui_->run_verify_button, SIGNAL(clicked()), this,
                    SLOT(OnRunVerify()));
+  QObject::connect(ui_->verify_history_slider,
+                   SIGNAL(valueChanged(int)), this,
+                   SLOT(OnHistorySliderChanged(int)));
   QObject::connect(ui_->verify_cancel_button, SIGNAL(clicked()),
                    this, SLOT(CancelOrCloseVerify()));
   QObject::connect(ui_->verify_cancelled_back_button,
@@ -329,7 +332,7 @@ void VerifyHelper::OnHistoryLoaded() {
   ui_->verify_tabset->setCurrentIndex(1);
 
   please_wait_dlg_->hide();
-  ui_->restore_history_slider->setEnabled(true);
+  ui_->verify_history_slider->setEnabled(true);
 }
 
 void VerifyHelper::OnCompareAgainstBrowse() {
