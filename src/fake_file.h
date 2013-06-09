@@ -122,6 +122,10 @@ class FakeFile : public FileInterface {
     return Status::OK;
   }
 
+  virtual Status Flush() {
+    return Status::OK;
+  }
+
   virtual Status CreateDirectories(bool strip_leaf) {
     return Status::OK;
   }

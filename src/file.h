@@ -36,6 +36,7 @@ class File : public FileInterface {
   virtual Status Read(void* buffer, size_t length, size_t* read_bytes);
   virtual Status ReadLines(std::vector<std::string>* strings);
   virtual Status Write(const void* buffer, size_t length);
+  virtual Status Flush();
   virtual Status CreateDirectories(bool strip_leaf);
   virtual Status CreateSymlink(std::string target);
   virtual std::string RelativePath();
@@ -48,6 +49,8 @@ class File : public FileInterface {
   virtual Status size(uint64_t* size_out) const;
 
  private:
+  static const uint64_t kFlushSize = 1024 * 1024 * 10;
+
   // Given a path, decode from it the base path and the volume number it
   // represents.
   Status FilenameToVolumeNumber(
@@ -61,6 +64,16 @@ class File : public FileInterface {
   const std::string filename_;
   FILE* file_;
   FileInterface::Mode mode_;
+
+  // Buffer for writes.  To make network writes more efficient, we flush out at
+  // least kFlushSize bytes once the buffer reaches that size.  This way we're
+  // not making a million tiny inefficient writes.
+  //
+  // The buffer is statically allocated to kFlushSize * 2 to avoid doing lots of
+  // memory allocation during the backup, and to allow us to go over the flush
+  // size by some amount.
+  std::unique_ptr<char[]> buffer_;
+  uint64_t buffer_size_;
 };
 
 }  // namespace backup2

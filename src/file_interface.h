@@ -85,6 +85,11 @@ class FileInterface {
   // happen at the end of the file.
   virtual Status Write(const void* buffer, size_t length) = 0;
 
+  // Flush any unwritten content to the disk.  If the file implementation
+  // supports buffering, this can be used to flush the buffer to disk.
+  // Otherwise, this is does nothing successfully.
+  virtual Status Flush() = 0;
+
   // Create the directories recursively leading to the file represented by this
   // class.  If strip_leaf is false, the filename pointed to by this File is
   // taken to be a directory as well, and it is not stripped.

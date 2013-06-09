@@ -37,7 +37,9 @@ namespace backup2 {
 File::File(const string& filename)
     : filename_(filename),
       file_(NULL),
-      mode_(kModeInvalid) {
+      mode_(kModeInvalid),
+      buffer_(new char[kFlushSize]),
+      buffer_size_(0) {
 }
 
 File::~File() {
@@ -144,6 +146,12 @@ Status File::Close() {
   if (!file_) {
     return Status(kStatusGenericError, "File not opened");
   }
+  if (buffer_size_ > 0) {
+    Status retval = Flush();
+    if (!retval.ok()) {
+      return retval;
+    }
+  }
   if (fclose(file_) == -1) {
     return Status(kStatusCorruptBackup, strerror(errno));
   }
@@ -159,11 +167,18 @@ Status File::Unlink() {
 
 int64_t File::Tell() {
   CHECK_NOTNULL(file_);
-  return FTELL64(file_);
+  return FTELL64(file_) + buffer_size_;
 }
 
 Status File::Seek(int64_t offset) {
   CHECK_NOTNULL(file_);
+
+  // Flush on seek to ensure the file is consistent.
+  Status flush_retval = Flush();
+  if (!flush_retval.ok()) {
+    return flush_retval;
+  }
+
   clearerr(file_);
   int64_t retval = 0;
   if (offset < 0) {
@@ -183,6 +198,13 @@ Status File::Seek(int64_t offset) {
 
 Status File::SeekEof() {
   CHECK_NOTNULL(file_);
+
+  // Flush on seek to ensure the file is consistent.
+  Status flush_retval = Flush();
+  if (!flush_retval.ok()) {
+    return flush_retval;
+  }
+
   clearerr(file_);
   int64_t retval = FSEEK64(file_, 0, SEEK_END);
   if (retval == -1) {
@@ -260,6 +282,16 @@ Status File::ReadLines(vector<string>* lines) {
 
 Status File::Write(const void* buffer, size_t length) {
   CHECK_NOTNULL(file_);
+  if (buffer_size_ + length > kFlushSize * 2) {
+    // If we put this in the buffer, it'll overflow.  Flush first, then buffer.
+    Status retval = Flush();
+    if (!retval.ok()) {
+      return retval;
+    }
+  }
+  // We may be over the kFlushSize with this write, but as long as we don't
+  // exceed the maximum size of the buffer, we still buffer it.
+
   if (mode_ == kModeAppend) {
     // Reset the write position to EOF.  This is needed on some systems that
     // don't do this automatically.
@@ -267,11 +299,30 @@ Status File::Write(const void* buffer, size_t length) {
     LOG_RETURN_IF_ERROR(retval, "Couldn't seek to end for write");
   }
 
-  size_t written_bytes = fwrite(buffer, 1, length, file_);
-  if (written_bytes < length) {
-    LOG(ERROR) << "Wrote " << written_bytes << ", expected " << length;
+  memcpy(buffer_.get() + buffer_size_, buffer, length);
+  buffer_size_ += length;
+
+  if (buffer_size_ > kFlushSize) {
+    Status retval = Flush();
+    if (!retval.ok()) {
+      return retval;
+    }
+  }
+
+  return Status::OK;
+}
+
+Status File::Flush() {
+  if (buffer_size_ == 0) {
+    return Status::OK;
+  }
+
+  size_t written_bytes = fwrite(buffer_.get(), 1, buffer_size_, file_);
+  if (written_bytes < buffer_size_) {
+    LOG(ERROR) << "Wrote " << written_bytes << ", expected " << buffer_size_;
     return Status(kStatusCorruptBackup, "Short write of file");
   }
+  buffer_size_ = 0;
   return Status::OK;
 }
 
@@ -440,7 +491,7 @@ Status File::size(uint64_t* size_out) const {
     return Status(kStatusFileError,
                   "Error getting size: " + error_code.message());
   }
-  *size_out = retval;
+  *size_out = retval + buffer_size_;
   return Status::OK;
 }
 
