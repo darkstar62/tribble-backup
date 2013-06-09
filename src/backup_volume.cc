@@ -303,6 +303,10 @@ Status BackupVolume::WriteBackupDescriptor1(FileSet* fileset) {
   LOG_RETURN_IF_ERROR(retval, "Error seeking to EOF");
   descriptor_header_.backup_descriptor_1_offset = file_->Tell();
 
+  // We buffer writes to help with some network resources where writing tons of
+  // small pieces of data is very inefficient.
+  string buffer = "";
+
   // Stash away the label we were given in the set.
   if (fileset) {
     if (fileset->use_default_label()) {
@@ -359,14 +363,14 @@ Status BackupVolume::WriteBackupDescriptor1(FileSet* fileset) {
   LOG(INFO) << "Writing descriptor 1 (labels: " << labels_.size() << ")";
   descriptor1_.total_chunks = chunks_.size();
   descriptor1_.total_labels = (fileset ? labels_.size() : 0);
-  retval = file_->Write(&descriptor1_, sizeof(BackupDescriptor1));
-  LOG_RETURN_IF_ERROR(retval, "Couldn't write descriptor 1 header");
+  buffer.append(reinterpret_cast<const char*>(&descriptor1_),
+                sizeof(BackupDescriptor1));
 
   // Following this, we write all the descriptor chunks we have.
   LOG(INFO) << "Writing descriptor 1 chunks";
   for (auto chunk : chunks_) {
-    retval = file_->Write(&chunk.second, sizeof(BackupDescriptor1Chunk));
-    LOG_RETURN_IF_ERROR(retval, "Couldn't write descriptor 1 chunk");
+    buffer.append(reinterpret_cast<const char*>(&chunk.second),
+                  sizeof(BackupDescriptor1Chunk));
   }
 
   // After this is the list of labels.  Calculate the size of this written to
@@ -376,6 +380,13 @@ Status BackupVolume::WriteBackupDescriptor1(FileSet* fileset) {
   for (auto label_iter : labels_) {
     label_block_size += sizeof(BackupDescriptor1Label);
     label_block_size += label_iter.second.name().size();
+  }
+
+  // Flush here, as we'll be messing with the file later on.
+  if (buffer.size() > 0) {
+    retval = file_->Write(&buffer.at(0), buffer.size());
+    LOG_RETURN_IF_ERROR(retval, "Couldn't write descriptor 1 data");
+    buffer.clear();
   }
 
   // Update our label (we can't do this if we're not closing with a FileSet).
@@ -399,16 +410,29 @@ Status BackupVolume::WriteBackupDescriptor1(FileSet* fileset) {
                 << hex << label_iter.first;
 
       // Write the descriptor.
-      retval = file_->Write(&label, sizeof(BackupDescriptor1Label));
-      LOG_RETURN_IF_ERROR(retval, "Couldn't write descriptor 1 label");
+      buffer.append(reinterpret_cast<const char*>(&label),
+                    sizeof(BackupDescriptor1Label));
 
       // Write the name.
       if (label_iter.second.name().size() > 0) {
-        retval = file_->Write(&label_iter.second.name().at(0),
-                              label_iter.second.name().size());
-        LOG_RETURN_IF_ERROR(retval, "Couldn't write label string");
+        buffer.append(&label_iter.second.name().at(0),
+                      label_iter.second.name().size());
+      }
+
+      if (buffer.size() > 1048576) {
+        // Flush out the buffer.
+        retval = file_->Write(&buffer.at(0), buffer.size());
+        LOG_RETURN_IF_ERROR(retval, "Couldn't write Descriptor 1 data");
+        buffer.clear();
       }
     }
+  }
+
+  if (buffer.size() > 0) {
+    // Flush out the buffer.
+    retval = file_->Write(&buffer.at(0), buffer.size());
+    LOG_RETURN_IF_ERROR(retval, "Couldn't write Descriptor 2 data");
+    buffer.clear();
   }
 
   modified_ = true;
@@ -420,6 +444,10 @@ Status BackupVolume::WriteBackupDescriptor2(const FileSet& fileset) {
   LOG(INFO) << "Writing descriptor 2";
   Status retval = file_->SeekEof();
   LOG_RETURN_IF_ERROR(retval, "Error seeking to EOF");
+
+  // We buffer writes to help with some network resources where writing tons of
+  // small pieces of data is very inefficient.
+  string buffer = "";
 
   LOG(INFO) << "Fileset date: " << fileset.date();
   descriptor_header_.backup_descriptor_2_present = true;
@@ -435,40 +463,46 @@ Status BackupVolume::WriteBackupDescriptor2(const FileSet& fileset) {
   descriptor2_.parent_backup_volume_number = parent_volume_;
   descriptor2_.backup_type = fileset.backup_type();
   descriptor2_.label_id = fileset.label_id();
-  retval = file_->Write(&descriptor2_, sizeof(BackupDescriptor2));
-  LOG_RETURN_IF_ERROR(retval, "Couldn't write descriptor 2 header");
+  buffer.append(reinterpret_cast<const char*>(&descriptor2_),
+                sizeof(BackupDescriptor2));
 
   if (fileset.description().size() > 0) {
-    retval = file_->Write(
-        &fileset.description().at(0), fileset.description().size());
-    LOG_RETURN_IF_ERROR(retval, "Couldn't write file set description");
+    buffer.append(&fileset.description().at(0),
+                  fileset.description().size());
   }
 
   // Write the BackupFile and BackupChunk headers.
   for (const FileEntry* backup_file : fileset.GetFiles()) {
     const BackupFile* metadata = backup_file->GetBackupFile();
-    VLOG(4) << "Data for " << backup_file->proper_filename()
-            << "(size = " << metadata->file_size << ")";
-    retval = file_->Write(metadata, sizeof(*metadata));
-    LOG_RETURN_IF_ERROR(retval, "Couldn't write FileEntry data");
-
-    retval = file_->Write(&backup_file->generic_filename().at(0),
-                          backup_file->generic_filename().size());
-    LOG_RETURN_IF_ERROR(retval, "Couldn't write FileEntry filename");
+    buffer.append(reinterpret_cast<const char*>(metadata),
+                  sizeof(*metadata));
+    buffer.append(&backup_file->generic_filename().at(0),
+                  backup_file->generic_filename().size());
 
     if (metadata->file_type == BackupFile::kFileTypeSymlink) {
       // Write the symlink target too.
-      retval = file_->Write(&backup_file->symlink_target().at(0),
-                            backup_file->symlink_target().size());
-      LOG_RETURN_IF_ERROR(retval, "Couldn't write FileEntry symlink target");
+      buffer.append(&backup_file->symlink_target().at(0),
+                    backup_file->symlink_target().size());
     }
 
     for (const FileChunk chunk : backup_file->GetChunks()) {
-      VLOG(5) << "Writing chunk " << std::hex
-              << chunk.md5sum.hi << chunk.md5sum.lo;
-      retval = file_->Write(&chunk, sizeof(FileChunk));
-      LOG_RETURN_IF_ERROR(retval, "Couldn't write FileChunk");
+      buffer.append(reinterpret_cast<const char*>(&chunk),
+                    sizeof(FileChunk));
     }
+
+    if (buffer.size() > 1048576) {
+      // Flush out the buffer.
+      retval = file_->Write(&buffer.at(0), buffer.size());
+      LOG_RETURN_IF_ERROR(retval, "Couldn't write Descriptor 2 data");
+      buffer.clear();
+    }
+  }
+
+  if (buffer.size() > 0) {
+    // Flush out the buffer.
+    retval = file_->Write(&buffer.at(0), buffer.size());
+    LOG_RETURN_IF_ERROR(retval, "Couldn't write Descriptor 2 data");
+    buffer.clear();
   }
 
   modified_ = true;

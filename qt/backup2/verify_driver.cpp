@@ -97,8 +97,6 @@ void VerifyDriver::PerformFilesystemVerify() {
       if (verify_path_iter != verify_paths_.end()) {
         files_to_verify.insert(entry);
         verify_paths_.erase(verify_path_iter);
-      } else {
-        LOG(INFO) << "Skipped " << entry->proper_filename();
       }
     }
   }
