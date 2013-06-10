@@ -403,7 +403,9 @@ void BackupDriver::PerformBackup() {
           }
         }
       }
-    } while (!(cancelled_ || (string_offset == data.size() && status.code() == backup2::kStatusShortRead)));
+    } while (!(cancelled_ ||
+               (string_offset == data.size() &&
+                status.code() == backup2::kStatusShortRead)));
 
     // We've reached the end of the file (or cancelled).  Close it out and
     // start the next one.
