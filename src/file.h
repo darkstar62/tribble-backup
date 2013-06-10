@@ -33,6 +33,7 @@ class File : public FileInterface {
   virtual int64_t Tell();
   virtual Status Seek(int64_t offset);
   virtual Status SeekEof();
+  virtual Status SeekEofNoFlush();
   virtual Status Read(void* buffer, size_t length, size_t* read_bytes);
   virtual Status ReadLines(std::vector<std::string>* strings);
   virtual Status Write(const void* buffer, size_t length);

@@ -70,6 +70,10 @@ class FakeFile : public FileInterface {
     pos_ = data_.size();
     return Status::OK;
   }
+  virtual Status SeekEofNoFlush() {
+    pos_ = data_.size();
+    return Status::OK;
+  }
   virtual Status Read(void* buffer, size_t length, size_t* read_bytes) {
     Status retval = Status::OK;
     // Position past end of file is a short read.

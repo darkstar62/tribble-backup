@@ -36,9 +36,11 @@ using testing::SetArgPointee;
 namespace backup2 {
 
 #ifdef _WIN32
-static const char kTestFilename[] = "C:\\foo\\bar";
+static const char kTestGenericFilename[] = "C:/foo/bar";
+static const char kTestProperFilename[] = "C:\\foo\\bar";
 #else
-static const char kTestFilename[] = "/foo/bar";
+static const char kTestGenericFilename[] = "/foo/bar";
+static const char kTestProperFilename[] = "/foo/bar";
 #endif  // _WIN32
 
 // Action to copy bytes into a void* field.
@@ -460,7 +462,7 @@ TEST_F(BackupVolumeTest, CreateAddChunkAndCloseWithFileSet) {
   file->Write(&description.at(0), description.size());
 
   // Create a BackupFile, and a chunk to go with it.
-  string filename = kTestFilename;
+  string filename = kTestGenericFilename;
   BackupFile backup_file;
   backup_file.file_size = chunk_data.size();
   backup_file.file_type = BackupFile::kFileTypeRegularFile;
@@ -499,7 +501,7 @@ TEST_F(BackupVolumeTest, CreateAddChunkAndCloseWithFileSet) {
   entry_metadata->file_size = chunk_data.size();
   entry_metadata->file_type = BackupFile::kFileTypeRegularFile;
 
-  FileEntry* file_entry = new FileEntry(kTestFilename, entry_metadata);
+  FileEntry* file_entry = new FileEntry(kTestGenericFilename, entry_metadata);
   file_entry->AddChunk(file_chunk);
   FileSet file_set;
 
@@ -592,7 +594,7 @@ TEST_F(BackupVolumeTest, CreateAddChunkAndCloseWithFileSetSymlink) {
   file->Write(&description.at(0), description.size());
 
   // Create a BackupFile, and a chunk to go with it.
-  string filename = kTestFilename;
+  string filename = kTestGenericFilename;
   string symlink = "/foo/bar/yo";
   BackupFile backup_file;
   backup_file.file_size = 0;
@@ -626,7 +628,7 @@ TEST_F(BackupVolumeTest, CreateAddChunkAndCloseWithFileSetSymlink) {
   entry_metadata->file_size = 0;
   entry_metadata->file_type = BackupFile::kFileTypeSymlink;
 
-  FileEntry* file_entry = new FileEntry(kTestFilename, entry_metadata);
+  FileEntry* file_entry = new FileEntry(kTestGenericFilename, entry_metadata);
   file_entry->set_symlink_target(symlink);
   FileSet file_set;
 
@@ -717,7 +719,7 @@ TEST_F(BackupVolumeTest, CreateAddChunkAndCloseWithFileSetRenameLabel1) {
   file->Write(&description.at(0), description.size());
 
   // Create a BackupFile, and a chunk to go with it.
-  string filename = kTestFilename;
+  string filename = kTestGenericFilename;
   BackupFile backup_file;
   backup_file.file_size = chunk_data.size();
   backup_file.file_type = BackupFile::kFileTypeRegularFile;
@@ -756,7 +758,7 @@ TEST_F(BackupVolumeTest, CreateAddChunkAndCloseWithFileSetRenameLabel1) {
   entry_metadata->file_size = chunk_data.size();
   entry_metadata->file_type = BackupFile::kFileTypeRegularFile;
 
-  FileEntry* file_entry = new FileEntry(kTestFilename, entry_metadata);
+  FileEntry* file_entry = new FileEntry(kTestGenericFilename, entry_metadata);
   file_entry->AddChunk(file_chunk);
   FileSet file_set;
 
@@ -868,7 +870,7 @@ TEST_F(BackupVolumeTest, CreateAddChunkAndCloseWithFileSetAndLabels) {
   file->Write(&description.at(0), description.size());
 
   // Create a BackupFile, and a chunk to go with it.
-  string filename = kTestFilename;
+  string filename = kTestGenericFilename;
   BackupFile backup_file;
   backup_file.file_size = chunk_data.size();
   backup_file.file_type = BackupFile::kFileTypeRegularFile;
@@ -907,7 +909,7 @@ TEST_F(BackupVolumeTest, CreateAddChunkAndCloseWithFileSetAndLabels) {
   entry_metadata->file_size = chunk_data.size();
   entry_metadata->file_type = BackupFile::kFileTypeRegularFile;
 
-  FileEntry* file_entry = new FileEntry(kTestFilename, entry_metadata);
+  FileEntry* file_entry = new FileEntry(kTestGenericFilename, entry_metadata);
   file_entry->AddChunk(file_chunk);
   FileSet file_set;
 
@@ -1125,7 +1127,7 @@ TEST_F(BackupVolumeTest, ReadBackupSets) {
   file->Write(&description.at(0), description.size());
 
   // Create a BackupFile, and a chunk to go with it.
-  string filename = kTestFilename;
+  string filename = kTestGenericFilename;
   BackupFile backup_file;
   backup_file.file_size = chunk_data.size();
   backup_file.num_chunks = 1;
@@ -1165,7 +1167,7 @@ TEST_F(BackupVolumeTest, ReadBackupSets) {
   ASSERT_THAT(file_set, NotNull());
   EXPECT_EQ("backup", file_set->description());
   EXPECT_EQ(1, file_set->num_files());
-  EXPECT_EQ(kTestFilename,
+  EXPECT_EQ(kTestProperFilename,
             (*(file_set->GetFiles().begin()))->proper_filename());
   EXPECT_EQ(label1_id, file_set->label_id());
   EXPECT_EQ(label1_name, file_set->label_name());
@@ -1239,7 +1241,7 @@ TEST_F(BackupVolumeTest, ReadBackupSetsMultiFile) {
     vol0->Write(&description.at(0), description.size());
 
     // Create a BackupFile, and a chunk to go with it.
-    string filename = kTestFilename;
+    string filename = kTestGenericFilename;
     BackupFile backup_file;
     backup_file.file_size = chunk_data.size();
     backup_file.num_chunks = 1;
@@ -1280,7 +1282,7 @@ TEST_F(BackupVolumeTest, ReadBackupSetsMultiFile) {
   ASSERT_THAT(file_set, NotNull());
   EXPECT_EQ("backup", file_set->description());
   EXPECT_EQ(1, file_set->num_files());
-  EXPECT_EQ(kTestFilename,
+  EXPECT_EQ(kTestProperFilename,
             (*(file_set->GetFiles().begin()))->proper_filename());
   EXPECT_EQ(12345, file_set->date());
 

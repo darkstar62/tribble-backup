@@ -71,6 +71,7 @@ class FileInterface {
 
   // Seek to the end of the file.
   virtual Status SeekEof() = 0;
+  virtual Status SeekEofNoFlush() = 0;
 
   // Read length bytes into buffer, returning status.  If a non-NULL pointer is
   // passed in to bytes_read, the number of bytes successfully read is returned

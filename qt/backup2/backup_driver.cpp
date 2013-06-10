@@ -347,27 +347,39 @@ void BackupDriver::PerformBackup() {
     }
     status = Status::OK;
 
+    string data;
+    uint64_t current_offset = 0;
+    uint64_t string_offset = 0;
     do {
-      uint64_t current_offset = file->Tell();
-      size_t read = 0;
-      string data;
-      data.resize(64*1024);
-      status = file->Read(&data.at(0), data.size(), &read);
-      if (!status.ok() && status.code() != backup2::kStatusShortRead) {
-        LOG(WARNING) << "Error reading file " << converted_filename << ": "
-                     << status.ToString();
-        emit LogEntry(string("Error reading file " + converted_filename +
-                             ": " + status.ToString()).c_str());
-        library.AbortFile(entry);
-        break;
+      if (string_offset == data.size()) {
+        // Refresh the buffer with as much data as we can, up to our max read
+        // size.
+        current_offset = file->Tell();
+        string_offset = 0;
+        size_t read = 0;
+        data.resize(5*1024*1024);
+        status = file->Read(&data.at(0), data.size(), &read);
+        if (!status.ok() && status.code() != backup2::kStatusShortRead) {
+          LOG(WARNING) << "Error reading file " << converted_filename << ": "
+                       << status.ToString();
+          emit LogEntry(string("Error reading file " + converted_filename +
+                               ": " + status.ToString()).c_str());
+          library.AbortFile(entry);
+          break;
+        }
+        data.resize(read);
       }
-      data.resize(read);
-      Status retval = library.AddChunk(data, current_offset, entry);
+
+      // Grab another chunk from the read data and write it out.
+      string to_write(data, string_offset, 64*1024);
+
+      Status retval = library.AddChunk(to_write, current_offset, entry);
       LOG_IF(FATAL, !retval.ok())
           << "Could not add chunk to volume: " << retval.ToString();
-
-      completed_size += read;
-      size_since_last_update += read;
+      string_offset += to_write.size();
+      current_offset += to_write.size();
+      completed_size += to_write.size();
+      size_since_last_update += to_write.size();
       if (size_since_last_update > 1048576) {
         size_since_last_update = 0;
         emit StatusUpdated(
@@ -391,7 +403,7 @@ void BackupDriver::PerformBackup() {
           }
         }
       }
-    } while (!cancelled_ && status.code() != backup2::kStatusShortRead);
+    } while (!(cancelled_ || (string_offset == data.size() && status.code() == backup2::kStatusShortRead)));
 
     // We've reached the end of the file (or cancelled).  Close it out and
     // start the next one.

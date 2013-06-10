@@ -38,7 +38,7 @@ File::File(const string& filename)
     : filename_(filename),
       file_(NULL),
       mode_(kModeInvalid),
-      buffer_(new char[kFlushSize]),
+      buffer_(new char[kFlushSize * 2]),
       buffer_size_(0) {
 }
 
@@ -205,6 +205,12 @@ Status File::SeekEof() {
     return flush_retval;
   }
 
+  return SeekEofNoFlush();
+}
+
+Status File::SeekEofNoFlush() {
+  CHECK_NOTNULL(file_);
+
   clearerr(file_);
   int64_t retval = FSEEK64(file_, 0, SEEK_END);
   if (retval == -1) {
@@ -292,13 +298,6 @@ Status File::Write(const void* buffer, size_t length) {
   // We may be over the kFlushSize with this write, but as long as we don't
   // exceed the maximum size of the buffer, we still buffer it.
 
-  if (mode_ == kModeAppend) {
-    // Reset the write position to EOF.  This is needed on some systems that
-    // don't do this automatically.
-    Status retval = SeekEof();
-    LOG_RETURN_IF_ERROR(retval, "Couldn't seek to end for write");
-  }
-
   memcpy(buffer_.get() + buffer_size_, buffer, length);
   buffer_size_ += length;
 
@@ -315,6 +314,13 @@ Status File::Write(const void* buffer, size_t length) {
 Status File::Flush() {
   if (buffer_size_ == 0) {
     return Status::OK;
+  }
+
+  if (mode_ == kModeAppend) {
+    // Reset the write position to EOF.  This is needed on some systems that
+    // don't do this automatically.
+    Status retval = SeekEofNoFlush();
+    LOG_RETURN_IF_ERROR(retval, "Couldn't seek to end for write");
   }
 
   size_t written_bytes = fwrite(buffer_.get(), 1, buffer_size_, file_);

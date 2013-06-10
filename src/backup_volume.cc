@@ -261,9 +261,8 @@ uint64_t BackupVolume::DiskSize() const {
 Status BackupVolume::WriteChunk(
     Uint128 md5sum, const string& data, uint64_t raw_size, EncodingType type,
     uint64_t* chunk_offset_out) {
-  Status retval = file_->SeekEof();
+  Status retval = file_->SeekEofNoFlush();
   LOG_RETURN_IF_ERROR(retval, "Error seeking to EOF");
-
   int64_t chunk_offset = file_->Tell();
 
   ChunkHeader header;

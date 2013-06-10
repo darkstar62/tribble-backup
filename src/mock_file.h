@@ -30,6 +30,7 @@ class MockFile : public FileInterface {
   MOCK_METHOD0(Tell, int64_t());
   MOCK_METHOD1(Seek, Status(int64_t offset));
   MOCK_METHOD0(SeekEof, Status());
+  MOCK_METHOD0(SeekEofNoFlush, Status());
   MOCK_METHOD3(Read, Status(void* buffer, size_t length, size_t* read_bytes));
   MOCK_METHOD1(ReadLines, Status(std::vector<std::string>* lines));
   MOCK_METHOD2(Write, Status(const void* buffer, size_t length));
