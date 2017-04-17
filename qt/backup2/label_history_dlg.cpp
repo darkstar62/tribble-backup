@@ -20,7 +20,7 @@ LabelHistoryDlg::LabelHistoryDlg(
 
   for (BackupItem item : history_) {
     QStringList view_strings;
-    QString size = QLocale().toString(item.size);
+    QString size = QLocale().toString((qulonglong)item.size);
     view_strings.append(item.date.toString());
     view_strings.append(item.type);
     view_strings.append(size);

@@ -566,8 +566,8 @@ uint64_t File::GetAttributes() {
 #endif  // _WIN32
 }
 
-void File::SetAttributes(uint64_t attributes) {
 #ifdef _WIN32
+void File::SetAttributes(uint64_t attributes) {
   DWORD win_attributes = static_cast<DWORD>(attributes);
   TCHAR win_file_path[MAX_PATH];
 
@@ -580,9 +580,9 @@ void File::SetAttributes(uint64_t attributes) {
     LOG(WARNING) << "Could not set attributes for " << filename_ << ": "
                  << GetLastError();
   }
-#endif  // _WIN32
-  // Use the attributes, to get around the compiler.
-  attributes = attributes;
 }
+#else
+void File::SetAttributes(uint64_t /*attributes*/) {}
+#endif  // _WIN32
 
 }  // namespace backup2

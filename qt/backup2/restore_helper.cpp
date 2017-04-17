@@ -178,13 +178,13 @@ void RestoreHelper::SwitchToRestorePage3() {
   vector<uint64_t> needed_volumes = restore_model_->GetNeededVolumes();
 
   ui_->restore_info_num_files->setText(
-      QLocale().toString(file_list.size()));
+      QLocale().toString((qulonglong)file_list.size()));
   ui_->restore_info_uncompressed_size->setText(
-      QLocale().toString(size));
+      QLocale().toString((qulonglong)size));
 
   QStringList volume_list;
   for (uint64_t volume : needed_volumes) {
-    volume_list.append(QLocale().toString(volume));
+    volume_list.append(QLocale().toString((qulonglong)volume));
   }
   ui_->restore_info_needed_volumes->setText(
       QLocale().createSeparatedList(volume_list));
@@ -226,11 +226,11 @@ void RestoreHelper::OnHistoryLoaded() {
           0, Qt::DisplayRole).toString());
   ui_->backup_info_type->setText(item.type);
   ui_->backup_info_size_uncompressed->setText(
-      QLocale().toString(item.size));
+      QLocale().toString((qulonglong)item.size));
   ui_->backup_info_unique_size->setText(
-      QLocale().toString(item.unique_size));
+      QLocale().toString((qulonglong)item.unique_size));
   ui_->backup_info_size_compressed->setText(QLocale().toString(
-      item.compressed_size));
+      (qulonglong)item.compressed_size));
   ui_->restore_date_description->setText(
       item.date.toString() + ": " + item.description + " (" + item.type + ")");
 

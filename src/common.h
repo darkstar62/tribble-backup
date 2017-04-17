@@ -42,8 +42,8 @@
 
 // Storage class for 128-bit unsigned integers.
 struct Uint128 {
-  uint64_t hi;
-  uint64_t lo;
+  unsigned long long int hi;
+  unsigned long long int lo;
 
   bool operator==(const Uint128& rhs) const {
     return hi == rhs.hi && lo == rhs.lo;

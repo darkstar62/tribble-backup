@@ -92,8 +92,8 @@ DEPENDPATH += $$PWD/../../../zlib-1.2.3/contrib/vstudio/vc8/x64/ZlibDllReleaseWi
 win32: LIBS += -lvssapi -lshell32 -lole32
 
 win32: QMAKE_CXXFLAGS += /O2 /Zi
-else:unix:CONFIG(release, debug|release): QMAKE_CXXFLAGS += -std=gnu++0x -O3 -Wall -Werror -Wextra -Wnon-virtual-dtor
-else:unix:CONFIG(debug, debug|release): QMAKE_CXXFLAGS += -std=gnu++0x -Wall -Werror -Wextra -Wnon-virtual-dtor
+else:unix:CONFIG(release, debug|release): QMAKE_CXXFLAGS += -std=gnu++0x -O3 -Wall -Wextra -Wnon-virtual-dtor
+else:unix:CONFIG(debug, debug|release): QMAKE_CXXFLAGS += -std=gnu++0x -Wall -Wextra -Wnon-virtual-dtor
 
 OTHER_FILES +=
 
