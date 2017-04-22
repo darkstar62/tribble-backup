@@ -31,6 +31,9 @@ ENDIF(GOOGLE_PERFTOOLS_FOUND)
 
 FIND_PACKAGE(Threads REQUIRED)
 
+FIND_PACKAGE(OpenSSL REQUIRED)
+INCLUDE_DIRECTORIES(${OPENSSL_INCLUDE_DIR})
+
 IF(MSVC)
   find_library(ZLIB_LIBRARY
      NAMES
@@ -302,9 +305,12 @@ ENDMACRO(MAKE_TEST)
       md5_generator.cc
       md5_generator.h
       md5_generator_interface.h
-      # md5.h -- disabled, we don't want to lint this.
     )
   ADD_LIBRARY(md5_generator ${md5_generator_SOURCES})
+  TARGET_LINK_LIBRARIES(
+    md5_generator
+      ${OPENSSL_LIBRARIES}
+    )
 
 # TEST: md5_generator_test
   LINT_SOURCES(

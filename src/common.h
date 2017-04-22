@@ -42,8 +42,8 @@
 
 // Storage class for 128-bit unsigned integers.
 struct Uint128 {
-  unsigned long long int hi;
-  unsigned long long int lo;
+  unsigned long long int hi;  // NOLINT(runtime/int)
+  unsigned long long int lo;  // NOLINT(runtime/int)
 
   bool operator==(const Uint128& rhs) const {
     return hi == rhs.hi && lo == rhs.lo;

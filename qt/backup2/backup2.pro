@@ -63,9 +63,7 @@ win32: HEADERS += vss_proxy.h
 
 win32:CONFIG(release, debug|release): LIBS += -L$$PWD/../../src/release/ -lbackup_library -lfileset -lfile -lbackup_volume -lmd5_generator -lgzip_encoder -lstatus
 else:win32:CONFIG(debug, debug|release): LIBS += -L$$PWD/../../src/debug/ -lbackup_library -lfileset -lfile -lbackup_volume -lmd5_generator -lgzip_encoder -lstatus
-else:unix: LIBS += -L$$PWD/../../src/ -lbackup_library -lfileset -lfile -lbackup_volume -lmd5_generator -lgzip_encoder -lstatus
-
-INCLUDEPATH += $$PWD/../../src/Release
+else:unix: LIBS += -L$$PWD/../../src/ -lbackup_library -lfileset -lfile -lbackup_volume -lmd5_generator -lgzip_encoder -lstatus -lcrypto
 DEPENDPATH += $$PWD/../../src/Release
 
 win32:CONFIG(release, debug|release): LIBS += -L$$PWD/../../../boost_1_53_0/stage/lib/ -lboost_filesystem-vc110-mt-1_53
